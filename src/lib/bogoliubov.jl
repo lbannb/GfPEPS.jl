@@ -167,9 +167,9 @@ function bloch_messiah_decomposition(M::AbstractMatrix)
     @assert Q*P ≈ P*conj.(Q)
 
     _, B = eigen(Q; sortby = (x -> -real(x)))
-    Q_bar = real(B'*Q*B)
+    # Q_bar = real(B'*Q*B)
     P_bar = B'*P*conj.(B)
-    @assert P_bar ≈ - transpose(P_bar)
+    @assert P_bar ≈ - transpose(P_bar) "P_bar should be skew-symmetric"
 
     # Bring P_bar to canonical form
     S, _ = skew_canonical_form(P_bar)
@@ -208,8 +208,8 @@ function bloch_messiah_decomposition(M::AbstractMatrix)
     @assert C'C ≈ I
     @assert Q'Q ≈ I
 
-    @assert U ≈ D*Ubar*C
-    @assert V ≈ conj.(D)*Vbar*C
+    @assert U ≈ D*Ubar*C "Something went wrong with Bloch-Messiah decomposition for U"
+    @assert V ≈ conj.(D)*Vbar*C "Something went wrong with Bloch-Messiah decomposition for V"
 
     # remove numerical noise
     Ubar = real(Ubar)
@@ -221,7 +221,7 @@ function bloch_messiah_decomposition(M::AbstractMatrix)
     UV_mat = [Ubar Vbar; Vbar Ubar]
     Cmat = [C zeros(N,N); zeros(N,N) conj.(C)]
 
-    @assert M ≈ Dmat * UV_mat * Cmat
+    @assert M ≈ Dmat * UV_mat * Cmat "Bloch-Messiah decomposition failed to reconstruct Bogoliubov transformation M"
 
     return Dmat, UV_mat, Cmat
 end
