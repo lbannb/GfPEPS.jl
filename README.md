@@ -1,6 +1,3 @@
-<!-- <img width="400" height="400" alt="GfPEPS_with_Gutzwiller_projector" src="https://github.com/user-attachments/assets/4ddf386a-b150-45fc-969e-2f46b3b4fcf9" /> -->
-
-<!-- <img width="8000" height="400" alt="GfPEPS_with_Gutzwiller_projector" src="https://github.com/user-attachments/assets/01ae8a70-3b76-4df2-89ac-c4824a8b7242" /> -->
 <img width="2000" height="400" alt="GfPEPS_with_Gutzwiller_projector" src="https://github.com/user-attachments/assets/a2d804b4-15df-434e-a74d-bc40ea559f52" />
 
 # GfPEPS.jl
@@ -31,10 +28,3 @@ The implementation of this package is based on the construction schemes in the f
 
 ## 🚀 Quick start
 Coming soon...
-
-## Todo:
--  Extend to larger unit cells
--  Implement excited states
--  Finish documentation
--  Write landing page
--  Write how to use example
