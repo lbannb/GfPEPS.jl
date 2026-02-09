@@ -2,13 +2,13 @@ using Revise
 using Test
 using GfPEPS
 using LinearAlgebra
-using SkewLinearAlgebra
-using JSON: parsefile
+
+# Create a parent Hamiltonian for a random CM state and test the properties of the Bogoliubov transformation that diagonalizes it. 
+# Also test the Bloch-Messiah decomposition of the Bogoliubov transformation.
 
 Nf = 2
 Nv = 2
 N = (Nf + 4*Nv)
-
 Γ,_ = GfPEPS.rand_CM(Nf, Nv)
 H = GfPEPS.get_parent_hamiltonian(Γ, Nf, Nv)
 _, M = GfPEPS.bogoliubov(H)
@@ -18,8 +18,13 @@ _, M = GfPEPS.bogoliubov(H)
     V_conj = M[1:N, N+1:end]
     U_conj = M[N+1:end, N+1:end]
 
+    # test properties of Bogoliubov transformation
     @test U_conj ≈ conj(U)
     @test V_conj ≈ conj(V)
     @test U'U + V'V ≈ I
     @test transpose(U) * V ≈ - transpose(V) * U 
+
+    # test Bloch-Messiah decomposition
+    Dmat, UVmat, Cmat = GfPEPS.bloch_messiah_decomposition(M)
+    @test M ≈ Dmat * UVmat * Cmat
 end;
