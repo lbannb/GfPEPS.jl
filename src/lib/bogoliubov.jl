@@ -1,6 +1,5 @@
-"""
-get_bogoliubov_blocks(M::AbstractMatrix)
-Extract the U,V blocks from the Bogoliubov transformation matrix `M = [U conj(V); V conj(U)]`.
+"""get_bogoliubov_blocks(M::AbstractMatrix)
+Extract the `U` and `V` blocks from the Bogoliubov transformation matrix `M = [U conj(V); V conj(U)]`.
 """
 function get_bogoliubov_blocks(M::AbstractMatrix)
     N = div(size(M, 1), 2)
@@ -9,10 +8,10 @@ function get_bogoliubov_blocks(M::AbstractMatrix)
     return U, V
 end
 
-"""
-Bogoliubov transformation of a fermionic bilinear Hamiltonian `H`. Returns 
-- The (positive) energy spectrum `E`, in descending order;
-- The transformation `M = [U conj(V); V conj(U)]` (such that `M' * H * M = diagm(vcat(E, -E))`);
+"""Return the spectrum and canonical transform that diagonalize the fermionic quadratic Hamiltonian `H`.
+
+The Bogoliubov matrix `M = [U conj(V); V conj(U)]` satisfies `M' * H * M == diagm(vcat(E, -E))`, and the
+returned vector `E` contains the positive eigenvalues in descending order.
 """
 function bogoliubov(H::Hermitian)
     N = div(size(H, 1), 2)
@@ -36,10 +35,9 @@ function bogoliubov(H::Hermitian)
     return E, M
 end
 
-"""
-    skew_canonical_form(P::AbstractMatrix)
+"""skew_canonical_form(P::AbstractMatrix)
 
-Returns S,X where: the transformation S, such that `transpose(S)*P*S` is in canonical form X (See: https://doi.org/10.1007/BF02906230)
+Return a pair `(S, X)` where `X = transpose(S)*P*S` is the canonical form for `P` (See: https://doi.org/10.1007/BF02906230).
 """
 function skew_canonical_form(P::AbstractMatrix)
     # Check skew-symmetry
@@ -97,6 +95,11 @@ function skew_canonical_form(P::AbstractMatrix)
     return S,X
 end
 
+"""absorb_phases(S::AbstractMatrix, X::AbstractMatrix)
+
+Adjust phases of the paired columns in `S` so that the corresponding canonical matrix `X` becomes real with
+positive entries in its upper-right elements. Returns the modified `(S2, X2)` pair.
+"""
 function absorb_phases(S::AbstractMatrix, X::AbstractMatrix)
     S2 = copy(S)
     X2 = copy(X)
@@ -129,8 +132,10 @@ function absorb_phases(S::AbstractMatrix, X::AbstractMatrix)
     return S2, real(X2)
 end
 
-# Build a permutation matrix S_perm so that (S_perm' * P_bar1 * S_perm)
-# has 2×2 skew blocks with Re(upper-right) ≥ 0 (i.e. "positive above, negative below")
+"""canonical_skew_permutation(P::AbstractMatrix)
+
+Return a permutation matrix that reorders 2×2 skew blocks so their upper-right elements have a nonnegative real part.
+"""
 function canonical_skew_permutation(P::AbstractMatrix)
     n = size(P,1)
     perm = collect(1:n)
@@ -153,6 +158,12 @@ function canonical_skew_permutation(P::AbstractMatrix)
     return S[:, perm]
 end
 
+"""bloch_messiah_decomposition(M::AbstractMatrix)
+
+Compute the Bloch–Messiah decomposition of the Bogoliubov transformation `M` and return the
+left (`Dmat`), middle (`UV_mat`), and right (`Cmat`) blocks such that
+`M ≈ Dmat * UV_mat * Cmat`.
+"""
 function bloch_messiah_decomposition(M::AbstractMatrix)
     N = div(size(M, 1), 2)
 
@@ -226,6 +237,10 @@ function bloch_messiah_decomposition(M::AbstractMatrix)
     return Dmat, UV_mat, Cmat
 end
 
+"""permute_zero_cols_to_end(P::AbstractMatrix)
+
+Return a permutation matrix that shifts zero-valued columns of `P` to the end while preserving the order of the others.
+"""
 function permute_zero_cols_to_end(P::AbstractMatrix)
     n = size(P,1)
     perm = collect(1:n)
@@ -243,6 +258,10 @@ function permute_zero_cols_to_end(P::AbstractMatrix)
     return A[:, perm]
 end
 
+"""get_mats_from_bloch_messiah(Dmat, UVmat, Cmat)
+
+Extract the `D`, `Ubar`, `Vbar`, and `C` matrices from the doubled Bloch–Messiah blocks.
+"""
 function get_mats_from_bloch_messiah(Dmat, UVmat, Cmat)
     N = div(size(UVmat, 1), 2)
 
@@ -254,6 +273,10 @@ function get_mats_from_bloch_messiah(Dmat, UVmat, Cmat)
     return D,Ubar,Vbar,C
 end
 
+"""truncated_bloch_messiah(Dmat,UVmat,Cmat)
+
+Return a truncated decomposition that removes zero columns from the `Vbar` block, keeping compatible block structure.
+"""
 function truncated_bloch_messiah(Dmat,UVmat,Cmat)
     D,Ubar,Vbar,C = get_mats_from_bloch_messiah(Dmat, UVmat, Cmat)
 
