@@ -1,4 +1,42 @@
 """
+    H_BdG_majorana_k(Nf::Int, k::AbstractVector, params::BCS)
+
+Constructs the Hamiltonian matrix in the Majorana basis for momentum `k`.
+H = i/4 * Ψ_k^T * H_BdG * Ψ_k, where Ψ_k = (c†ₖ c-ₖ) is the Nambu spinor and H_BdG is the antisymmetric Bogoliubov-de-Gennes matrix.
+Returns the matrix H_BdG (2Nf x 2Nf).
+"""
+function H_BdG_majorana_k(Nf::Int, k::AbstractVector, params::BCS)
+    # 1. Construct H_BdG in Nambu basis (Dirac fermions)
+    ξ_mat = Diagonal([ξ(k, params) for i in 1:Nf])
+
+    # flipped diagonal
+    Δ_mat = zeros(ComplexF64, Nf, Nf)
+    for i in 1:Nf
+        Δ_mat[i, Nf - i + 1] = Δ(k, params)
+    end
+
+    # H_BdG_k = [ξ_mat Δ_mat; -Δ_mat' -ξ_mat]
+    H_BdG_sep = [ξ_mat Δ_mat; -Δ_mat' -ξ_mat]
+
+    # 2. Permute to interleaved ordering: (c_1, c†_1, c_2, c†_2, ...)
+    p = zeros(Int, 2*Nf)
+    for i in 1:Nf
+        p[2*i - 1] = i          # c_i
+        p[2*i]     = Nf + i     # c†_i
+    end
+    H_BdG_k = H_BdG_sep[p, p]
+
+    # H_BdG_k = [ ξ(k, params) Δ(k, params); -conj(Δ(k, params)) -ξ(k, params)]
+
+    # 2. Transform to Majorana basis
+    # Basis change unitary Ω:
+    Ω0 = [1  1; im  -im]
+    Ω = kron(I(Nf), Ω0)
+
+    return Ω * H_BdG_k * Ω'
+end
+
+"""
     get_parent_hamiltonian(Γ::AbstractMatrix)
 
 Return the parent Hamiltonian in Dirac representation (qp-ordering) of the fiducial state correlation matrix `Γ` in Majorana representation (qq-ordering).
