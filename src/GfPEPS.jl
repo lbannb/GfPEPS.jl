@@ -29,6 +29,7 @@ const unit = TensorKit.id(V)
 # MKL.set_num_threads(Sys.CPU_THREADS) 
 
 #= include local files =#
+include("lib/lattices.jl")
 include("lib/utils.jl")
 include("lib/brillouinZone.jl")
 include("lib/modelParameters.jl")

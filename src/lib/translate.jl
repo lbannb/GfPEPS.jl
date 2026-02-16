@@ -1,39 +1,49 @@
 """
     H_BdG_majorana_k(Nf::Int, k::AbstractVector, params::BCS)
 
-Constructs the Hamiltonian matrix in the Majorana basis for momentum `k`.
-H = i/4 * Ψ_k^T * H_BdG * Ψ_k, where Ψ_k = (c†ₖ c-ₖ) is the Nambu spinor and H_BdG is the antisymmetric Bogoliubov-de-Gennes matrix.
-Returns the matrix H_BdG (2Nf x 2Nf).
+Constructs the Hamiltonian matrix `H_BdG_k` in the Majorana basis (qq-ordered) for momentum `k`.
+
+Bogoliubov-de-Gennes Hamiltonian in Nambu basis (Dirac fermions aᵢ) is given by:
+
+    hat{H} =  1/2 α† H_BdG α, with α = (a₁, a₂, ..., a_Nf, a₁†, a₂†, ..., a_Nf†)ᵀ being the Nambu spinor and H_BdG being the Bogoliubov-de-Gennes matrix.
+
+In Majorana basis (Majorana fermions cᵢ), the Hamiltonian becomes:
+
+    hat{H} = i/4 rᵀ Ω H_BdG Ω† r, with r = (c₁, c₃, ..., c_2Nf-1, c₂, c₄, ...,  c_Nf)ᵀ being the vector of Majorana operators (qp-ordered).
+
+
+Returns i/2 * (Ω H_BdG_k Ω†) for momentum `k` in qq-ordering.
 """
 function H_BdG_majorana_k(Nf::Int, k::AbstractVector, params::BCS)
-    # 1. Construct H_BdG in Nambu basis (Dirac fermions)
+    # 1. Construct H_BdG in Nambu basis (Dirac fermions qp-ordered)
+    #= 
+        The Nambu spinor for momentum k is α† = (a†ₖ a-ₖ)
+    =#
     ξ_mat = Diagonal([ξ(k, params) for i in 1:Nf])
 
-    # flipped diagonal
+    # flipped diagonal for pairing with our choice of nambu spinor
     Δ_mat = zeros(ComplexF64, Nf, Nf)
-    for i in 1:Nf
+    for i in 1:div(Nf, 2)
         Δ_mat[i, Nf - i + 1] = Δ(k, params)
+        Δ_mat[Nf - i + 1, i] = -Δ(-k, params)
     end
 
-    # H_BdG_k = [ξ_mat Δ_mat; -Δ_mat' -ξ_mat]
-    H_BdG_sep = [ξ_mat Δ_mat; -Δ_mat' -ξ_mat]
+    H_BdG_sep = [ξ_mat Δ_mat; Δ_mat' -ξ_mat]
 
-    # 2. Permute to interleaved ordering: (c_1, c†_1, c_2, c†_2, ...)
+    # 2. Permute to qq-ordering: (a₁, a₂, ..., a_Nf, a†₁, a†₂, ..., a†_Nf) -> (a₁, a†₁, a₂, a†₂, ...)
     p = zeros(Int, 2*Nf)
     for i in 1:Nf
-        p[2*i - 1] = i          # c_i
-        p[2*i]     = Nf + i     # c†_i
+        p[2*i - 1] = i          # aᵢ
+        p[2*i]     = Nf + i     # a†ᵢ
     end
     H_BdG_k = H_BdG_sep[p, p]
 
-    # H_BdG_k = [ ξ(k, params) Δ(k, params); -conj(Δ(k, params)) -ξ(k, params)]
-
-    # 2. Transform to Majorana basis
-    # Basis change unitary Ω:
+    # 3. Transform to Majorana basis (qq-ordered) with unitary Ω
     Ω0 = [1  1; im  -im]
     Ω = kron(I(Nf), Ω0)
 
-    return Ω * H_BdG_k * Ω'
+    # minus sign needed here because of the definition of majorana operators (c₂ᵢ-₁ = a†ᵢ + aᵢ, c₂ᵢ = -i (a†ᵢ - aᵢ)) compared to the standard literature
+    return -im * 0.5 .* Ω * H_BdG_k * Ω'
 end
 
 """

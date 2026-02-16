@@ -44,7 +44,13 @@ Also contains the allowed momentum values ```kvals::Matrix{Float64}``` for the g
 struct InfiniteRectLattice <: AbstractRectangularInfiniteLattice 
     Lx::Int
     Ly::Int
+
     kvals::Matrix{Float64} # 2 x (N_kx * N_ky) matrix of k-points in the Brillouin zone
+    N_kx::Int
+    N_ky::Int
+    bc::Tuple{Symbol, Symbol}
+    shift_x::Float64
+    shift_y::Float64
 
     function InfiniteRectLattice(Lx::Int, Ly::Int; 
         N_kx::Int = 48, 
@@ -58,7 +64,7 @@ struct InfiniteRectLattice <: AbstractRectangularInfiniteLattice
             throw(ArgumentError("Boundary conditions must be :APBC or :PBC. Got: $bc"))
         end
 
-        new(Lx, Ly, get_2D_k_grid(N_kx, N_ky; x_bc=Val(bc[1]), shift_x=shift_x, y_bc=Val(bc[2]), shift_y=shift_y))
+        new(Lx, Ly, get_2D_k_grid(N_kx, N_ky; x_bc=Val(bc[1]), shift_x=shift_x, y_bc=Val(bc[2]), shift_y=shift_y), N_kx, N_ky, bc, shift_x, shift_y)
     end
 end
 
@@ -149,4 +155,19 @@ function get_2D_k_grid(Lx::Int, Ly::Int;
     end))
 
     return hcat(KX,KY)'
+end
+
+#= 
+    Functions for number of majorana modes in the unit cell
+=#
+function get_Nf_in_uc(Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    return Nf * lattice.Lx * lattice.Ly
+end
+
+function get_Λ_in_uc(Λ::Int, lattice::Union{AbstractRectangularLattice, AbstractRectangularInfiniteLattice})
+    return 2Λ*(lattice.Lx + lattice.Ly)
+end
+
+function get_number_of_modes(Nf::Int, Λ::Int, lattice::Union{AbstractRectangularLattice, AbstractRectangularInfiniteLattice})
+    return get_Nf_in_uc(Nf, lattice) + get_Λ_in_uc(Λ, lattice)
 end

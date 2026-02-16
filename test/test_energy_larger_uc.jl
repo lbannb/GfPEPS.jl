@@ -6,6 +6,7 @@ using PEPSKit
 using Random 
 using LinearAlgebra
 using JSON: parsefile
+using BenchmarkTools
 
 config = parsefile(joinpath(GfPEPS.test_config_path, "conf_test_BCS_larger_uc.json"))
 
@@ -29,8 +30,8 @@ params = GfPEPS.BCS(
     Δ_0,
 )
 
-Lx = 6
-Ly = 6
+Lx = config["system_params"]["Lx"]
+Ly = config["system_params"]["Ly"]
 bz = BrillouinZone2D(Lx, Ly, (:APBC, :PBC))
 energy = GfPEPS.energy_CM(Γ_fiducial, bz, Nf, params)
 
@@ -38,20 +39,39 @@ energy = GfPEPS.energy_CM(Γ_fiducial, bz, Nf, params)
 # energy = GfPEPS.energy_loss(params, bz)
 # energy2 = real(energy(GfPEPS.GaussianMap(GfPEPS.get_Γ_blocks(GfPEPS.Γ_fiducial(X_opt, Nv, Nf), Nf)..., G_in)))
 
-@show optim_energy
-@show energy
-
 Γ_psi = GfPEPS.GaussianMap(GfPEPS.get_Γ_blocks(Γ_fiducial, Nf)..., GfPEPS.G_in_Fourier(BrillouinZone2D(Lx,Ly,(:APBC,:PBC)), Nv))
 
 E = 0
 for (i,k) in enumerate(eachcol(bz.kvals))
     H_BdG_k = GfPEPS.H_BdG_majorana_k(Nf, k, params)
-
-    E += -0.5 * (tr(H_BdG_k * Γ_psi[i,:,:]))
+    global E += -0.25 * (tr(H_BdG_k * Γ_psi[i,:,:])) # = -1/4 * Tr(A * Γ) = 1/4 * Tr(Aᵀ * Γ)
 end
 
 ξk_batched = map(k -> GfPEPS.ξ(k, params), eachcol(bz.kvals))
-E += 0.5*sum(ξk_batched)
+E += sum(ξk_batched)
 E /= length(eachcol(bz.kvals))
 
+@show optim_energy
+@show energy
 @show E
+
+E_test_fn = GfPEPS.energy_loss(params, bz.kvals, Nf)
+E_test2_fn = GfPEPS.energy_loss(params, bz)
+
+@benchmark E_test_fn(Γ_psi)
+@benchmark E_test2_fn(Γ_psi)
+
+
+@btime E_test_fn(Γ_psi)
+@btime E_test2_fn(Γ_psi)
+
+@test E ≈ optim_energy atol=1e-5
+# Nf = 2
+# Δ_mat = zeros(ComplexF64, Nf, Nf)
+# for i in 1:div(Nf, 2)
+#     Δ_mat[i, Nf - i + 1] = GfPEPS.Δ([1,0], params)
+#     Δ_mat[Nf - i + 1, i] = -GfPEPS.Δ([-1,0], params)
+# end
+# display(Δ_mat)
+
+# GfPEPS.Δ([1,0], params)

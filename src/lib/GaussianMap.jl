@@ -29,13 +29,13 @@ function G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer)
 end
 
 """
-    G_in_Fourier(bz::BrillouinZone2D, Λ::Int)
+    G_in_Fourier(kvals::AbstractMatrix, Λ::Int)
 
 Returns the Fourier transformed (F) covariance matrix of all the virtual bonds: G_in = F Γ_in F†
 
 """
-function G_in_Fourier(bz::BrillouinZone2D, Λ::Int)
-    kvals = bz.kvals
+function G_in_Fourier(kvals::AbstractMatrix, Λ::Int)
+    kvals = kvals
 
     res = Array{ComplexF64,3}(undef, size(kvals,2), 8*Λ, 8*Λ)
     for (i, col) in enumerate(eachcol(kvals))
@@ -47,7 +47,7 @@ end
 """
     build_J(Λ::Int)
 
-Construct the symplectic matrix J for 4*Λ+2 modes.
+Construct the symplectic matrix J for 4*Λ+Nf modes.
 """
 function build_J(Λ::Int,Nf::Int)
     return ⊕([0.0 1.0; -1.0 0.0], 4*Λ+Nf)

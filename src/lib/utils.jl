@@ -28,19 +28,19 @@ function rand_orth(n::Int)
 end
 
 """
-    rand_CM(Nf::Int, Nv::Int; parity::Int = 1)
+    rand_CM(Nf::Int, Λ::Int; parity::Int = 1)
 
 Generate a random covariance matrix `Γ` of a pure Gaussian state with given parity in Majorana representation.
 
 Returns `Γ`, `X` where `X` is the orthogonal matrix used to construct `Γ`.
 """
-function rand_CM(Nf::Int, Nv::Int; parity::Int = 1)
-    N = Nf + 4Nv
+function rand_CM(Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice}; parity::Int = 1)
+    N = get_number_of_modes(Nf, Λ, lattice)
     info = parity == 1 ? "even" : "odd"
 
     while true
         X = rand_orth(2N)
-        Γ = Γ_fiducial(X, Nv, Nf)
+        Γ = Γ_fiducial(X, Λ, Nf)
 
         if pfaffian(Γ) ≈ parity # for pure BCS state, parity = Pf(Γ) = +1 (even) / -1 (odd)
             @info "Created initial covariance matrix with $info parity"
