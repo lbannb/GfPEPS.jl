@@ -99,25 +99,37 @@ function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLatti
 end
 
 """
-    GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_virt::AbstractArray)
+    GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractArray)
 
-Returns the Gaussian map: CM_out = B * inv(D + CM_virt) * B' + A.
+Returns the Gaussian map: CM_out = B * inv(D + CM_in) * B' + A.
 This contracts the virtual bonds and only the physical modes remain.
 
 Keyword arguments:
 - `A`, `B`, `D` are the blocks of the covariance matrix of the fiducial state
-- `CM_virt` is the covariance matrix of the virtual bonds
+- `CM_in` is the covariance matrix of the virtual bonds 
 
 """
-function GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_virt::AbstractArray)
+# function GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractArray)
+#     Bt = transpose(B)
+
+#     # Gaussian map for each (kx,ky)
+#     # mats = map(s -> B * ((D .- s) \ transpose(B)) .+ A, eachslice(CM_in; dims=1)) # Kraus thesis
+#     mats = map(s -> B * ((D .+ s) \ Bt) .+ A, eachslice(CM_in; dims=1)) # Hong hao paper
+#     return permutedims(stack(mats, dims=3), (3,1,2))
+# end
+function GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractArray)
     Bt = transpose(B)
 
     # Gaussian map for each (kx,ky)
-    # mats = map(s -> B * ((D .- s) \ transpose(B)) .+ A, eachslice(CM_virt; dims=1)) # Kraus thesis
-    mats = map(s -> B * ((D .+ s) \ Bt) .+ A, eachslice(CM_virt; dims=1)) # Hong hao paper
-    return permutedims(stack(mats, dims=3), (3,1,2))
+    # mats = map(s -> B * ((D .- s) \ transpose(B)) .+ A, eachslice(CM_in; dims=3)) # Kraus thesis
+    mats = map(s -> B * ((D .+ s) \ Bt) .+ A, eachslice(CM_in; dims=1)) # Hong hao paper
+
+    # Stack into a 3D tensor [i, j, k]
+    # By default, stack(mats) creates [dim1, dim2, k_index]
+    return stack(mats)
 end
 
-function GaussianMap_single_k(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_virt::AbstractMatrix)
-    return B * ((D + CM_virt) \ transpose(B)) .+ A
+
+function GaussianMap_single_k(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractMatrix)
+    return B * ((D + CM_in) \ transpose(B)) .+ A
 end

@@ -69,8 +69,8 @@ function get_X_opt(
     BCS_params::BCS;
     X_init::Union{AbstractMatrix, Nothing}=nothing,
     doping_kwargs::DopingSettings=DopingSettings(),
-    optim_LBFGS::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
-    optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, successive_f_tol = 2, allow_f_increases = true, show_trace=true, extended_trace=false, store_trace=true))
+    optim_LBFGS::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=50, manifold = Optim.Stiefel()),
+    optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
 
     # TODO: implement / test odd parity optimization
     # initial ortogonal matrix X to construct Γ_Q with correct parity sector (even = 1, odd = -1)

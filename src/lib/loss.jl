@@ -5,33 +5,59 @@ Returns a function energy(CM_out) that computes the mean energy for BCS Hamilton
 This funciton is used for the optimization of the covariance matrix of the PEPS ansatz.
 This function should be highly optimized as it is called many times during the optimization, so we precompute as much as possible and avoid allocations in the inner loop.
 """
+# function energy_loss(params::BCS, kvals::AbstractMatrix, Nf::Int)
+#     ξk_batched_summed = sum(map(k -> ξ(k, params), eachcol(kvals)))
+
+#     # divide by number of k-points
+#     Nk = size(kvals, 2)
+#     invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
+    
+#     # Construct the Hamiltonian tensor (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
+#     H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, params), eachcol(kvals)))
+#     # H_BdG_batched = Vector{Matrix{ComplexF64}}()
+#     # for k in eachcol(kvals)
+#     #     push!(H_BdG_batched, H_BdG_majorana_k(Nf, k, params))
+#     # end
+
+#     # custom trace function, avoiding allocations
+#     @inline function trAB_slice_no_alloc(A::Matrix{ComplexF64}, CM_out::AbstractArray, kidx::Int)
+#         res = 0.0
+#         @inbounds for j in axes(A, 2), i in axes(A, 1)
+#             res += real(A[i, j] * CM_out[kidx, j, i])
+#         end
+#         return res
+#     end
+
+#     function energy(CM_out::AbstractArray)
+#         E = ξk_batched_summed
+#         @inbounds for i in 1:Nk
+#             E += -0.25 * trAB_slice_no_alloc(H_BdG_batched[i], CM_out, i)
+#         end
+#         return real(E * invN)
+#     end
+
+#     return energy
+# end
+
 function energy_loss(params::BCS, kvals::AbstractMatrix, Nf::Int)
     ξk_batched_summed = sum(map(k -> ξ(k, params), eachcol(kvals)))
 
     # divide by number of k-points
     Nk = size(kvals, 2)
     invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
-
-    H_BdG_batched = Vector{Matrix{ComplexF64}}()
-    for k in eachcol(kvals)
-        push!(H_BdG_batched, H_BdG_majorana_k(Nf, k, params))
-    end
-
-    # custom trace function, avoiding allocations
-    @inline function trAB_slice_no_alloc(A::Matrix{ComplexF64}, CM_out::AbstractArray, kidx::Int)
-        res = 0.0
-        @inbounds for j in axes(A, 2), i in axes(A, 1)
-            res += real(A[i, j] * CM_out[kidx, j, i])
-        end
-        return res
-    end
+    
+    # Construct the Hamiltonian tensor (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
+    H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, params), eachcol(kvals)))
+    # H_BdG_batched = Vector{Matrix{ComplexF64}}()
+    # for k in eachcol(kvals)
+    #     push!(H_BdG_batched, H_BdG_majorana_k(Nf, k, params))
+    # end
 
     function energy(CM_out::AbstractArray)
-        E = ξk_batched_summed
-        @inbounds for i in 1:Nk
-            E += -0.25 * trAB_slice_no_alloc(H_BdG_batched[i], CM_out, i)
-        end
-        return real(E * invN)
+        # Fast Trace Formula: Tr(H * CM) = sum(H .* CM^T)
+        # Since input is already CM^T and aligned, this is just a dot product.
+
+        return real((ξk_batched_summed - 0.25 * sum(H_BdG_batched .* CM_out)) * invN)
     end
 
     return energy
