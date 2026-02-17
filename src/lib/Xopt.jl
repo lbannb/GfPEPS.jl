@@ -69,9 +69,8 @@ function get_X_opt(
     BCS_params::BCS;
     X_init::Union{AbstractMatrix, Nothing}=nothing,
     doping_kwargs::DopingSettings=DopingSettings(),
-    optim_LBFGS::Optim.LBFGS = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
-    # optim_LBFGS::Optim.BFGS = Optim.BFGS(; manifold = Optim.Stiefel()),
-    optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-8, f_reltol=1e-10, successive_f_tol = 10, show_trace=true, extended_trace=false, store_trace=true))
+    optim_LBFGS::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
+    optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, successive_f_tol = 2, allow_f_increases = true, show_trace=true, extended_trace=false, store_trace=true))
 
     # TODO: implement / test odd parity optimization
     # initial ortogonal matrix X to construct Γ_Q with correct parity sector (even = 1, odd = -1)
@@ -129,9 +128,9 @@ function get_X_opt(
             end
         else
             if doping_kwargs.enforce_density
-                @warn "$(stage_label) did not converge." gradient_norm=stage_res.g_residual energy=Optim.minimum(stage_res) doping=stage_doping
+                @warn "$(stage_label) did not converge after $(stage_res.iterations) iterations." gradient_norm=stage_res.g_residual energy=Optim.minimum(stage_res) doping=stage_doping
             else
-                @warn "$(stage_label) did not converge." gradient_norm=stage_res.g_residual energy=Optim.minimum(stage_res)
+                @warn "$(stage_label) did not converge after $(stage_res.iterations) iterations." gradient_norm=stage_res.g_residual energy=Optim.minimum(stage_res)
             end
         end
     end
@@ -215,7 +214,7 @@ Optimize the orthogonal X matrix to minimize the given loss function, optionally
 """
 function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
     doping_kwargs::DopingSettings=DopingSettings(),
-    optim_LBFGS::Optim.LBFGS=Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
+    optim_LBFGS::Union{Optim.LBFGS, Optim.BFGS}=Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
     # optim_LBFGS::Optim.BFGS = Optim.BFGS(; manifold = Optim.Stiefel()),
     optim_options::Optim.Options=Optim.Options(; iterations=1000, g_tol=1e-8, f_reltol=1e-10, successive_f_tol = 10, show_trace=false, extended_trace=false))
 

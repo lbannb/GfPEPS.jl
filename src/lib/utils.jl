@@ -40,7 +40,7 @@ function rand_CM(Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfin
 
     while true
         X = rand_orth(2N)
-        Γ = Γ_fiducial(X, Λ, Nf)
+        Γ = Γ_fiducial(X, Λ, Nf, lattice)
 
         if pfaffian(Γ) ≈ parity # for pure BCS state, parity = Pf(Γ) = +1 (even) / -1 (odd)
             @info "Created initial covariance matrix with $info parity"

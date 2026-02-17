@@ -7,6 +7,8 @@ using Random
 using LinearAlgebra
 using JSON: parsefile
 using BenchmarkTools
+using Optim
+using LineSearches
 
 Random.seed!(1234)
 
@@ -29,11 +31,12 @@ params = GfPEPS.BCS(
     Δ_0,
 )
 
-lattice = GfPEPS.InfiniteRectLattice(1,1;N_kx=6, N_ky=6)
+lattice = GfPEPS.InfiniteRectLattice(1,1;N_kx=96, N_ky=96)
+
 X_opt, optim_energy, E_exact, info = GfPEPS.get_X_opt(lattice,Nf,Nv,params);
 
-Γ_fiducial = GfPEPS.Γ_fiducial(X_opt, Nv, Nf)
-energy = GfPEPS.energy_CM(Γ_fiducial, lattice.kvals, Nf, params)
+Γ_fiducial = GfPEPS.Γ_fiducial(X_opt, Nv, Nf, lattice)
+energy = GfPEPS.energy_CM(Γ_fiducial, lattice.kvals, Nf, params, lattice)
 
 # loss_fn = GfPEPS.energy_loss(params, lattice.kvals, Nf)
 # G_in = GfPEPS.G_in_Fourier(lattice.kvals, Nv)

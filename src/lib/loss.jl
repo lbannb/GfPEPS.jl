@@ -71,13 +71,10 @@ end
 Returns the energy from the CM_out as a function of the orthogonal matrix X, using the Gaussian map.
 """
 function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, kvals::AbstractMatrix, Nf::Int, Λ::Int, params::BCS)
-    Nf_in_uc = get_Nf_in_uc(Nf, lattice)
-    Λ_in_uc = get_Λ_in_uc(Λ, lattice)
-
-    G_in = G_in_Fourier(kvals, Λ)
+    G_in = G_in_Fourier(kvals, Λ, lattice)
     energy = energy_loss(params, kvals, Nf)
     function loss(X)
-        return real(energy(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Λ, Nf), Nf)..., G_in)))
+        return real(energy(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Λ, Nf, lattice), Nf, lattice)..., G_in)))
     end
     return loss
 end

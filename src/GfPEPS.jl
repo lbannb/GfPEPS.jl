@@ -1,7 +1,6 @@
 module GfPEPS
 
 #= load external modules =#
-using MKL
 using LinearAlgebra
 using Statistics
 using BlockDiagonals
@@ -13,6 +12,7 @@ using TensorOperations
 using SkewLinearAlgebra
 using MatrixFactorizations
 using Roots
+using LineSearches
 
 using SparseArrays: sparse, blockdiag, spdiagm
 using TensorKit
