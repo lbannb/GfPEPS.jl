@@ -158,16 +158,35 @@ Note:   `⟨f†_{k↑} f_{k↑}⟩ = 1/2 * (1 - Gf[1,2])`
         `⟨f†_{k↓} f_{k↓}⟩ = 1/2 * (1 - Gf[3,4])`
 
 """
+# function doping_bcs(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+#     A, B, D = get_Γ_blocks(Γ, Nf, lattice)
+#     Nv = div(size(Γ, 1) - 2 * Nf, 8)
+#     return mean(
+#         map(eachcol(lattice.kvals)) do k
+#             G_in_k = G_in_single_k(k, Nv, lattice)
+#             Gf = GaussianMap_single_k(A, B, D, G_in_k)
+#             return real(Gf[1, 2] + Gf[3, 4]) / 2
+#         end
+#     )
+# end
+
 function doping_bcs(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     A, B, D = get_Γ_blocks(Γ, Nf, lattice)
     Nv = div(size(Γ, 1) - 2 * Nf, 8)
-    return mean(
+    
+    # occupation in the majorana basis
+    J0 = [0 1; -1 0]
+    J = kron(I(get_Nf_in_uc(Nf,lattice)), J0)
+    N_sites = lattice.Lx * lattice.Ly
+
+    return 1 - mean(
         map(eachcol(lattice.kvals)) do k
             G_in_k = G_in_single_k(k, Nv, lattice)
             Gf = GaussianMap_single_k(A, B, D, G_in_k)
-            return real(Gf[1, 2] + Gf[3, 4]) / 2
+
+            return real(0.5 * Nf + 0.25*tr(J*Gf))
         end
-    )
+    ) / N_sites
 end
 
 """

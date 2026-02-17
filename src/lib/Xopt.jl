@@ -69,7 +69,7 @@ function get_X_opt(
     BCS_params::BCS;
     X_init::Union{AbstractMatrix, Nothing}=nothing,
     doping_kwargs::DopingSettings=DopingSettings(),
-    optim_LBFGS::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=50, manifold = Optim.Stiefel()),
+    optim_LBFGS::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
     optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
 
     # TODO: implement / test odd parity optimization
@@ -109,13 +109,15 @@ function get_X_opt(
         stage_label = !(N_kx_init==lattice.N_kx) ? "Warmup stage $(stage_idx) (N_kx=$(N_kx_init), N_ky=$(N_ky_init))" : "Final optimization stage (N_kx=$(N_kx_init), N_ky=$(N_ky_init))"
         @info "Optimize X for: N_kx = $(N_kx_init), N_ky = $(N_ky_init)"
 
+        training_lattice = InfiniteRectLattice(lattice.Lx, lattice.Ly; N_kx=N_kx_init, N_ky=N_ky_init, bc=lattice.bc, shift_x=lattice.shift_x, shift_y=lattice.shift_y)
+
         kvals = get_2D_k_grid(N_kx_init, N_ky_init; 
             x_bc=Val(lattice.bc[1]), shift_x=lattice.shift_x, 
             y_bc=Val(lattice.bc[2]), shift_y=lattice.shift_y)
         has_dirac_points(kvals,BCS_params)
 
-        loss_fct = energy_loss_X(lattice, kvals, Nf, Λ, BCS_params)
-        doping_fct =  X_mat -> doping_bcs(X_mat, kvals, Nf, Λ)
+        loss_fct = energy_loss_X(training_lattice, kvals, Nf, Λ, BCS_params)
+        doping_fct = doping_loss_X(training_lattice, Nf, Λ)
 
         # optimize X for current stage and get energy and doping results
         X_opt, stage_res, stage_doping = optimize_X(X_opt, loss_fct, doping_fct; doping_kwargs=doping_kwargs, optim_LBFGS=optim_LBFGS, optim_options=optim_options)
@@ -203,8 +205,8 @@ Optimize the orthogonal X matrix to minimize the given loss function, optionally
 
 # Optional Keyword Arguments
 - `doping_kwargs::DopingSettings=DopingSettings()`: Settings for doping optimization in the augmented Lagrangian method.
-- `optim_LBFGS::Optim.LBFGS=Optim.LBFGS(; m=20, manifold = Optim.Stiefel())`: The LBFGS optimizer to use for optimization on the Stiefel manifold.
-- `optim_options::Optim.Options=Optim.Options(; iterations=1000, g_tol=1e-8, f_reltol=1e-10, successive_f_tol = 10, show_trace=false, extended_trace=false)`: Options for the Optim optimizer.
+- `optim_LBFGS::Optim.LBFGS`: The LBFGS optimizer to use for optimization on the Stiefel manifold.
+- `optim_options::Optim.Options`: Options for the Optim optimizer.
 
 # Returns
 - `X_opt::AbstractMatrix`: The optimal orthogonal X matrix found by the optimization.
@@ -214,9 +216,8 @@ Optimize the orthogonal X matrix to minimize the given loss function, optionally
 """
 function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
     doping_kwargs::DopingSettings=DopingSettings(),
-    optim_LBFGS::Union{Optim.LBFGS, Optim.BFGS}=Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
-    # optim_LBFGS::Optim.BFGS = Optim.BFGS(; manifold = Optim.Stiefel()),
-    optim_options::Optim.Options=Optim.Options(; iterations=1000, g_tol=1e-8, f_reltol=1e-10, successive_f_tol = 10, show_trace=false, extended_trace=false))
+    optim_LBFGS::Union{Optim.LBFGS, Optim.BFGS},
+    optim_options::Optim.Options)
 
      # No density constraint: minimize the pure energy objective on the Stiefel manifold.
     if !doping_kwargs.enforce_density
@@ -238,6 +239,8 @@ function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
     X_current = X
     last_res = nothing
     last_doping = doping_fct(X_current)
+    total_iters = 0
+    total_trace = []
     for _ in 1:max(doping_kwargs.density_opt_iters, 1) # usually only a few iterations are needed
         η_local = η
         λ_local = λ
@@ -252,6 +255,8 @@ function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
         grad_aug!(G, x) = copyto!(G, grad_aug(x))
 
         res = Optim.optimize(loss_augmented, grad_aug!, X_current, optim_LBFGS, optim_options)
+        total_iters += res.iterations
+        total_trace = vcat(total_trace, res.trace)
 
         # update augmented Lagrangian parameters based on constraint violation
         last_res = res
@@ -268,6 +273,10 @@ function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
         λ = max(λ_local * doping_kwargs.penalty_growth, DEFAULT_PENALTY_FALLBACK)
     end
     last_res === nothing && error("Augmented Lagrangian did not run for stage $(stage_label).")
+
+    # update iterations
+    last_res.iterations = total_iters
+    last_res.trace = total_trace
 
     return X_current, last_res, last_doping
 end

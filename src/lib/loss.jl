@@ -5,40 +5,6 @@ Returns a function energy(CM_out) that computes the mean energy for BCS Hamilton
 This funciton is used for the optimization of the covariance matrix of the PEPS ansatz.
 This function should be highly optimized as it is called many times during the optimization, so we precompute as much as possible and avoid allocations in the inner loop.
 """
-# function energy_loss(params::BCS, kvals::AbstractMatrix, Nf::Int)
-#     ξk_batched_summed = sum(map(k -> ξ(k, params), eachcol(kvals)))
-
-#     # divide by number of k-points
-#     Nk = size(kvals, 2)
-#     invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
-    
-#     # Construct the Hamiltonian tensor (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
-#     H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, params), eachcol(kvals)))
-#     # H_BdG_batched = Vector{Matrix{ComplexF64}}()
-#     # for k in eachcol(kvals)
-#     #     push!(H_BdG_batched, H_BdG_majorana_k(Nf, k, params))
-#     # end
-
-#     # custom trace function, avoiding allocations
-#     @inline function trAB_slice_no_alloc(A::Matrix{ComplexF64}, CM_out::AbstractArray, kidx::Int)
-#         res = 0.0
-#         @inbounds for j in axes(A, 2), i in axes(A, 1)
-#             res += real(A[i, j] * CM_out[kidx, j, i])
-#         end
-#         return res
-#     end
-
-#     function energy(CM_out::AbstractArray)
-#         E = ξk_batched_summed
-#         @inbounds for i in 1:Nk
-#             E += -0.25 * trAB_slice_no_alloc(H_BdG_batched[i], CM_out, i)
-#         end
-#         return real(E * invN)
-#     end
-
-#     return energy
-# end
-
 function energy_loss(params::BCS, kvals::AbstractMatrix, Nf::Int)
     ξk_batched_summed = sum(map(k -> ξ(k, params), eachcol(kvals)))
 
@@ -48,48 +14,32 @@ function energy_loss(params::BCS, kvals::AbstractMatrix, Nf::Int)
     
     # Construct the Hamiltonian tensor (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
     H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, params), eachcol(kvals)))
-    # H_BdG_batched = Vector{Matrix{ComplexF64}}()
-    # for k in eachcol(kvals)
-    #     push!(H_BdG_batched, H_BdG_majorana_k(Nf, k, params))
-    # end
 
     function energy(CM_out::AbstractArray)
         # Fast Trace Formula: Tr(H * CM) = sum(H .* CM^T)
-        # Since input is already CM^T and aligned, this is just a dot product.
-
+        # Since input is already CM^T (see GaussianMap), this is just a dot product.
         return real((ξk_batched_summed - 0.25 * sum(H_BdG_batched .* CM_out)) * invN)
     end
 
     return energy
 end
 
-# """
-#     energy_loss(params::Kitaev, bz::BrillouinZone2D)
+function doping_loss(Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    # divide by number of k-points
+    Nk = size(lattice.kvals, 2)
+    invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
 
-# Returns a function energy(CM_out) computing the mean energy density for Kitaev Hamiltonian with parameters `params`.
-# Note: only for Nf=1 Kitaev Hamiltonian (after transforming Hamiltonian to 1x1 square lattice unit cell)
-# """
-# function energy_loss(params::Kitaev, bz::BrillouinZone2D)
-#     k_vals = bz.kvals
+    # Construct the symplectic form (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
+    # occupation in the majorana basis
+    J0 = [0 1; -1 0]
+    J = kron(I(get_Nf_in_uc(Nf,lattice)), J0)
 
-#     ξk_batched = map(k -> ξ(k, params), eachcol(k_vals))
-#     Δk_batched = imag.(map(k -> Δ(k, params), eachcol(k_vals)))
-#     ξk_batched_summed = sum(ξk_batched)
-
-#     # divide by number of k-points
-#     N = size(k_vals, 2)
-#     invN = 1.0 / size(k_vals, 2)
-
-#     function energy(CM_out::AbstractArray)
-#         #= 
-#             qq-ordering of Majorana modes: (c_1, c_2, ..., c_(2(4Nv + Nf)))
-#         =#
-#         @inbounds E = 0.5 * (ξk_batched_summed - dot(ξk_batched, real.(CM_out[:, 1, 2]))) - 0.5 * dot(Δk_batched, imag.(CM_out[:, 1, 2])) - params.Jz * N
-#         return real(E  * invN)
-#     end
-
-#     return energy
-# end
+    function doping(CM_out::AbstractArray)
+        # Fast Trace Formula: Tr(J * CM) = sum(J .* CM^T)
+        # Since input is already CM^T (see GaussianMap), this is just a dot product.
+        return real((0.5 * Nf + 0.25*sum(J .* CM_out)) * invN)
+    end
+end
 
 """
     energy_loss_X(kvals::AbstractMatrix, Nf::Int, Λ::Int, params::BCS)
@@ -101,6 +51,15 @@ function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice},
     energy = energy_loss(params, kvals, Nf)
     function loss(X)
         return real(energy(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Λ, Nf, lattice), Nf, lattice)..., G_in)))
+    end
+    return loss
+end
+
+function doping_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int)
+    G_in = G_in_Fourier(lattice.kvals, Λ, lattice)
+    doping = doping_loss(Nf, lattice)
+    function loss(X)
+        return real(doping(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Λ, Nf, lattice), Nf, lattice)..., G_in)))
     end
     return loss
 end

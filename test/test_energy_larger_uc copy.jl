@@ -16,12 +16,12 @@ config = parsefile(joinpath(GfPEPS.test_config_path, "conf_test_BCS_larger_uc.js
 
 Nf = config["params"]["N_physical_fermions_on_site"]
 Nv = config["params"]["N_virtual_fermions_on_bond"]
-config["params"]["N_virtual_fermions_on_bond"] = 2
+config["params"]["N_virtual_fermions_on_bond"] = 4
 Nv = config["params"]["N_virtual_fermions_on_bond"]
 N = (Nf + 4*Nv)
 
 t = config["hamiltonian"]["t"]
-pairing_type = config["hamiltonian"]["pairing_type"]
+pairing_type = "s_wave"
 Δ_0 = config["hamiltonian"]["Δ_0"]
 μ = config["hamiltonian"]["μ"]
 params = GfPEPS.BCS(
@@ -31,9 +31,12 @@ params = GfPEPS.BCS(
     Δ_0,
 )
 
-lattice = GfPEPS.InfiniteRectLattice(1,1;N_kx=48, N_ky=48)
+lattice = GfPEPS.InfiniteRectLattice(1,1;N_kx=24, N_ky=24)
 
-X_opt, optim_energy, E_exact, info = GfPEPS.get_X_opt(lattice,Nf,Nv,params);
+dopingSet = GfPEPS.DopingSettings(; δ=0.16, enforce_density=false)
+optopt = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=true, extended_trace=false, store_trace=true)
+
+X_opt, optim_energy, E_exact, info = GfPEPS.get_X_opt(lattice,Nf,Nv,params; doping_kwargs=dopingSet, optim_options=optopt);
 
 Γ_fiducial = GfPEPS.Γ_fiducial(X_opt, Nv, Nf, lattice)
 energy = GfPEPS.energy_CM(Γ_fiducial, Nf, params, lattice)
@@ -46,3 +49,8 @@ energy = GfPEPS.energy_CM(Γ_fiducial, Nf, params, lattice)
 @show E_exact
 @show optim_energy
 @show energy
+
+# doping = GfPEPS.doping_bcs(Γ_fiducial, Nf, lattice)
+# doping2 = GfPEPS.doping_bcs2(Γ_fiducial, Nf, lattice)
+# @show doping;
+# @show doping2;
