@@ -109,13 +109,9 @@ function get_X_opt(
         @info "Optimize X for: N_kx = $(N_kx_init), N_ky = $(N_ky_init)"
 
         training_lattice = InfiniteRectLattice(lattice.Lx, lattice.Ly; N_kx=N_kx_init, N_ky=N_ky_init, bc=lattice.bc, shift_x=lattice.shift_x, shift_y=lattice.shift_y)
+        has_dirac_points(training_lattice.kvals,BCS_params)
 
-        kvals = get_2D_k_grid(N_kx_init, N_ky_init; 
-            x_bc=Val(lattice.bc[1]), shift_x=lattice.shift_x, 
-            y_bc=Val(lattice.bc[2]), shift_y=lattice.shift_y)
-        has_dirac_points(kvals,BCS_params)
-
-        loss_fct = energy_loss_X(training_lattice, kvals, Nf, Λ, BCS_params)
+        loss_fct = energy_loss_X(training_lattice, Nf, Λ, BCS_params)
         doping_fct = doping_loss_X(training_lattice, Nf, Λ)
 
         # optimize X for current stage and get energy and doping results

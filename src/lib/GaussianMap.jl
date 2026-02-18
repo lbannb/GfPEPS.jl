@@ -36,8 +36,8 @@ end
 Returns the Fourier transformed (F) covariance matrix of all the virtual bonds: G_in = F Γ_in F†
 
 """
-function G_in_Fourier(kvals::AbstractMatrix, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    kvals = kvals
+function G_in_Fourier(Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    kvals = lattice.kvals
     Λ_in_uc = get_Λ_in_uc(Λ, lattice)
 
     res = Array{ComplexF64,3}(undef, size(kvals,2), 2*Λ_in_uc, 2*Λ_in_uc)

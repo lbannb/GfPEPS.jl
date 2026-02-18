@@ -5,7 +5,8 @@ Returns a function energy(CM_out) that computes the mean energy for BCS Hamilton
 This funciton is used for the optimization of the covariance matrix of the PEPS ansatz.
 This function should be highly optimized as it is called many times during the optimization, so we precompute as much as possible and avoid allocations in the inner loop.
 """
-function energy_loss(params::BCS, kvals::AbstractMatrix, Nf::Int)
+function energy_loss(params::BCS, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    kvals = lattice.kvals
     ξk_batched_summed = sum(map(k -> ξ(k, params), eachcol(kvals)))
 
     # divide by number of k-points
@@ -46,9 +47,9 @@ end
 
 Returns the energy from the CM_out as a function of the orthogonal matrix X, using the Gaussian map.
 """
-function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, kvals::AbstractMatrix, Nf::Int, Λ::Int, params::BCS)
-    G_in = G_in_Fourier(kvals, Λ, lattice)
-    energy = energy_loss(params, kvals, Nf)
+function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int, params::BCS)
+    G_in = G_in_Fourier(Λ, lattice)
+    energy = energy_loss(params, Nf, lattice)
     function loss(X)
         return real(energy(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Nf, Λ, lattice), Nf, lattice)..., G_in)))
     end
@@ -56,7 +57,7 @@ function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice},
 end
 
 function doping_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int)
-    G_in = G_in_Fourier(lattice.kvals, Λ, lattice)
+    G_in = G_in_Fourier(Λ, lattice)
     doping = doping_loss(Nf, lattice)
     function loss(X)
         return real(doping(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Nf, Λ, lattice), Nf, lattice)..., G_in)))

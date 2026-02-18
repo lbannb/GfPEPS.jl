@@ -127,9 +127,14 @@ The energy of a Gaussian fPEPS evaluated from the fiducial state correlation mat
 """
 function energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, params::BCS, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     Λ = div(size(Γ_fiducial, 1) - 2 * Nf, 8)
-    G_in = G_in_Fourier(lattice.kvals, Λ, lattice)
+    G_in = G_in_Fourier(Λ, lattice)
     
-    return energy_loss(params, lattice.kvals, Nf)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
+    return energy_loss(params, Nf, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
+end
+
+function energy_CM(X::AbstractMatrix, Nf::Int, Λ::Int, params::BCS, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    Γ = Γ_fiducial(X, Nf, Λ, lattice)
+    return energy_CM(Γ, Nf, params, lattice)
 end
 
 #======================================================================================
@@ -156,49 +161,20 @@ Note:   `⟨f†_{k↑} f_{k↑}⟩ = 1/2 * (1 - Gf[1,2])`
         `⟨f†_{k↓} f_{k↓}⟩ = 1/2 * (1 - Gf[3,4])`
 
 """
-# function doping_bcs(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-#     A, B, D = get_Γ_blocks(Γ, Nf, lattice)
-#     Λ = div(size(Γ, 1) - 2 * Nf, 8)
-#     return mean(
-#         map(eachcol(lattice.kvals)) do k
-#             G_in_k = G_in_single_k(k, Λ, lattice)
-#             Gf = GaussianMap_single_k(A, B, D, G_in_k)
-#             return real(Gf[1, 2] + Gf[3, 4]) / 2
-#         end
-#     )
-# end
-
 function doping_CM(Γ_fiducial::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     Λ = div(size(Γ_fiducial, 1) - 2 * Nf, 8)
-    G_in = G_in_Fourier(lattice.kvals, Λ, lattice)
+    G_in = G_in_Fourier(Λ, lattice)
 
     return doping_loss(Nf, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
-
-    # A, B, D = get_Γ_blocks(Γ, Nf, lattice)
-    # Λ = div(size(Γ, 1) - 2 * Nf, 8)
-    
-    # # occupation in the majorana basis
-    # J0 = [0 1; -1 0]
-    # J = kron(I(get_Nf_in_uc(Nf,lattice)), J0)
-    # N_sites = lattice.Lx * lattice.Ly
-
-    # return 1 - mean(
-    #     map(eachcol(lattice.kvals)) do k
-    #         G_in_k = G_in_single_k(k, Λ, lattice)
-    #         Gf = GaussianMap_single_k(A, B, D, G_in_k)
-
-    #         return real(0.5 * Nf + 0.25*tr(J*Gf))
-    #     end
-    # ) / N_sites
 end
 
 """
-    doping_bcs(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    doping_CM(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
 
 The average doping `δ = 1 - (1/N) ∑_i ⟨f†_{iσ} f_{iσ}⟩`
 evaluated from the matrix `X` from which the fiducial state correlation matrix `Γ` is built.
 """
-function doping_bcs(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function doping_CM(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     Γ = Γ_fiducial(X, Nf, Λ, lattice)
     return doping_CM(Γ, Nf, lattice)
 end
