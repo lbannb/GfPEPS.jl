@@ -19,7 +19,7 @@ function energy_loss(params::BCS, Nf::Int, lattice::Union{AbstractLattice, Abstr
     function energy(CM_out::AbstractArray)
         # Fast Trace Formula: Tr(H * CM) = sum(H .* CM^T)
         # Since input is already CM^T (see GaussianMap), this is just a dot product.
-        return real((ξk_batched_summed + 0.25 * sum(H_BdG_batched .* CM_out)) * invN)
+        return real((ξk_batched_summed - 0.25 * sum(H_BdG_batched .* CM_out)) * invN)
     end
 
     return energy

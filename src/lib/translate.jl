@@ -42,7 +42,6 @@ function H_BdG_majorana_k(Nf::Int, k::AbstractVector, params::BCS)
     Ω0 = [1  1; im  -im]
     Ω = kron(I(Nf), Ω0)
 
-    # minus sign needed here because of the definition of majorana operators (c₂ᵢ-₁ = a†ᵢ + aᵢ, c₂ᵢ = -i (a†ᵢ - aᵢ)) compared to the standard literature
     return im * 0.5 .* Ω * H_BdG_k * Ω'
 end
 

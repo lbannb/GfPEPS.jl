@@ -4,8 +4,8 @@
 Helper function to construct G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer) where k is either kx or ky.
 
 Example (Trivial unit cell):
-helper(k, lattice) = [  0   e^{i k} * σ_x
-                    -e^{-i k} * σ_x   0  ]
+helper(k, lattice) = [  0   -e^{i k} * σ_x
+                    e^{-i k} * σ_x   0  ]
 
 """
 function helper(k::Real, Nrc::Int)
@@ -121,12 +121,12 @@ function GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM
     Bt = transpose(B)
 
     # Gaussian map for each (kx,ky)
-    # mats = map(s -> B * ((D .- s) \ transpose(B)) .+ A, eachslice(CM_in; dims=3)) # Kraus thesis
+    # mats = map(s -> B * ((D .- s) \ transpose(B)) .+ A, eachslice(CM_in; dims=1)) # Kraus thesis
     mats = map(s -> B * ((D .+ s) \ Bt) .+ A, eachslice(CM_in; dims=1)) # Hong hao paper
 
     # Stack into a 3D tensor [i, j, k]
-    # By default, stack(mats) creates [dim1, dim2, k_index]
-    return stack(mats)
+    # return stack(mats)
+    return permutedims(stack(mats, dims=3), (2,1,3))
 end
 
 

@@ -24,9 +24,9 @@ struct DopingSettings
     function DopingSettings(; 
         δ=0.0, 
         density_tol=1e-6, 
-        penalty_growth=1e2, 
+        penalty_growth=1e1, 
         enforce_density=false, 
-        density_opt_iters=8,
+        density_opt_iters=10,
         λ=1e2,
         solve_μ_from_δ=true)
 

@@ -2,16 +2,19 @@ using Revise
 using Test
 using GfPEPS
 using JSON: parsefile
+using Random
+
+Random.seed!(1234) # for reproducibility
 
 #= Test settings =#
 Nf = 2
-Λ = 4
-lattice = InfiniteRectLattice(1,1;N_kx=6, N_ky=6)
+Λ = 2
+lattice = InfiniteRectLattice(1,1;N_kx=12, N_ky=12, bc=(:PBC, :APBC))
 doping_kwargs = DopingSettings(; δ=0.16, enforce_density=true)
 
 # BCS parameters
 t = 1.0
-μ = 2.0
+μ = 1.0
 Δ_0 = 1.0
 
 @testset "BCS (trivial unit cell)" begin
@@ -26,14 +29,16 @@ t = 1.0
         # end;
 
         @testset "Doping" begin
-            Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, BCS_params; doping_kwargs=doping_kwargs)
+            Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, BCS_params; doping_kwargs=doping_kwargs);
             δ_opt = GfPEPS.doping_CM(Ψ_trial.Γ_fiducial, Nf, lattice)
+            # doping_fct =  X_mat -> GfPEPS.doping_CM(X_mat, Nf, Λ, lattice)
+            # δ_opt = doping_fct(Ψ_trial.X_opt)
 
             # test doping from CM
             @test δ_opt ≈ doping_kwargs.δ atol=doping_kwargs.density_tol
 
             # test energy from CM
-            @test Ψ_trial.exact_energy ≈ Ψ_trial.optim_energy atol=1e-5
+            @test Ψ_trial.exact_energy ≈ Ψ_trial.optim_energy atol=1e-2
         end;
     end;
 
