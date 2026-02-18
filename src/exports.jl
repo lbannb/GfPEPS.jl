@@ -1,27 +1,12 @@
-#= Brillouin zone functions =#
-export BrillouinZone2D
+#= Lattices =#
+export RectLattice, InfiniteRectLattice
 
-#= Hamiltonian functions =#
-export exact_energy_BCS_k
-
-#= Gaussian map functions =#
-export GaussianMap
-
-#= loss functions =#
-export optimize_loss
-
-export get_X_opt
-
-export Γ_fiducial
-
-export translate
-
-#= export constructors =#
-export Gaussian_fPEPS
-
-#= export models =#
+#= export BCS parmeter =#
 export BCS
-export Kitaev
+export DopingSettings
+
+#= export constructor =#
+export Gaussian_fPEPS
 
 #= export utils functions =#
 export init_ctmrg_env

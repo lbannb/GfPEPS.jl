@@ -78,7 +78,7 @@ Note:
 - X must be an orthogonal matrix: X * X' = I 
 - Γ_fiducial is either given in Fourier space or real space, depending on X
 """
-function Γ_fiducial(X::AbstractMatrix, Λ::Int, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function Γ_fiducial(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     Γ = transpose(X) * build_J(Λ, Nf, lattice) * X
 
     return (Γ - transpose(Γ)) / 2 # ensure exact antisymmetry

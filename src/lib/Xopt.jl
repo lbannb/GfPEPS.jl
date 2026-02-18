@@ -69,7 +69,7 @@ function get_X_opt(
     BCS_params::BCS;
     X_init::Union{AbstractMatrix, Nothing}=nothing,
     doping_kwargs::DopingSettings=DopingSettings(),
-    optim_LBFGS::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
+    optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
     optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
 
     # TODO: implement / test odd parity optimization
@@ -87,8 +87,7 @@ function get_X_opt(
     has_dirac_points(lattice.kvals,BCS_params) 
 
     if doping_kwargs.enforce_density && doping_kwargs.solve_μ_from_δ
-        μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, BCS_params.t, BCS_params.pairing_type, BCS_params.Δ_0)
-        BCS_params = BCS(BCS_params.t, μ, BCS_params.pairing_type, BCS_params.Δ_0)
+        BCS_params.μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, BCS_params)
     end
 
     # smaller set of momentum pairs for initial optimization for faster convergence
@@ -120,7 +119,7 @@ function get_X_opt(
         doping_fct = doping_loss_X(training_lattice, Nf, Λ)
 
         # optimize X for current stage and get energy and doping results
-        X_opt, stage_res, stage_doping = optimize_X(X_opt, loss_fct, doping_fct; doping_kwargs=doping_kwargs, optim_LBFGS=optim_LBFGS, optim_options=optim_options)
+        X_opt, stage_res, stage_doping = optimize_X(X_opt, loss_fct, doping_fct; doping_kwargs=doping_kwargs, optim_alg_options=optim_alg_options, optim_options=optim_options)
 
         if Optim.converged(stage_res)
             if doping_kwargs.enforce_density
@@ -216,7 +215,7 @@ Optimize the orthogonal X matrix to minimize the given loss function, optionally
 """
 function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
     doping_kwargs::DopingSettings=DopingSettings(),
-    optim_LBFGS::Union{Optim.LBFGS, Optim.BFGS},
+    optim_alg_options::Union{Optim.LBFGS, Optim.BFGS},
     optim_options::Optim.Options)
 
      # No density constraint: minimize the pure energy objective on the Stiefel manifold.
@@ -224,7 +223,7 @@ function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
         grad_energy(x) = first(Zygote.gradient(loss_fct, x))
         grad_energy!(G, x) = copyto!(G, grad_energy(x))
 
-        res = Optim.optimize(loss_fct, grad_energy!, X, optim_LBFGS, optim_options)
+        res = Optim.optimize(loss_fct, grad_energy!, X, optim_alg_options, optim_options)
         X_opt = Optim.minimizer(res)
         return X_opt, res, nothing
     end
@@ -254,7 +253,7 @@ function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
         grad_aug(x) = first(Zygote.gradient(loss_augmented, x))
         grad_aug!(G, x) = copyto!(G, grad_aug(x))
 
-        res = Optim.optimize(loss_augmented, grad_aug!, X_current, optim_LBFGS, optim_options)
+        res = Optim.optimize(loss_augmented, grad_aug!, X_current, optim_alg_options, optim_options)
         total_iters += res.iterations
         total_trace = vcat(total_trace, res.trace)
 

@@ -135,16 +135,14 @@ end
 #======================================================================================
 Functions to solve μ from hole density
 ======================================================================================#
-function exact_doping(kvals::AbstractMatrix, t::Real, μ::Real, pairing_type::String, Δ_0::Real)
-    bcs_params = BCS(t, μ, pairing_type, Δ_0)
-
+function exact_doping(kvals::AbstractMatrix, params::BCS)
     return mean(map(eachcol(kvals)) do k
-        ξ(k,bcs_params) / E(k, bcs_params)
+        ξ(k,params) / E(k, params)
     end)
 end
 
-function solve_for_mu(kvals::AbstractMatrix, δ::Real, t::Real, pairing_type::String, Δ_0::Real; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
-    μ = find_zero(x -> δ - exact_doping(kvals, t, x, pairing_type, Δ_0), μ_range)
+function solve_for_mu(kvals::AbstractMatrix, δ::Real, params::BCS; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
+    μ = find_zero(x -> δ - exact_doping(kvals, BCS(params.t, x, params.pairing_type, params.Δ_0)), μ_range)
     return μ
 end
 
@@ -160,44 +158,49 @@ Note:   `⟨f†_{k↑} f_{k↑}⟩ = 1/2 * (1 - Gf[1,2])`
 """
 # function doping_bcs(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
 #     A, B, D = get_Γ_blocks(Γ, Nf, lattice)
-#     Nv = div(size(Γ, 1) - 2 * Nf, 8)
+#     Λ = div(size(Γ, 1) - 2 * Nf, 8)
 #     return mean(
 #         map(eachcol(lattice.kvals)) do k
-#             G_in_k = G_in_single_k(k, Nv, lattice)
+#             G_in_k = G_in_single_k(k, Λ, lattice)
 #             Gf = GaussianMap_single_k(A, B, D, G_in_k)
 #             return real(Gf[1, 2] + Gf[3, 4]) / 2
 #         end
 #     )
 # end
 
-function doping_bcs(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    A, B, D = get_Γ_blocks(Γ, Nf, lattice)
-    Nv = div(size(Γ, 1) - 2 * Nf, 8)
+function doping_CM(Γ_fiducial::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    Λ = div(size(Γ_fiducial, 1) - 2 * Nf, 8)
+    G_in = G_in_Fourier(lattice.kvals, Λ, lattice)
+
+    return doping_loss(Nf, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
+
+    # A, B, D = get_Γ_blocks(Γ, Nf, lattice)
+    # Λ = div(size(Γ, 1) - 2 * Nf, 8)
     
-    # occupation in the majorana basis
-    J0 = [0 1; -1 0]
-    J = kron(I(get_Nf_in_uc(Nf,lattice)), J0)
-    N_sites = lattice.Lx * lattice.Ly
+    # # occupation in the majorana basis
+    # J0 = [0 1; -1 0]
+    # J = kron(I(get_Nf_in_uc(Nf,lattice)), J0)
+    # N_sites = lattice.Lx * lattice.Ly
 
-    return 1 - mean(
-        map(eachcol(lattice.kvals)) do k
-            G_in_k = G_in_single_k(k, Nv, lattice)
-            Gf = GaussianMap_single_k(A, B, D, G_in_k)
+    # return 1 - mean(
+    #     map(eachcol(lattice.kvals)) do k
+    #         G_in_k = G_in_single_k(k, Λ, lattice)
+    #         Gf = GaussianMap_single_k(A, B, D, G_in_k)
 
-            return real(0.5 * Nf + 0.25*tr(J*Gf))
-        end
-    ) / N_sites
+    #         return real(0.5 * Nf + 0.25*tr(J*Gf))
+    #     end
+    # ) / N_sites
 end
 
 """
-    doping_bcs(X::AbstractMatrix, Nf::Int, Nv::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    doping_bcs(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
 
 The average doping `δ = 1 - (1/N) ∑_i ⟨f†_{iσ} f_{iσ}⟩`
 evaluated from the matrix `X` from which the fiducial state correlation matrix `Γ` is built.
 """
-function doping_bcs(X::AbstractMatrix, Nf::Int, Nv::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    Γ = Γ_fiducial(X, Nv, Nf, lattice)
-    return doping_bcs(Γ, Nf, lattice)
+function doping_bcs(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    Γ = Γ_fiducial(X, Nf, Λ, lattice)
+    return doping_CM(Γ, Nf, lattice)
 end
 
 """

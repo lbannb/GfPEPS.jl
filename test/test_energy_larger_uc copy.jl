@@ -16,7 +16,7 @@ config = parsefile(joinpath(GfPEPS.test_config_path, "conf_test_BCS_larger_uc.js
 
 Nf = config["params"]["N_physical_fermions_on_site"]
 Nv = config["params"]["N_virtual_fermions_on_bond"]
-config["params"]["N_virtual_fermions_on_bond"] = 4
+config["params"]["N_virtual_fermions_on_bond"] = 2
 Nv = config["params"]["N_virtual_fermions_on_bond"]
 N = (Nf + 4*Nv)
 

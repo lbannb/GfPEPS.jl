@@ -18,7 +18,7 @@ function energy_loss(params::BCS, kvals::AbstractMatrix, Nf::Int)
     function energy(CM_out::AbstractArray)
         # Fast Trace Formula: Tr(H * CM) = sum(H .* CM^T)
         # Since input is already CM^T (see GaussianMap), this is just a dot product.
-        return real((ξk_batched_summed - 0.25 * sum(H_BdG_batched .* CM_out)) * invN)
+        return real((ξk_batched_summed + 0.25 * sum(H_BdG_batched .* CM_out)) * invN)
     end
 
     return energy
@@ -50,7 +50,7 @@ function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice},
     G_in = G_in_Fourier(kvals, Λ, lattice)
     energy = energy_loss(params, kvals, Nf)
     function loss(X)
-        return real(energy(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Λ, Nf, lattice), Nf, lattice)..., G_in)))
+        return real(energy(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Nf, Λ, lattice), Nf, lattice)..., G_in)))
     end
     return loss
 end
@@ -59,7 +59,7 @@ function doping_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice},
     G_in = G_in_Fourier(lattice.kvals, Λ, lattice)
     doping = doping_loss(Nf, lattice)
     function loss(X)
-        return real(doping(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Λ, Nf, lattice), Nf, lattice)..., G_in)))
+        return real(doping(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Nf, Λ, lattice), Nf, lattice)..., G_in)))
     end
     return loss
 end

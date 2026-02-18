@@ -186,8 +186,6 @@ function bloch_messiah_decomposition(M::AbstractMatrix)
     S, _ = skew_canonical_form(P_bar)
     P_canonical = S' * P_bar * conj.(S)
 
-    display(P_canonical)
-
     A = permute_zero_cols_to_end(P_canonical)
 
     D = B * S * A
