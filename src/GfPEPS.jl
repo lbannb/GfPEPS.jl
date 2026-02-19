@@ -2,19 +2,19 @@ module GfPEPS
 
 #= load external modules =#
 using LinearAlgebra
-using Statistics
+# using Statistics
 using BlockDiagonals
 using Optim
 using Zygote
 using JSON: parsefile
 using Random
 using TensorOperations
-using SkewLinearAlgebra
-using MatrixFactorizations
+# using SkewLinearAlgebra
+# using MatrixFactorizations
 using Roots
 using LineSearches
 
-using SparseArrays: sparse, blockdiag, spdiagm
+# using SparseArrays: sparse, blockdiag, spdiagm
 using TensorKit
 using MPSKit
 using PEPSKit
@@ -29,7 +29,6 @@ const unit = TensorKit.id(V)
 #= include local files =#
 include("lib/lattices.jl")
 include("lib/utils.jl")
-include("lib/brillouinZone.jl")
 include("lib/modelParameters.jl")
 include("lib/GaussianMap.jl")
 include("lib/loss.jl")

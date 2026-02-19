@@ -47,7 +47,7 @@ Get the optimal orthogonal X matrix for the GfPEPS approximation of the ground s
 - `lattice::AbstractInfiniteLattice`: The lattice for which to optimize X.
 - `Nf::Int`: Number of physical fermions.
 - `Λ::Int`: The bond dimension parameter for the PEPS ansatz.
-- `BCS_params::BCS`: The parameters of the BCS Hamiltonian.
+- `BCS_params::AbstractBdGHamiltonian`: The parameters of the BdG Hamiltonian.
 
 # Optional Keyword arguments
 - `X_init::Union{AbstractMatrix, Nothing}=nothing`: Optional initial guess for the X matrix. If not provided, a random X matrix will be generated. If provided, we start the optimization for the full system size directly with this initial X for the case we want to continue optimization from a previous run.
@@ -58,7 +58,7 @@ Get the optimal orthogonal X matrix for the GfPEPS approximation of the ground s
 # Returns
 - `X_opt::AbstractMatrix`: The optimal orthogonal X matrix found by the optimization.
 - `optim_energy::Float64`: The energy corresponding to the optimal orthogonal X matrix.
-- `E_exact::Float64`: The exact energy for the given BCS parameters from analytic formula.
+- `E_exact::Float64`: The exact energy for the given parameters of the quadratic Hamiltonian from analytic formula.
 - `info_obj::NamedTuple`: A named tuple containing additional information about the optimization where the returned values are from Optim.
 
 """
@@ -66,7 +66,7 @@ function get_X_opt(
     lattice::AbstractInfiniteLattice, 
     Nf::Int, 
     Λ::Int,
-    BCS_params::BCS;
+    BdGHamiltonian::AbstractBdGHamiltonian;
     X_init::Union{AbstractMatrix, Nothing}=nothing,
     doping_kwargs::DopingSettings=DopingSettings(),
     optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
@@ -84,10 +84,10 @@ function get_X_opt(
     end
 
     # warn if dirac points are present -> then optimization of Γ can be harder, so user can adjust different kvals set
-    has_dirac_points(lattice.kvals,BCS_params) 
+    has_dirac_points(lattice.kvals, BdGHamiltonian) 
 
     if doping_kwargs.enforce_density && doping_kwargs.solve_μ_from_δ
-        BCS_params.μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, BCS_params)
+        BdGHamiltonian.μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, BdGHamiltonian)
     end
 
     # smaller set of momentum pairs for initial optimization for faster convergence

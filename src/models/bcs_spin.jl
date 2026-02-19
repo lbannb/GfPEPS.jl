@@ -89,8 +89,8 @@ end
 Δ(::Val{:p_ip_wave},k::AbstractVector{<:Real},Δ_0::Real) = 2*Δ_0*(sin(k[1]) + im*sin(k[2]))
 Δ(::Val{:s_d_wave},k::AbstractVector{<:Real},Δ_d::Real,Δ_s::Real) = Δ(Val(:d_wave), k, Δ_d) + Δ(Val(:s_wave), k, Δ_s)
 
-function E(k::AbstractVector{<:Real}, params::BCS)
-    return sqrt(ξ(k, params)^2 + abs(Δ(k, params))^2)
+function E(k::AbstractVector{<:Real}, BdGHamiltonian::MomentumSpaceBdGHamiltonian)
+    return sqrt(BdGHamiltonian.ξ_fct(k, BdGHamiltonian.hopping, BdGHamiltonian.μ)^2 + abs(BdGHamiltonian.Δ_fct(k, BdGHamiltonian.pairing))^2)
 end
 
 """
@@ -98,9 +98,9 @@ end
 
 Returns the exact ground state energy per site of a BCS mean field Hamiltonian over the Brillouin zone `bz`.
 """
-function exact_energy(params::BCS, kvals::AbstractMatrix)
+function exact_energy(kvals::AbstractMatrix, BdGHamiltonian::MomentumSpaceBdGHamiltonian)
     return mean(map(eachcol(kvals)) do k
-        ξ(k,params) - E(k, params)
+        BdGHamiltonian.ξ_fct(k, BdGHamiltonian.hopping, BdGHamiltonian.μ) - E(k, BdGHamiltonian)
     end)
 end
 
@@ -109,10 +109,10 @@ end
 
 Checks if there are Dirac points (zero-energy modes) in the energy spectrum over the Brillouin zone `bz`.
 """
-function has_dirac_points(kvals::AbstractMatrix, params::BCS)
+function has_dirac_points(kvals::AbstractMatrix, BdGHamiltonian::MomentumSpaceBdGHamiltonian)
     dirac_point_found = false
     for k in eachcol(kvals)
-        if isapprox(E(k, params), 0.0; atol = 1e-6)
+        if isapprox(E(k, BdGHamiltonian), 0.0; atol = 1e-6)
             @warn ("Dirac point found at k = $k. This may lead to convergence issues during optimization.")
             dirac_point_found = true
         end
@@ -125,29 +125,29 @@ end
 
 The energy of a Gaussian fPEPS evaluated from the fiducial state correlation matrix `Γ_fiducial`.
 """
-function energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, params::BCS, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, BdGHamiltonian::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     Λ = div(size(Γ_fiducial, 1) - 2 * Nf, 8)
     G_in = G_in_Fourier(Λ, lattice)
     
-    return energy_loss(params, Nf, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
+    return energy_loss(BdGHamiltonian, Nf, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
 end
 
-function energy_CM(X::AbstractMatrix, Nf::Int, Λ::Int, params::BCS, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function energy_CM(X::AbstractMatrix, Nf::Int, Λ::Int, BdGHamiltonian::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     Γ = Γ_fiducial(X, Nf, Λ, lattice)
-    return energy_CM(Γ, Nf, params, lattice)
+    return energy_CM(Γ, Nf, BdGHamiltonian, lattice)
 end
 
 #======================================================================================
 Functions to solve μ from hole density
 ======================================================================================#
-function exact_doping(kvals::AbstractMatrix, params::BCS)
+function exact_doping(kvals::AbstractMatrix, BdGHamiltonian::MomentumSpaceBdGHamiltonian)
     return mean(map(eachcol(kvals)) do k
-        ξ(k,params) / E(k, params)
+        BdGHamiltonian.ξ_fct(k, BdGHamiltonian.hopping, BdGHamiltonian.μ) / E(k, BdGHamiltonian)
     end)
 end
 
-function solve_for_mu(kvals::AbstractMatrix, δ::Real, params::BCS; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
-    μ = find_zero(x -> δ - exact_doping(kvals, BCS(params.t, x, params.pairing_type, params.Δ_0)), μ_range)
+function solve_for_mu(kvals::AbstractMatrix, δ::Real, BdGHamiltonian::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
+    μ = find_zero(x -> δ - exact_doping(kvals, MomentumSpaceBdGHamiltonian(BdGHamiltonian.Nf, BdGHamiltonian.hopping, BdGHamiltonian.pairing, x, BdGHamiltonian.ξ_fct, BdGHamiltonian.Δ_fct)), μ_range)
     return μ
 end
 
@@ -167,18 +167,6 @@ function doping_CM(Γ_fiducial::AbstractMatrix, Nf::Int, lattice::Union{Abstract
 
     return doping_loss(Nf, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
 end
-# function doping_CM(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-#     A, B, D = get_Γ_blocks(Γ, Nf, lattice)
-#     Λ = div(size(Γ, 1) - 2 * Nf, 8)
-#     return mean(
-#         map(eachcol(lattice.kvals)) do k
-#             G_in_k = G_in_single_k(k, Λ, lattice)
-#             Gf = GaussianMap_single_k(A, B, D, G_in_k)
-#             return real(Gf[1, 2] + Gf[3, 4]) / 2
-#         end
-#     )
-# end
-
 
 """
     doping_CM(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})

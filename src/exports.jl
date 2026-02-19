@@ -1,8 +1,9 @@
 #= Lattices =#
 export RectLattice, InfiniteRectLattice
 
-#= export BCS parmeter =#
-export BCS
+#= export BdG Hamiltonian parmeters =#
+export RealSpaceBdGHamiltonian
+export MomentumSpaceBdGHamiltonian
 export DopingSettings
 
 #= export constructor =#
