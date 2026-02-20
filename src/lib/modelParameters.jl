@@ -83,88 +83,152 @@ end
     Some example BCS Hamiltonians in momentum space for translation invariant systems
 =#
 
+"""
+    default_BCS_hamiltonian(
+        hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Real}}, 
+        pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Real}}, 
+        μ::Real, lattice::AbstractInfiniteLattice; 
+        interaction_type::Vector{String} = ["NN"], 
+        pairing_type::String = "d_wave")
+
+Returns a `MomentumSpaceBdGHamiltonian` which follows the standard BCS form.
+
+# Keyword Arguments
+- `hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Real}}`: where the dict entries represent the hopping amplitude on the corresponding connection.
+- `pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Real}}`: where the dict entries represent the pairing amplitude on the corresponding connection.
+- `μ::Real`: Chemical potential
+- `interaction_type::Vector{String}=["NN"]`: Type of hopping interactions to include. Options: 
+    * "NN" (Nearest neighbor)
+    * "NNN" (Next nearest neighbor)
+
+"""
 function default_BCS_hamiltonian(
-    hopping::Union{Vector{ComplexF64}, Vector{Real}},
-    pairing::Union{Vector{ComplexF64}, Vector{Real}},
+    hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Real}},
+    pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Real}},
     μ::Real,
     lattice::AbstractInfiniteLattice;
-    pairing_type::String = "d_wave")
+    interaction_type::Vector{String} = ["NN"])
 
-    function ξ_fct(k::AbstractVector{<:Real}, hopping::Union{Vector{ComplexF64}, Vector{Real}}, μ::Real)
+    function ξ_fct(k::AbstractVector{<:Real}, hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Real}}, μ::Real)
         # TODO: add more lattice types here
         if lattice isa AbstractRectangularInfiniteLattice
-            # NN hopping
-            length(hopping) == 1 && return -2 * hopping[1] * (cos(k[1]) + cos(k[2])) - μ
+            #=  
+                collection of standard interaction types which can be combined
+                TODO: add higher neighbor interactions here if needed
+            =#
+            NN(k, hopping) = -2 * (hopping[(1,0)] * cos(k[1]) + hopping[(0,1)] * cos(k[2]))
+            NNN(k, hopping) = - 2 * hopping[(1,1)] * cos(k[1]+k[2]) - 2 * hopping[(1,-1)] * cos(k[1]-k[2])
+
+            # recall (t_x = t_-x and t_y = t_-y because of hermiticity)
+            # NN hopping 
+            interaction_type == ["NN"] && return NN(k, hopping) - μ
+
+            # NNN hopping
+            interaction_type == ["NNN"] && return NNN(k, hopping) - μ
 
             # NN + NNN hopping
-            length(hopping) == 2 && return -2 * hopping[1] * (cos(k[1]) + cos(k[2])) - 4 * hopping[2] * cos(k[1]) * cos(k[2]) - μ
+            interaction_type == ["NN","NNN"] && return NN(k, hopping) + NNN(k, hopping) - μ
 
             # TODO: add more scenarios here
+            throw(ArgumentError("Unsupported interaction_type $interaction_type."))
         end 
     end
 
+    function Δ_fct(k::AbstractVector{<:Real}, pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Real}})
+        # TODO: add more lattice types here
+        if lattice isa AbstractRectangularInfiniteLattice
+            #= 
+                collection of standard pairing symmetries which can be combined
+                TODO: add higher neighbor pairings here if needed
+            =#
+            # (This form allows for all pairing types depending on the choice of pairing)
+            NN(k, pairing) = pairing[(1,0)]*cis(k[1]) + pairing[(-1,0)] * cis(-k[1]) + pairing[(0,1)] * cis(k[2]) + pairing[(0,-1)] * cis(-k[2])
+            NNN(k, pairing) = pairing[(1,1)] * cis(k[1]+k[2]) + pairing[(-1,-1)] * conj(cis(k[1]+k[2])) + pairing[(1,-1)] * cis(k[1]-k[2]) + pairing[(-1,1)] * conj(cis(k[1]-k[2]))
 
+            # NN hopping 
+            interaction_type == "NN" && return NN(k, pairing)
+            
+            # NNN hopping
+            interaction_type == "NNN" && return NNN(k, pairing)
+
+            # NN + NNN hopping
+            interaction_type == "NN+NNN" && return NN(k, pairing) + NNN(k, pairing)
+
+            # TODO: add more scenarios here
+            throw(ArgumentError("Unsupported interaction_type $interaction_type."))
+        end 
+    end
+
+    return MomentumSpaceBdGHamiltonian(lattice.Nf, hopping, pairing, μ, ξ_fct, Δ_fct)
 end
 
 """
-    MomentumSpaceBdGHamiltonian(::Val{:NN}, Nf::Int, k::AbstractVector, t::Real, μ::Real, pairing_type::String, Δ_0::Real)
+    get_isotropic_coupling_dict(couplings::Union{Vector{ComplexF64}, Vector{Real}}; interaction_type::Vector{String} = ["NN"])
 
-Constructs the Hamiltonian matrix `H_BdG_k` in the Nambu basis for momentum `k` for a standard BCS model with nearest-neighbor hopping and pairing on a square lattice.
+Returns a dictionary of isotropic couplings for the specified interaction type.
 
-# Keyword arguments
-- `Nf::Int`: Number of Abrikosov fermions
-- `k::AbstractVector`: Momentum vector (k_x, k_y) for which to construct the `H_BdG_k`
-- `t::Real`: Hopping amplitude
-- `μ::Real`: Chemical potential
-- `pairing_type::String`: Type of pairing symmetry, e.g. "d_wave", "s_wave", "p_ip_wave"
-- `Δ_0::Real`: Pairing amplitude
+# Keyword Arguments
+- `couplings::Union{Vector{ComplexF64}, Vector{Real}}`: Vector of coupling values. Example: [t_1 (NN), t_2 (NNN), etc.]
+- `interaction_type::Vector{String}=["NN"]`: Vector of interaction types to include. Options:
+    * "NN" (Nearest neighbor)
+    * "NNN" (Next nearest neighbor)
 
 # Returns
-- `H_BdG_k::MomentumSpaceBdGHamiltonian`: The Hamiltonian matrix in momentum space for the given parameters.
-
-
-TODO: make t::Vector{Real} and then depending on the size choose NN, NNN etc.
+- `Dict{Tuple{Int64, Int64}, eltype(couplings)}`: Dictionary where the keys are tuples representing the lattice connections and the values are the corresponding coupling constants.
+    * For "NN": (1,0), (-1,0), (0,1), (0,-1) => coupling value
+    * For "NNN": (1,1), (-1,-1), (1,-1), (-1,1) => coupling value
 """
-function MomentumSpaceBdGHamiltonian(::Val{:NN}, Nf::Int, k::AbstractVector{<:Real}, t::Real, μ::Real, pairing_type::String, Δ_0::Real)
-    return MomentumSpaceBdGHamiltonian(Nf, get_ξ_mat_k_NN(ξ, Nf, k, t, μ), get_Δ_mat_k_NN(Δ, Nf, k, pairing_type, Δ_0), μ)
+function get_isotropic_coupling_dict(couplings::Union{Vector{ComplexF64}, Vector{Real}}; interaction_type::Vector{String} = ["NN"])
+    length(couplings) != length(interaction_type) && throw(ArgumentError("Length of couplings vector must match the number of interaction types specified in interaction_type."))
+
+    coupling_dict = Dict{Tuple{Int64, Int64}, eltype(couplings)}()
+    valid_interaction_type = false
+
+    if "NN" in interaction_type
+        coupling_dict[(1,0)] = couplings[1]
+        coupling_dict[(-1,0)] = couplings[1]
+        coupling_dict[(0,1)] = couplings[1]
+        coupling_dict[(0,-1)] = couplings[1]
+        valid_interaction_type = true
+    end
+    if "NNN" in interaction_type
+        coupling_dict[(1,1)] = couplings[1]
+        coupling_dict[(-1,-1)] = couplings[1]
+        coupling_dict[(1,-1)] = couplings[1]
+        coupling_dict[(-1,1)] = couplings[1]
+        valid_interaction_type = true
+    end
+
+    !valid_interaction_type && throw(ArgumentError("Unsupported interaction_type $interaction_type."))
+    return coupling_dict
 end
 
-function MomentumSpaceBdGHamiltonian(::Val{:kitaev_HC_square_vortex_free}, Nf::Int, k::AbstractVector{<:Real}, Jx::Real, Jy::Real, Jz::Real)
-    return MomentumSpaceBdGHamiltonian(Nf, get_ξ_mat_k_kitaev_HC_square_vortex_free(Nf, k, Jx, Jy, Jz), get_Δ_mat_k_kitaev_HC_square_vortex_free(Nf, k, Jx, Jy), 0.0)
+
+function get_anisotropic_coupling_dict(couplings::Union{Vector{ComplexF64}, Vector{Real}}; interaction_type::Vector{String} = ["NN"])
+    # length(couplings) != length(interaction_type) && throw(ArgumentError("Length of couplings vector must match the number of interaction types specified in interaction_type."))
+
+    # coupling_dict = Dict{Tuple{Int64, Int64}, eltype(couplings)}()
+    # valid_interaction_type = false
+
+    # # recall 
+    # if "NN" in interaction_type
+    #     coupling_dict[(1,0)] = couplings[1]
+    #     coupling_dict[(-1,0)] = couplings[2]
+    #     coupling_dict[(0,1)] = couplings[3]
+    #     coupling_dict[(0,-1)] = couplings[4]
+    #     valid_interaction_type = true
+    # end
+    # if "NNN" in interaction_type
+    #     coupling_dict[(1,1)] = couplings[1]
+    #     coupling_dict[(-1,-1)] = couplings[2]
+    #     coupling_dict[(1,-1)] = couplings[3]
+    #     coupling_dict[(-1,1)] = couplings[4]
+    #     valid_interaction_type = true
+    # end
+
+    # !valid_interaction_type && throw(ArgumentError("Unsupported interaction_type $interaction_type."))
+    # return coupling_dict
 end
-
-#= 
-    Standard BCS formulas in momentum space with NN hopping and pairing on a square lattice.
-=#
-"""
-    ξ(k::AbstractVector{<:Real},t::Real,μ::Real)
-
-Returns:
-```
-    -2t * (cos(k_x) + cos(k_y)) - μ
-```
-"""
-ξ(k::AbstractVector{<:Real}, t::Real, μ::Real) = -2 * t * (cos(k[1]) + cos(k[2])) - μ
-
-"""
-    Δ(k::AbstractVector{<:Real}, pairing_type::String, Δ_0::Real)
-
-Returns pairing amplitude:
-```
-    ● d_wave: 2*Δ_0*(cos(k_x) - cos(k_y))
-    ● s_wave: 2*Δ_0
-    ● p+ip_wave: 2*Δ_0*(sin(k_x) - im*sin(k_y))
-```
-"""
-function Δ(k::AbstractVector{<:Real}, pairing_type::String, Δ_0::Real)
-    pairing_type === "d_wave" && return Δ(Val(:d_wave), k, Δ_0)
-    pairing_type === "s_wave" && return Δ(Val(:s_wave), k, Δ_0)
-    pairing_type === "p_ip_wave" && return Δ(Val(:p_ip_wave), k, Δ_0)
-    throw(ArgumentError("Unsupported pairing_type $pairing_type for BCS parameters"))
-end
-Δ(::Val{:d_wave},k::AbstractVector{<:Real},Δ_0) = 2*Δ_0*(cos(k[1]) - cos(k[2]))
-Δ(::Val{:s_wave},k::AbstractVector{<:Real},Δ_0::Real) = 2*Δ_0 * (cos(k[1]) + cos(k[2]))
-Δ(::Val{:p_ip_wave},k::AbstractVector{<:Real},Δ_0::Real) = 2*Δ_0*(sin(k[1]) + im*sin(k[2]))
 
 #= 
     Functions to construct specific hopping and pairing matrices.
