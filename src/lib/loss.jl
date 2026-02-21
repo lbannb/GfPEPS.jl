@@ -1,20 +1,20 @@
 """
-    energy_loss(params::BCS, kvals::AbstractMatrix, Nf::Int)
+    energy_loss(Nf::Int, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
 
 Returns a function energy(CM_out) that computes the mean energy for BCS Hamiltonians with parameters `params`.
 This funciton is used for the optimization of the covariance matrix of the PEPS ansatz.
 This function should be highly optimized as it is called many times during the optimization, so we precompute as much as possible and avoid allocations in the inner loop.
 """
-function energy_loss(params::BCS, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function energy_loss(Nf::Int, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
     kvals = lattice.kvals
-    ξk_batched_summed = sum(map(k -> ξ(k, params), eachcol(kvals)))
+    ξk_batched_summed = sum(map(k -> H_bdg_k.ξ_fct(k, H_bdg_k.hopping, H_bdg_k.μ), eachcol(kvals)))
 
     # divide by number of k-points
     Nk = size(kvals, 2)
     invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
     
     # Construct the Hamiltonian tensor (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
-    H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, params), eachcol(kvals)))
+    H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, H_bdg_k, lattice), eachcol(kvals)))
 
     function energy(CM_out::AbstractArray)
         # Fast Trace Formula: Tr(H * CM) = sum(H .* CM^T)
@@ -25,7 +25,7 @@ function energy_loss(params::BCS, Nf::Int, lattice::Union{AbstractLattice, Abstr
     return energy
 end
 
-function doping_loss(Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function doping_loss(Nf::Int, lattice::AbstractInfiniteLattice)
     # divide by number of k-points
     Nk = size(lattice.kvals, 2)
     invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
@@ -47,9 +47,9 @@ end
 
 Returns the energy from the CM_out as a function of the orthogonal matrix X, using the Gaussian map.
 """
-function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int, params::BCS)
+function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int, H_bdg_k::MomentumSpaceBdGHamiltonian)
     G_in = G_in_Fourier(Λ, lattice)
-    energy = energy_loss(params, Nf, lattice)
+    energy = energy_loss(Nf, H_bdg_k, lattice)
     function loss(X)
         return real(energy(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Nf, Λ, lattice), Nf, lattice)..., G_in)))
     end

@@ -7,9 +7,9 @@ This structure holds all the relevant information about the fermionic Gaussian s
 
 # Fields
 - `Nf::Int`: Number of Abrikosov fermions per site.
-- `Λ::Int`: Number of virtual fermions per bond (Bond dim. = 2^Λ).
+- `Λ::Int`: Number of virtual fermions per site (Bond dim. = 2^Λ).
 - `lattice::Union{AbstractLattice,AbstractInfiniteLattice}`: The lattice geometry (finite or infinite).
-- `BCS_params::BCS`: Parameters defining the BCS Hamiltonian.
+- `H_bdg::AbstractBdGHamiltonian`: The BdG Hamiltonian object.
 - `doping_kwargs::DopingSettings`: Configuration for doping calculations (e.g., enforcing density constraints).
 - `optim_alg_options`: Optimization algorithm options (e.g., LBFGS or BFGS with manifold support).
 - `optim_options`: General options for the Optim.jl optimizer (iterations, tolerances, etc.).
@@ -32,14 +32,14 @@ This structure holds all the relevant information about the fermionic Gaussian s
     )
 
 Constructs a `Gaussian_fPEPS` object by optimizing the fiducial state parameters `X` to minimize the energy
-of the target BCS Hamiltonian or satisfy doping constraints.
+of the target BdG Hamiltonian or satisfy doping constraints.
 """
 mutable struct Gaussian_fPEPS
-    Nf::Int # number of physical fermions
-    Λ::Int # number of virtual fermions
+    Nf::Int # number of physical fermions per site
+    Λ::Int # number of virtual fermions per site (bond dimension = 2^Λ)
 
     lattice::Union{AbstractLattice,AbstractInfiniteLattice} # lattice structure
-    BCS_params::BCS # parameters of the BCS Hamiltonian
+    H_bdg::AbstractBdGHamiltonian # BdG Hamiltonian object
 
     doping_kwargs::DopingSettings # settings for doping via Lagrange multiplier
     optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} # options for the optimization algorithm (LBFGS or BFGS)
@@ -57,23 +57,23 @@ mutable struct Gaussian_fPEPS
         Nf::Int, 
         Λ::Int, 
         lattice::Union{AbstractLattice,AbstractInfiniteLattice},
-        BCS_params::BCS;
+        H_bdg::AbstractBdGHamiltonian;
         doping_kwargs::DopingSettings=DopingSettings(),
         optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
         # optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.BFGS(; manifold = Optim.Stiefel()),
         optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
         # optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-8, f_reltol=1e-10, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
 
-        X_opt, optim_energy, E_exact, info_obj = get_X_opt(lattice, Nf, Λ, BCS_params; doping_kwargs=doping_kwargs, optim_alg_options=optim_alg_options, optim_options=optim_options)
+        X_opt, optim_energy, E_exact, info_obj = get_X_opt(lattice, Nf, Λ, H_bdg; doping_kwargs=doping_kwargs, optim_alg_options=optim_alg_options, optim_options=optim_options)
         
         # update chemical potential if we optimized for doping
         if doping_kwargs.solve_μ_from_δ && doping_kwargs.enforce_density
-            BCS_params.μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, BCS_params)
+            H_bdg.μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, H_bdg)
         end
 
         Γ = Γ_fiducial(X_opt, Nf, Λ, lattice)
         peps = translate(X_opt, Nf, Λ, lattice);
 
-        new(Nf, Λ, lattice, BCS_params, doping_kwargs, optim_alg_options, optim_options, X_opt, Γ, peps, E_exact, optim_energy, info_obj)
+        new(Nf, Λ, lattice, H_bdg, doping_kwargs, optim_alg_options, optim_options, X_opt, Γ, peps, E_exact, optim_energy, info_obj)
     end
 end

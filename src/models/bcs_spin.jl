@@ -48,49 +48,49 @@ function _is_xbond(bond)
     return bond[2] - bond[1] == CartesianIndex(0, 1)
 end
 
-#= Energy functions when diagonalised via Fourier transform =#
-"""
-    ξ(k::AbstractVector{<:Real},t::Real,μ::Real)
+# #= Energy functions when diagonalised via Fourier transform =#
+# """
+#     ξ(k::AbstractVector{<:Real},t::Real,μ::Real)
 
-Returns:
-```
-    -2t * (cos(k_x) + cos(k_y)) - μ
-```
-"""
-ξ(k::AbstractVector{<:Real}, params::BCS) = -2 * params.t * (cos(k[1]) + cos(k[2])) - params.μ
+# Returns:
+# ```
+#     -2t * (cos(k_x) + cos(k_y)) - μ
+# ```
+# """
+# ξ(k::AbstractVector{<:Real}, params::BCS) = -2 * params.t * (cos(k[1]) + cos(k[2])) - params.μ
 
-"""
-    Δ(pairing_type::String, kwargs...)
+# """
+#     Δ(pairing_type::String, kwargs...)
 
-Returns pairing amplitude:
-```
-    ● d_wave: 2*Δ_0*(cos(k_x) - cos(k_y))
-    ● s_wave: 2*Δ_0
-    ● p+ip_wave: 2*Δ_0*(sin(k_x) - im*sin(k_y))
-    ● kitaev_vortex_free: J*(e^{ik_x} + e^{ik_y})
-```
-"""
-function Δ(k::AbstractVector{<:Real}, params::BCS)
-    if params.pairing_type == "d_wave"
-        return Δ(Val(:d_wave), k, params.Δ_0)
-    elseif params.pairing_type == "s_wave"
-        return Δ(Val(:s_wave), k, params.Δ_0)
-    elseif params.pairing_type == "p_ip_wave"
-        return Δ(Val(:p_ip_wave), k, params.Δ_0)
-    elseif params.pairing_type == "s_d_wave"
-        return Δ(Val(:s_d_wave), k, params.Δ_0, params.Δ_02)
-    else
-        throw(ArgumentError("Unsupported pairing_type $(params.pairing_type) for BCS parameters"))
-    end
-end
+# Returns pairing amplitude:
+# ```
+#     ● d_wave: 2*Δ_0*(cos(k_x) - cos(k_y))
+#     ● s_wave: 2*Δ_0
+#     ● p+ip_wave: 2*Δ_0*(sin(k_x) - im*sin(k_y))
+#     ● kitaev_vortex_free: J*(e^{ik_x} + e^{ik_y})
+# ```
+# """
+# function Δ(k::AbstractVector{<:Real}, params::BCS)
+#     if params.pairing_type == "d_wave"
+#         return Δ(Val(:d_wave), k, params.Δ_0)
+#     elseif params.pairing_type == "s_wave"
+#         return Δ(Val(:s_wave), k, params.Δ_0)
+#     elseif params.pairing_type == "p_ip_wave"
+#         return Δ(Val(:p_ip_wave), k, params.Δ_0)
+#     elseif params.pairing_type == "s_d_wave"
+#         return Δ(Val(:s_d_wave), k, params.Δ_0, params.Δ_02)
+#     else
+#         throw(ArgumentError("Unsupported pairing_type $(params.pairing_type) for BCS parameters"))
+#     end
+# end
 
-Δ(::Val{:d_wave},k::AbstractVector{<:Real},Δ_0) = 2*Δ_0*(cos(k[1]) - cos(k[2]))
-Δ(::Val{:s_wave},k::AbstractVector{<:Real},Δ_0::Real) = 2*Δ_0 * (cos(k[1]) + cos(k[2]))
-Δ(::Val{:p_ip_wave},k::AbstractVector{<:Real},Δ_0::Real) = 2*Δ_0*(sin(k[1]) + im*sin(k[2]))
-Δ(::Val{:s_d_wave},k::AbstractVector{<:Real},Δ_d::Real,Δ_s::Real) = Δ(Val(:d_wave), k, Δ_d) + Δ(Val(:s_wave), k, Δ_s)
+# Δ(::Val{:d_wave},k::AbstractVector{<:Real},Δ_0) = 2*Δ_0*(cos(k[1]) - cos(k[2]))
+# Δ(::Val{:s_wave},k::AbstractVector{<:Real},Δ_0::Real) = 2*Δ_0 * (cos(k[1]) + cos(k[2]))
+# Δ(::Val{:p_ip_wave},k::AbstractVector{<:Real},Δ_0::Real) = 2*Δ_0*(sin(k[1]) + im*sin(k[2]))
+# Δ(::Val{:s_d_wave},k::AbstractVector{<:Real},Δ_d::Real,Δ_s::Real) = Δ(Val(:d_wave), k, Δ_d) + Δ(Val(:s_wave), k, Δ_s)
 
-function E(k::AbstractVector{<:Real}, BdGHamiltonian::MomentumSpaceBdGHamiltonian)
-    return sqrt(BdGHamiltonian.ξ_fct(k, BdGHamiltonian.hopping, BdGHamiltonian.μ)^2 + abs(BdGHamiltonian.Δ_fct(k, BdGHamiltonian.pairing))^2)
+function E(k::AbstractVector{<:Real}, H_bdg::MomentumSpaceBdGHamiltonian)
+    return sqrt(H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ)^2 + abs(H_bdg.Δ_fct(k, H_bdg.pairing))^2)
 end
 
 """
@@ -98,9 +98,9 @@ end
 
 Returns the exact ground state energy per site of a BCS mean field Hamiltonian over the Brillouin zone `bz`.
 """
-function exact_energy(kvals::AbstractMatrix, BdGHamiltonian::MomentumSpaceBdGHamiltonian)
+function exact_energy(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian)
     return mean(map(eachcol(kvals)) do k
-        BdGHamiltonian.ξ_fct(k, BdGHamiltonian.hopping, BdGHamiltonian.μ) - E(k, BdGHamiltonian)
+        H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ) - E(k, H_bdg)
     end)
 end
 
@@ -109,10 +109,10 @@ end
 
 Checks if there are Dirac points (zero-energy modes) in the energy spectrum over the Brillouin zone `bz`.
 """
-function has_dirac_points(kvals::AbstractMatrix, BdGHamiltonian::MomentumSpaceBdGHamiltonian)
+function has_dirac_points(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian)
     dirac_point_found = false
     for k in eachcol(kvals)
-        if isapprox(E(k, BdGHamiltonian), 0.0; atol = 1e-6)
+        if isapprox(E(k, H_bdg), 0.0; atol = 1e-6)
             @warn ("Dirac point found at k = $k. This may lead to convergence issues during optimization.")
             dirac_point_found = true
         end
@@ -125,29 +125,29 @@ end
 
 The energy of a Gaussian fPEPS evaluated from the fiducial state correlation matrix `Γ_fiducial`.
 """
-function energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, BdGHamiltonian::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, H_bdg::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     Λ = div(size(Γ_fiducial, 1) - 2 * Nf, 8)
     G_in = G_in_Fourier(Λ, lattice)
     
-    return energy_loss(BdGHamiltonian, Nf, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
+    return energy_loss(H_bdg, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
 end
 
-function energy_CM(X::AbstractMatrix, Nf::Int, Λ::Int, BdGHamiltonian::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function energy_CM(X::AbstractMatrix, Nf::Int, Λ::Int, H_bdg::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     Γ = Γ_fiducial(X, Nf, Λ, lattice)
-    return energy_CM(Γ, Nf, BdGHamiltonian, lattice)
+    return energy_CM(Γ, Nf, H_bdg, lattice)
 end
 
 #======================================================================================
 Functions to solve μ from hole density
 ======================================================================================#
-function exact_doping(kvals::AbstractMatrix, BdGHamiltonian::MomentumSpaceBdGHamiltonian)
+function exact_doping(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian)
     return mean(map(eachcol(kvals)) do k
-        BdGHamiltonian.ξ_fct(k, BdGHamiltonian.hopping, BdGHamiltonian.μ) / E(k, BdGHamiltonian)
+        H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ) / E(k, H_bdg)
     end)
 end
 
-function solve_for_mu(kvals::AbstractMatrix, δ::Real, BdGHamiltonian::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
-    μ = find_zero(x -> δ - exact_doping(kvals, MomentumSpaceBdGHamiltonian(BdGHamiltonian.Nf, BdGHamiltonian.hopping, BdGHamiltonian.pairing, x, BdGHamiltonian.ξ_fct, BdGHamiltonian.Δ_fct)), μ_range)
+function solve_for_mu(kvals::AbstractMatrix, δ::Real, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
+    μ = find_zero(x -> δ - exact_doping(kvals, MomentumSpaceBdGHamiltonian(H_bdg.Nf, H_bdg.hopping, H_bdg.pairing, x, H_bdg.ξ_fct, H_bdg.Δ_fct)), μ_range)
     return μ
 end
 

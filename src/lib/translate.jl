@@ -1,5 +1,5 @@
 """
-    H_BdG_majorana_k(Nf::Int, k::AbstractVector, params::BCS)
+    H_BdG_majorana_k(k::AbstractVector{<:Real}, H_bdg_k::MomentumSpaceBdGHamiltonian)
 
 Constructs the Hamiltonian matrix `H_BdG_k` in the Majorana basis (qq-ordered) for momentum `k`.
 
@@ -14,33 +14,35 @@ In Majorana basis (Majorana fermions cᵢ), the Hamiltonian becomes:
 
 Returns i/2 * (Ω H_BdG_k Ω†) for momentum `k` in qq-ordering.
 """
-function H_BdG_majorana_k(H_bdg_k::MomentumSpaceBdGHamiltonian)
+function H_BdG_majorana_k(Nf::Int, k::AbstractVector{<:Real}, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
+    Nf_in_uc = get_Nf_in_uc(Nf, lattice)
+
     # 1. Construct H_BdG in Nambu basis (Dirac fermions qp-ordered)
     #= 
         The Nambu spinor for momentum k is α† = (a†ₖ a-ₖ)
     =#
-    ξ_mat = Diagonal([H_bdg_k.ξ_fct(k, H_bdg_k.hopping, H_bdg_k.μ) for i in 1:H_bdg_k.Nf])
+    ξ_mat = Diagonal([H_bdg_k.ξ_fct(k, H_bdg_k.hopping, H_bdg_k.μ) for i in 1:Nf_in_uc])
 
     # flipped diagonal for pairing with our choice of nambu spinor
-    Δ_mat = zeros(ComplexF64, H_bdg_k.Nf, H_bdg_k.Nf)
-    for i in 1:div(H_bdg_k.Nf, 2)
-        Δ_mat[i, H_bdg_k.Nf - i + 1] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
-        Δ_mat[H_bdg_k.Nf - i + 1, i] = -H_bdg_k.Δ_fct(-k, H_bdg_k.pairing)
+    Δ_mat = zeros(ComplexF64, Nf_in_uc, Nf_in_uc)
+    for i in 1:div(Nf_in_uc, 2)
+        Δ_mat[i, Nf_in_uc - i + 1] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
+        Δ_mat[Nf_in_uc - i + 1, i] = -H_bdg_k.Δ_fct(-k, H_bdg_k.pairing)
     end
 
     H_BdG_k_mat = [ξ_mat Δ_mat; Δ_mat' -ξ_mat]
 
     # 2. Permute to qq-ordering: (a₁, a₂, ..., a_Nf, a†₁, a†₂, ..., a†_Nf) -> (a₁, a†₁, a₂, a†₂, ...)
-    p = zeros(Int, 2*H_bdg_k.Nf)
-    for i in 1:H_bdg_k.Nf
+    p = zeros(Int, 2*Nf_in_uc)
+    for i in 1:Nf_in_uc
         p[2*i - 1] = i          # aᵢ
-        p[2*i]     = H_bdg_k.Nf + i     # a†ᵢ
+        p[2*i]     = Nf_in_uc + i     # a†ᵢ
     end
     H_BdG_k_mat = H_BdG_k_mat[p, p]
 
     # 3. Transform to Majorana basis (qq-ordered) with unitary Ω
     Ω0 = [1  1; im  -im]
-    Ω = kron(I(H_bdg_k.Nf), Ω0)
+    Ω = kron(I(Nf_in_uc), Ω0)
 
     return im * 0.5 .* Ω * H_BdG_k_mat * Ω'
 end

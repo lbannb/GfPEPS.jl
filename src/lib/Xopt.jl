@@ -47,7 +47,7 @@ Get the optimal orthogonal X matrix for the GfPEPS approximation of the ground s
 - `lattice::AbstractInfiniteLattice`: The lattice for which to optimize X.
 - `Nf::Int`: Number of physical fermions.
 - `Λ::Int`: The bond dimension parameter for the PEPS ansatz.
-- `BCS_params::AbstractBdGHamiltonian`: The parameters of the BdG Hamiltonian.
+- `H_bdg::AbstractBdGHamiltonian`: The BdG Hamiltonian object.
 
 # Optional Keyword arguments
 - `X_init::Union{AbstractMatrix, Nothing}=nothing`: Optional initial guess for the X matrix. If not provided, a random X matrix will be generated. If provided, we start the optimization for the full system size directly with this initial X for the case we want to continue optimization from a previous run.
@@ -66,7 +66,7 @@ function get_X_opt(
     lattice::AbstractInfiniteLattice, 
     Nf::Int, 
     Λ::Int,
-    BdGHamiltonian::AbstractBdGHamiltonian;
+    H_bdg::AbstractBdGHamiltonian;
     X_init::Union{AbstractMatrix, Nothing}=nothing,
     doping_kwargs::DopingSettings=DopingSettings(),
     optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
@@ -84,10 +84,10 @@ function get_X_opt(
     end
 
     # warn if dirac points are present -> then optimization of Γ can be harder, so user can adjust different kvals set
-    has_dirac_points(lattice.kvals, BdGHamiltonian) 
+    has_dirac_points(lattice.kvals, H_bdg) 
 
     if doping_kwargs.enforce_density && doping_kwargs.solve_μ_from_δ
-        BdGHamiltonian.μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, BdGHamiltonian)
+        H_bdg.μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, H_bdg)
     end
 
     # smaller set of momentum pairs for initial optimization for faster convergence
@@ -109,9 +109,9 @@ function get_X_opt(
         @info "Optimize X for: N_kx = $(N_kx_init), N_ky = $(N_ky_init)"
 
         training_lattice = InfiniteRectLattice(lattice.Lx, lattice.Ly; N_kx=N_kx_init, N_ky=N_ky_init, bc=lattice.bc, shift_x=lattice.shift_x, shift_y=lattice.shift_y)
-        has_dirac_points(training_lattice.kvals,BCS_params)
+        has_dirac_points(training_lattice.kvals, H_bdg)
 
-        loss_fct = energy_loss_X(training_lattice, Nf, Λ, BCS_params)
+        loss_fct = energy_loss_X(training_lattice, Nf, Λ, H_bdg)
         doping_fct = doping_loss_X(training_lattice, Nf, Λ)
 
         # optimize X for current stage and get energy and doping results
@@ -142,7 +142,7 @@ function get_X_opt(
     end
 
     # compute final energy and compare to exact energy
-    E_exact = exact_energy(BCS_params, lattice.kvals)
+    E_exact = exact_energy(lattice.kvals, H_bdg)
     optim_energy = Optim.minimum(stage_res)
     deviation = abs(optim_energy - E_exact)
     
