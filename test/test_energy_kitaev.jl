@@ -4,30 +4,25 @@ using GfPEPS
 using Random
 # using PEPSKit
 
-config = parsefile(joinpath(GfPEPS.test_config_path, "conf_test_kitaev.json"))
-X_opt, optim_energy, exact_energy, _ = GfPEPS.get_X_opt(;conf=config)
+Random.seed!(1234) # for reproducibility
 
-@test optim_energy ≈ exact_energy atol=1e-4
+# fluxfree sector: E_exact = -1.5746 per unit cell
+@testset "Kitaev HC model" begin
+    @testset "Single unit cell" begin
+        Nf = 1
+        Λ = 2
+        lattice = InfiniteRectLattice(1,1;N_kx=24, N_ky=24, bc=(:PBC, :APBC))
 
-params_Kitaev = GfPEPS.Kitaev(
-    config["hamiltonian"]["Jx"],
-    config["hamiltonian"]["Jy"],
-    config["hamiltonian"]["Jz"],
-)
+        Jx = 1.0
+        Jy = 1.0
+        Jz = 1.0
+        H_BdG = kitaev_BCS_hamiltonian(Jx, Jy, Jz, lattice; interaction_type=["NN"])
 
-peps = GfPEPS.translate(X_opt, config["params"]["N_physical_fermions_on_site"], config["params"]["N_virtual_fermions_on_bond"]);
+        E = GfPEPS.exact_energy(lattice.kvals, H_BdG, Nf)
 
-χenv_max = 8
-boundary_alg = (; tol = 1e-8, maxiter=1000, alg = :simultaneous)
-env = GfPEPS.init_ctmrg_env(peps);
-env, _ = GfPEPS.grow_env(peps, env, 4, χenv_max; boundary_alg...);
+        Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, H_BdG)
 
-ham = GfPEPS.Kitaev_Hamiltonian(ComplexF64, InfiniteSquare(1, 1); Jx=params_Kitaev.Jx, Jy=params_Kitaev.Jy, Jz=params_Kitaev.Jz)
-energy1 = real(expectation_value(peps, ham, env))
-
-@show energy1
-@show optim_energy
-@test energy1 ≈ optim_energy atol=2e-2 # depends on Nv
-
-# exact = -1.5746 #per unit cell
-# exact_site = exact / 2 #per site
+        # test energy from CM
+        @test Ψ_trial.exact_energy ≈ Ψ_trial.optim_energy atol=1e-5
+    end
+end

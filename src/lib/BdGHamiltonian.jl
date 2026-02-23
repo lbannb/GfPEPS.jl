@@ -333,3 +333,89 @@ function get_anisotropic_coupling_dict(lattice::AbstractInfiniteLattice, couplin
     !valid_interaction_type && throw(ArgumentError("Unsupported interaction_type $interaction_type."))
     return coupling_dict
 end
+
+#= 
+    Energy functions for BCS Hamiltonians
+=#
+
+"""
+    E(k::AbstractVector{<:Real}, H_bdg::MomentumSpaceBdGHamiltonian)
+
+Returns the energy of the Bogoliubov quasiparticles for a given momentum `k` based on the BdG Hamiltonian parameters.
+
+# Keyword Arguments
+- `k::AbstractVector{<:Real}`: Momentum vector for which to compute the energy.
+- `H_bdg::MomentumSpaceBdGHamiltonian`: The BdG Hamiltonian object containing the parameters and functions to compute ξ(k) and Δ(k).
+
+"""
+function E(k::AbstractVector{<:Real}, H_bdg::MomentumSpaceBdGHamiltonian)
+    return sqrt(H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ)^2 + abs(H_bdg.Δ_fct(k, H_bdg.pairing))^2)
+end
+
+"""
+    exact_energy(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian, Nf::Int)
+
+Returns the exact ground state energy per site of a BCS mean field Hamiltonian.
+
+"""
+function exact_energy(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian, Nf::Int)
+    return mean(map(eachcol(kvals)) do k
+        # Nf / 2 to account for spinless (Nf=1) and spinful (Nf=2) cases
+        0.5 * Nf * ( H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ) - E(k, H_bdg) ) + H_bdg.E_shift(k, H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ), H_bdg.Δ_fct(k, H_bdg.pairing), H_bdg.μ)
+    end)
+end
+
+"""
+    has_dirac_points(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian)
+
+Checks if there are Dirac points (zero-energy modes) in the quasiparticle energy spectrum over a given momentum set `kvals`.
+
+"""
+function has_dirac_points(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian)
+    dirac_point_found = false
+    for k in eachcol(kvals)
+        if isapprox(E(k, H_bdg), 0.0; atol = 1e-6)
+            @warn ("Dirac point found at k = $k. This may lead to convergence issues during optimization.")
+            dirac_point_found = true
+        end
+    end
+    return dirac_point_found
+end
+
+#= 
+    Doping functions for BCS Hamiltonians
+=#
+"""
+    exact_doping(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian)
+
+Returns the exact doping level of a BCS mean field Hamiltonian.
+
+"""
+function exact_doping(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian)
+    return mean(map(eachcol(kvals)) do k
+        H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ) / E(k, H_bdg)
+    end)
+end
+
+"""
+    solve_for_mu(kvals::AbstractMatrix, δ::Real, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
+
+Finds the chemical potential `μ` that corresponds to a given doping level `δ` for a BCS mean field Hamiltonian by solving the number equation.
+
+# Keyword Arguments
+- `kvals::AbstractMatrix`: Matrix of momentum vectors over which to compute the doping.
+- `δ::Real`: Target doping level to solve for.
+- `H_bdg::MomentumSpaceBdGHamiltonian`: The BdG Hamiltonian object containing the parameters and functions to compute ξ(k) and Δ(k).
+
+# Optional Arguments
+- `μ_range::NTuple{2, Float64} = (-5.0, 5.0)`: Range of chemical potential values to search for the solution.
+
+# Returns
+- `μ::Real`: The chemical potential that corresponds to the target doping level `δ`.
+
+"""
+function solve_for_mu(kvals::AbstractMatrix, δ::Real, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
+    μ = find_zero(x -> δ - exact_doping(kvals, MomentumSpaceBdGHamiltonian(H_bdg.hopping, H_bdg.pairing, x, H_bdg.ξ_fct, H_bdg.Δ_fct)), μ_range)
+    return μ
+end
+

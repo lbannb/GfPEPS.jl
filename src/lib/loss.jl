@@ -30,6 +30,13 @@ function energy_loss(Nf::Int, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::Abs
     return energy
 end
 
+"""
+    doping_loss(Nf::Int, lattice::AbstractInfiniteLattice)
+
+Returns a function doping(CM_out) that computes the mean doping for a given covariance matrix `CM_out` of the PEPS ansatz.
+This function is used for the optimization of the covariance matrix of the PEPS ansatz, when we want to enforce a certain doping level.
+This function should be highly optimized as it is called many times during the optimization, so we precompute as much as possible and avoid allocations in the inner loop.
+"""
 function doping_loss(Nf::Int, lattice::AbstractInfiniteLattice)
     # divide by number of k-points
     Nk = size(lattice.kvals, 2)
@@ -61,6 +68,11 @@ function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice},
     return loss
 end
 
+"""
+    doping_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int)
+
+Returns the doping from the CM_out as a function of the orthogonal matrix X, using the Gaussian map.
+"""
 function doping_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int)
     G_in = G_in_Fourier(Λ, lattice)
     doping = doping_loss(Nf, lattice)
@@ -68,4 +80,47 @@ function doping_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice},
         return real(doping(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Nf, Λ, lattice), Nf, lattice)..., G_in)))
     end
     return loss
+end
+
+#= 
+    Functions to compute the energy + doping from the covariance matrix of the fiducial state.
+=#
+
+"""
+    energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, H_bdg::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+
+The energy of a Gaussian fPEPS evaluated from the fiducial state correlation matrix `Γ_fiducial`.
+"""
+function energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, H_bdg::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    Nf_in_uc = get_Nf_in_uc(Nf, lattice)
+
+    Λ = div(size(Γ_fiducial, 1) - 2 * Nf_in_uc, 8)
+    G_in = G_in_Fourier(Λ, lattice)
+    
+    return energy_loss(Nf, H_bdg, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
+end
+function energy_CM(X::AbstractMatrix, Nf::Int, Λ::Int, H_bdg::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    Γ = Γ_fiducial(X, Nf, Λ, lattice)
+    return energy_CM(Γ, Nf, H_bdg, lattice)
+end
+
+"""
+    doping_CM(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+
+The average doping `δ = 1 - (1/N) ∑_k ⟨f†_{kσ} f_{kσ}⟩`
+evaluated from the fiducial state correlation matrix `Γ`.
+
+For trivial unit cell and Nf=2:     `⟨f†_{k↑} f_{k↑}⟩ = 1/2 * (1 - Gf[1,2])`
+                                    `⟨f†_{k↓} f_{k↓}⟩ = 1/2 * (1 - Gf[3,4])`
+
+"""
+function doping_CM(Γ_fiducial::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    Λ = div(size(Γ_fiducial, 1) - 2 * Nf, 8)
+    G_in = G_in_Fourier(Λ, lattice)
+
+    return doping_loss(Nf, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
+end
+function doping_CM(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    Γ = Γ_fiducial(X, Nf, Λ, lattice)
+    return doping_CM(Γ, Nf, lattice)
 end
