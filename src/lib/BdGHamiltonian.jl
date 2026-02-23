@@ -53,7 +53,8 @@ end
         pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, 
         μ::Real, 
         ξ_fct::Function, 
-        Δ_fct::Function
+        Δ_fct::Function,
+        E_shift::Function = (k, ξ_k, Δ_k, μ) -> 0.0
     )
 
 Stores the parameters in momentum space to construct the Hamiltonian matrix ``H_BdG_k`` in BCS form for a specific momentum `k`:
@@ -73,6 +74,7 @@ H_BdG_k = [hopping_mat(k)  pairing_mat(k);
 - `μ::Real`: Chemical potential (can be updated when solve_μ_from_δ = true in DopingSettings)
 - `ξ_fct::Function`: Function to compute ξ(k, hopping, μ)
 - `Δ_fct::Function`: Function to compute Δ(k, pairing)
+- `E_shift::Function`: Function to implement arbitrary energy shifts.
 
 """
 mutable struct MomentumSpaceBdGHamiltonian <: AbstractBdGHamiltonian
@@ -80,24 +82,25 @@ mutable struct MomentumSpaceBdGHamiltonian <: AbstractBdGHamiltonian
     pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}
     μ::Real # chemical potential -> This can be changed when solve_μ_from_δ = true in DopingSettings
 
-    ξ_fct::Function # function to compute ξ(k, hopping, μ)
-    Δ_fct::Function # function to compute Δ(k, pairing)
+    ξ_fct::Function     # function to compute ξ(k, hopping, μ)
+    Δ_fct::Function     # function to compute Δ(k, pairing)
+    E_shift::Function   # function to implement arbitrary energy shifts
 
     function MomentumSpaceBdGHamiltonian(
         hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, 
         pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, 
         μ::Real, 
         ξ_fct::Function, 
-        Δ_fct::Function
+        Δ_fct::Function;
+        E_shift::Function = (k, ξ_k, Δ_k, μ) -> 0.0
     )
-        return new(hopping, pairing, μ, ξ_fct, Δ_fct)
+        return new(hopping, pairing, μ, ξ_fct, Δ_fct, E_shift)
     end
 end
 
 #= 
     Some example BCS Hamiltonians in momentum space for translation invariant systems
 =#
-
 """
     default_BCS_hamiltonian(
         hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, 
@@ -106,12 +109,17 @@ end
         interaction_type::Vector{String} = ["NN"], 
         pairing_type::String = "d_wave")
 
-Returns a `MomentumSpaceBdGHamiltonian` which follows the standard BCS form.
+Returns a `MomentumSpaceBdGHamiltonian` which follows the standard BCS form:
+```
+    H = ∑_k ξ(k) c_k^† c_k + ( Δ(k) c_k^† c_-k^† + h.c. )
+´´´
 
 # Keyword Arguments
 - `hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}`: where the dict entries represent the hopping amplitude on the corresponding connection.
 - `pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}`: where the dict entries represent the pairing amplitude on the corresponding connection.
 - `μ::Real`: Chemical potential
+- `lattice::AbstractInfiniteLattice`: The lattice on which the BCS model is defined
+- `h::Real = 0.0`: External field
 - `interaction_type::Vector{String}=["NN"]`: Type of hopping interactions to include. Options: 
     * "NN" (Nearest neighbor)
     * "NNN" (Next nearest neighbor)
@@ -125,6 +133,7 @@ function default_BCS_hamiltonian(
     pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}},
     μ::Real,
     lattice::AbstractInfiniteLattice;
+    E_shift::Function = (k, ξ_k, Δ_k, μ) -> 0.0,
     interaction_type::Vector{String} = ["NN"])
 
     function ξ_fct(k::AbstractVector{<:Real}, hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, μ::Real)
@@ -177,7 +186,58 @@ function default_BCS_hamiltonian(
         end 
     end
 
-    return MomentumSpaceBdGHamiltonian(hopping, pairing, μ, ξ_fct, Δ_fct)
+    return MomentumSpaceBdGHamiltonian(hopping, pairing, μ, ξ_fct, Δ_fct; E_shift=E_shift)
+end
+
+"""
+    kitaev_BCS_hamiltonian(
+        Jx::Real,
+        Jy::Real,
+        Jz::Real,
+        lattice::AbstractInfiniteLattice;
+        # TODO: add external field?
+        interaction_type::Vector{String} = ["NN"])
+
+Returns a `MomentumSpaceBdGHamiltonian` for the Kitaev model in the vortex free configuration.
+TODO: Distinguish between different vortex configurations in the future
+
+# Keyword Arguments
+- `Jx::Real`: Coupling constant for x-bonds
+- `Jy::Real`: Coupling constant for y-bonds
+- `Jz::Real`: Coupling constant for z-bonds
+- `lattice::AbstractInfiniteLattice`: The lattice on which the Kitaev model is defined 
+- `h::Real = 0.0`: External field
+- `interaction_type::Vector{String} = ["NN"]`: Type of interactions to include. Options:
+    * "NN" (Nearest neighbor)
+    * "NNN" (Next nearest neighbor)
+
+# Returns
+- `MomentumSpaceBdGHamiltonian`: A `MomentumSpaceBdGHamiltonian` object representing the Kitaev model in the vortex free configuration, with functions to compute ξ(k) and Δ(k) based on the specified couplings and lattice geometry.
+
+"""
+
+function kitaev_BCS_hamiltonian(
+    Jx::Real,
+    Jy::Real,
+    Jz::Real,
+    lattice::AbstractInfiniteLattice;
+    interaction_type::Vector{String} = ["NN"])
+
+    # TODO: add Honeycomb lattice
+    if lattice isa AbstractRectangularInfiniteLattice
+        μ = -2Jz
+        E_shift = (k, ξ_k, Δ_k, μ) -> -Jz # Z2 background gauge field
+
+        # TODO: add more interaction types here if needed
+        if interaction_type == ["NN"]
+             hopping = get_anisotropic_coupling_dict(lattice, [[Jx, Jx, Jy, Jy]], interaction_type=["NN"])
+             pairing = get_anisotropic_coupling_dict(lattice, [[Jx,-Jx,Jy,-Jy]], interaction_type=["NN"])
+
+             return default_BCS_hamiltonian(hopping, pairing, μ, lattice; interaction_type=["NN"], E_shift=E_shift)
+        end
+    else
+        throw(ArgumentError("Unsupported lattice type for Kitaev BCS Hamiltonian."))
+    end
 end
 
 """

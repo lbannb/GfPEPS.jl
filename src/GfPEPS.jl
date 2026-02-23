@@ -37,7 +37,7 @@ include("lib/bogoliubov.jl")
 include("lib/Xopt.jl")
 include("lib/translate.jl")
 
-include("models/bcs_spin.jl")
+include("models/bcs.jl")
 # include("models/kitaev.jl")
 # include("models/tj_model.jl")
 

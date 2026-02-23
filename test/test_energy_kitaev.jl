@@ -1,9 +1,8 @@
 using Revise
 using Test
 using GfPEPS
-using JSON: parsefile
 using Random
-using PEPSKit
+# using PEPSKit
 
 config = parsefile(joinpath(GfPEPS.test_config_path, "conf_test_kitaev.json"))
 X_opt, optim_energy, exact_energy, _ = GfPEPS.get_X_opt(;conf=config)

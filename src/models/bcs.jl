@@ -94,13 +94,14 @@ function E(k::AbstractVector{<:Real}, H_bdg::MomentumSpaceBdGHamiltonian)
 end
 
 """
-    exact_energy_BCS_k(bz::BrillouinZone2D, t::Real, μ::Real, Δ_kwargs...)
+    exact_energy(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian, Nf::Int)
 
-Returns the exact ground state energy per site of a BCS mean field Hamiltonian over the Brillouin zone `bz`.
+Returns the exact ground state energy per site of a BCS mean field Hamiltonian.
 """
-function exact_energy(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian)
+function exact_energy(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian, Nf::Int)
     return mean(map(eachcol(kvals)) do k
-        H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ) - E(k, H_bdg)
+        # Nf / 2 to account for spinless (Nf=1) and spinful (Nf=2) cases
+        Nf * ( H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ) - E(k, H_bdg) ) / 2 + H_bdg.E_shift(k, H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ), H_bdg.Δ_fct(k, H_bdg.pairing), H_bdg.μ)
     end)
 end
 
@@ -126,10 +127,12 @@ end
 The energy of a Gaussian fPEPS evaluated from the fiducial state correlation matrix `Γ_fiducial`.
 """
 function energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, H_bdg::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    Λ = div(size(Γ_fiducial, 1) - 2 * Nf, 8)
+    Nf_in_uc = get_Nf_in_uc(Nf, lattice)
+
+    Λ = div(size(Γ_fiducial, 1) - 2 * Nf_in_uc, 8)
     G_in = G_in_Fourier(Λ, lattice)
     
-    return energy_loss(H_bdg, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
+    return energy_loss(Nf, H_bdg, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
 end
 
 function energy_CM(X::AbstractMatrix, Nf::Int, Λ::Int, H_bdg::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
@@ -147,7 +150,7 @@ function exact_doping(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian)
 end
 
 function solve_for_mu(kvals::AbstractMatrix, δ::Real, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
-    μ = find_zero(x -> δ - exact_doping(kvals, MomentumSpaceBdGHamiltonian(H_bdg.Nf, H_bdg.hopping, H_bdg.pairing, x, H_bdg.ξ_fct, H_bdg.Δ_fct)), μ_range)
+    μ = find_zero(x -> δ - exact_doping(kvals, MomentumSpaceBdGHamiltonian(H_bdg.hopping, H_bdg.pairing, x, H_bdg.ξ_fct, H_bdg.Δ_fct)), μ_range)
     return μ
 end
 

@@ -5,7 +5,8 @@ export RectLattice, InfiniteRectLattice
 export RealSpaceBdGHamiltonian
 export MomentumSpaceBdGHamiltonian
 export DopingSettings
-export default_BCS_hamiltonian, get_isotropic_coupling_dict, get_anisotropic_coupling_dict
+export default_BCS_hamiltonian, kitaev_BCS_hamiltonian
+export get_isotropic_coupling_dict, get_anisotropic_coupling_dict
 
 #= export constructor =#
 export Gaussian_fPEPS
