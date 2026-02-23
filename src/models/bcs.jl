@@ -101,7 +101,7 @@ Returns the exact ground state energy per site of a BCS mean field Hamiltonian.
 function exact_energy(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian, Nf::Int)
     return mean(map(eachcol(kvals)) do k
         # Nf / 2 to account for spinless (Nf=1) and spinful (Nf=2) cases
-        Nf * ( H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ) - E(k, H_bdg) ) / 2 + H_bdg.E_shift(k, H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ), H_bdg.Δ_fct(k, H_bdg.pairing), H_bdg.μ)
+        0.5 * Nf * ( H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ) - E(k, H_bdg) ) + H_bdg.E_shift(k, H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ), H_bdg.Δ_fct(k, H_bdg.pairing), H_bdg.μ)
     end)
 end
 

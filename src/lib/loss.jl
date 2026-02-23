@@ -7,7 +7,12 @@ This function should be highly optimized as it is called many times during the o
 """
 function energy_loss(Nf::Int, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
     kvals = lattice.kvals
-    ξk_batched_summed = sum(map(k -> H_bdg_k.ξ_fct(k, H_bdg_k.hopping, H_bdg_k.μ), eachcol(kvals)))
+
+    E_shift_summed = sum(map(eachcol(kvals)) do k
+        ξ_k = H_bdg_k.ξ_fct(k, H_bdg_k.hopping, H_bdg_k.μ)
+        Δ_k = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
+        return Nf * 0.5 * ξ_k + H_bdg_k.E_shift(k, ξ_k, Δ_k, H_bdg_k.μ)
+    end)
 
     # divide by number of k-points
     Nk = size(kvals, 2)
@@ -19,7 +24,7 @@ function energy_loss(Nf::Int, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::Abs
     function energy(CM_out::AbstractArray)
         # Fast Trace Formula: Tr(H * CM) = sum(H .* CM^T)
         # Since input is already CM^T (see GaussianMap), this is just a dot product.
-        return real((ξk_batched_summed - 0.25 * sum(H_BdG_batched .* CM_out)) * invN)
+        return real((E_shift_summed - 0.25 * sum(H_BdG_batched .* CM_out)) * invN)
     end
 
     return energy

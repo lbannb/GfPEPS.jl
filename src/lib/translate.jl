@@ -25,9 +25,16 @@ function H_BdG_majorana_k(Nf::Int, k::AbstractVector{<:Real}, H_bdg_k::MomentumS
 
     # flipped diagonal for pairing with our choice of nambu spinor
     Δ_mat = zeros(ComplexF64, Nf_in_uc, Nf_in_uc)
-    for i in 1:div(Nf_in_uc, 2)
-        Δ_mat[i, Nf_in_uc - i + 1] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
-        Δ_mat[Nf_in_uc - i + 1, i] = -H_bdg_k.Δ_fct(-k, H_bdg_k.pairing)
+    for i in 1:cld(Nf_in_uc, 2)
+        j = Nf_in_uc - i + 1
+        if i == j
+            # Spinless / unpaired fermion exactly in the middle (odd Nf_in_uc)
+            Δ_mat[i, i] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
+        else
+            # Paired fermions (e.g., spin up and spin down)
+            Δ_mat[i, j] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
+            Δ_mat[j, i] = -H_bdg_k.Δ_fct(-k, H_bdg_k.pairing)
+        end
     end
 
     H_BdG_k_mat = [ξ_mat Δ_mat; Δ_mat' -ξ_mat]

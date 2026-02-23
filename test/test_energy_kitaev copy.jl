@@ -11,7 +11,7 @@ Random.seed!(1234) # for reproducibility
 #     @testset "Single unit cell" begin
         Nf = 1
         Λ = 2
-        lattice = InfiniteRectLattice(1,1;N_kx=100, N_ky=100, bc=(:PBC, :APBC))
+        lattice = InfiniteRectLattice(1,1;N_kx=24, N_ky=24, bc=(:PBC, :APBC))
 
         Jx = 1.0
         Jy = 1.0
@@ -20,9 +20,9 @@ Random.seed!(1234) # for reproducibility
 
         E = GfPEPS.exact_energy(lattice.kvals, H_BdG, Nf)
 
-        # Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, H_BdG)
+        Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, H_BdG)
 
-        # # test energy from CM
-        # @test Ψ_trial.exact_energy ≈ Ψ_trial.optim_energy atol=1e-5
+        # test energy from CM
+        @test Ψ_trial.exact_energy ≈ Ψ_trial.optim_energy atol=1e-5
 #     end
 # end

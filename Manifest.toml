@@ -645,9 +645,9 @@ version = "3.5.0"
 
 [[deps.MKL]]
 deps = ["Artifacts", "Libdl", "LinearAlgebra", "Logging", "MKL_jll"]
-git-tree-sha1 = "fc3df8a0c3447fefe3607e5576de8c69ec6800ea"
+git-tree-sha1 = "7babad0b8cb353d15ed85090342d3c63af5f6819"
 uuid = "33e6dc65-8f57-5167-99aa-e5a354878fb2"
-version = "0.9.0"
+version = "0.9.1"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
@@ -876,9 +876,9 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.PtrArrays]]
-git-tree-sha1 = "1d36ef11a9aaf1e8b74dacc6a731dd1de8fd493d"
+git-tree-sha1 = "4fbbafbc6251b883f4d2705356f3641f3652a7fe"
 uuid = "43287f4e-b6f4-7ad1-bb20-aadabca52c3d"
-version = "1.3.0"
+version = "1.4.0"
 
 [[deps.REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
@@ -929,9 +929,9 @@ version = "1.4.2"
 
 [[deps.Roots]]
 deps = ["Accessors", "CommonSolve", "Printf"]
-git-tree-sha1 = "8a433b1ede5e9be9a7ba5b1cc6698daa8d718f1d"
+git-tree-sha1 = "24a107726fb5c14f93985ca4e1066b891e09ec67"
 uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "2.2.10"
+version = "2.2.12"
 
     [deps.Roots.extensions]
     RootsChainRulesCoreExt = "ChainRulesCore"
@@ -970,9 +970,9 @@ version = "1.1.2"
 
 [[deps.SkewLinearAlgebra]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "d5bb33e773bce1d65a2e671a2a1614ba9f1ba5eb"
+git-tree-sha1 = "ba8f829daf7e16017f3122f9a4ba8c48b283a905"
 uuid = "5c889d49-8c60-4500-9d10-5d3a22e2f4b9"
-version = "1.0.1"
+version = "1.1.0"
 
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
@@ -1017,9 +1017,9 @@ version = "0.1.7"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
-git-tree-sha1 = "eee1b9ad8b29ef0d936e3ec9838c7ec089620308"
+git-tree-sha1 = "0f529006004a8be48f1be25f3451186579392d47"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.9.16"
+version = "1.9.17"
 weakdeps = ["ChainRulesCore", "Statistics"]
 
     [deps.StaticArrays.extensions]

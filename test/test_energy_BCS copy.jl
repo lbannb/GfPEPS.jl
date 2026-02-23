@@ -9,7 +9,7 @@ Random.seed!(1234) # for reproducibility
 #= Test settings =#
 Nf = 2
 Λ = 2
-lattice = InfiniteRectLattice(1,1;N_kx=12, N_ky=12, bc=(:PBC, :APBC))
+lattice = InfiniteRectLattice(1,1;N_kx=6, N_ky=6, bc=(:PBC, :APBC))
 doping_kwargs = DopingSettings(; δ=0.16, enforce_density=true)
 
 # BCS parameters

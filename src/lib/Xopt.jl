@@ -142,7 +142,7 @@ function get_X_opt(
     end
 
     # compute final energy and compare to exact energy
-    E_exact = exact_energy(lattice.kvals, H_bdg)
+    E_exact = exact_energy(lattice.kvals, H_bdg, Nf)
     optim_energy = Optim.minimum(stage_res)
     deviation = abs(optim_energy - E_exact)
     
