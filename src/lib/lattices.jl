@@ -8,7 +8,19 @@ abstract type AbstractInfiniteLattice end
     Rectangular lattice types
 =#
 abstract type AbstractRectangularLattice <: AbstractLattice end
-abstract type AbstractRectangularInfiniteLattice <: AbstractInfiniteLattice end
+abstract type AbstractInfiniteRectangularLattice <: AbstractInfiniteLattice end
+
+#= 
+    Triangular lattice types
+=#
+abstract type AbstractTriangularLattice <: AbstractLattice end
+abstract type AbstractInfiniteTriangularLattice <: AbstractInfiniteLattice end
+
+#= 
+    Honeycomb lattice types
+=#
+abstract type AbstractBrickWallLattice <: AbstractLattice end
+abstract type AbstractInfiniteBrickWallLattice <: AbstractInfiniteLattice end
 
 #= 
     ToDo: add more lattice types (triangular, honeycomb, kagome, etc.)
@@ -41,7 +53,7 @@ Also contains the allowed momentum values ```kvals::Matrix{Float64}``` for the g
 - `shift_x::Float64 = 0.0`: Shift in the x-direction of the k-grid
 - `shift_y::Float64 = 0.0`: Shift in the y-direction of the k-grid
 """
-struct InfiniteRectLattice <: AbstractRectangularInfiniteLattice 
+struct InfiniteRectLattice <: AbstractInfiniteRectangularLattice 
     Lx::Int
     Ly::Int
 
@@ -63,6 +75,53 @@ struct InfiniteRectLattice <: AbstractRectangularInfiniteLattice
         if !(bc[1] in allowed_bcs && bc[2] in allowed_bcs)
             throw(ArgumentError("Boundary conditions must be :APBC or :PBC. Got: $bc"))
         end
+
+        new(Lx, Ly, get_2D_k_grid(N_kx, N_ky; x_bc=Val(bc[1]), shift_x=shift_x, y_bc=Val(bc[2]), shift_y=shift_y), N_kx, N_ky, bc, shift_x, shift_y)
+    end
+end
+
+"""
+    InfiniteBrickWallLattice(Lx::Int, Ly::Int; N_kx::Int = 48, N_ky::Int = 48, bc::Tuple{Symbol, Symbol} = (:APBC, :PBC))
+
+Here we are using the topological equivalent brick wall lattice representation of the honeycomb lattice.
+Represents a unit cell of size ```Lx * Ly``` which is repeated over the infinite lattice.
+Also contains the allowed momentum values ```kvals::Matrix{Float64}``` for the given unit cell.
+
+# Keyword arguments
+- `Lx::Int`: Number of sites in the x-direction / rows of the unit cell
+- `Ly::Int`: Number of sites in the y-direction / columns of the unit cell
+
+# Optional keyword arguments:
+- `N_kx::Int = 48`: Number of k-points in the x-direction
+- `N_ky::Int = 48`: Number of k-points in the y-direction
+- `bc::Tuple{Symbol, Symbol} = (:APBC, :PBC)`: Tuple specifying boundary conditions for x and y directions, e.g. `(:PBC, :APBC)`
+- `shift_x::Float64 = 0.0`: Shift in the x-direction of the k-grid
+- `shift_y::Float64 = 0.0`: Shift in the y-direction of the k-grid
+"""
+struct InfiniteBrickWallLattice <: AbstractInfiniteBrickWallLattice 
+    Lx::Int # number of rows in the unit cell
+    Ly::Int # number of columns in the unit cell
+
+    kvals::Matrix{Float64} # 2 x (N_kx * N_ky) matrix of k-points in the Brillouin zone
+    N_kx::Int
+    N_ky::Int
+    bc::Tuple{Symbol, Symbol}
+    shift_x::Float64
+    shift_y::Float64
+
+    function InfiniteBrickWallLattice(Lx::Int, Ly::Int; 
+        N_kx::Int = 48, 
+        N_ky::Int = 48,
+        bc::Tuple{Symbol, Symbol} = (:APBC, :PBC),
+        shift_x::Float64 = 0.0,
+        shift_y::Float64 = 0.0)
+
+        allowed_bcs = (:PBC, :APBC)
+        if !(bc[1] in allowed_bcs && bc[2] in allowed_bcs)
+            throw(ArgumentError("Boundary conditions must be :APBC or :PBC. Got: $bc"))
+        end
+
+        @assert Lx===Ly "For the brick wall lattice, we require Lx == Ly. Got Lx=$Lx, Ly=$Ly."
 
         new(Lx, Ly, get_2D_k_grid(N_kx, N_ky; x_bc=Val(bc[1]), shift_x=shift_x, y_bc=Val(bc[2]), shift_y=shift_y), N_kx, N_ky, bc, shift_x, shift_y)
     end
@@ -160,14 +219,22 @@ end
 #= 
     Functions for number of majorana modes in the unit cell
 =#
-function get_Nf_in_uc(Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function get_Nf_in_uc(Nf::Int, lattice::Union{AbstractInfiniteRectangularLattice, AbstractRectangularLattice})
     return Nf * lattice.Lx * lattice.Ly
 end
+function get_Nf_in_uc(Nf::Int, lattice::Union{AbstractInfiniteBrickWallLattice, AbstractBrickWallLattice})
+    return 2Nf * lattice.Lx * lattice.Ly
+end
 
-function get_Λ_in_uc(Λ::Int, lattice::Union{AbstractRectangularLattice, AbstractRectangularInfiniteLattice})
+function get_Λ_in_uc(Λ::Int, lattice::Union{AbstractInfiniteRectangularLattice, AbstractRectangularLattice})
     return 2Λ*(lattice.Lx + lattice.Ly)
 end
 
-function get_number_of_modes(Nf::Int, Λ::Int, lattice::Union{AbstractRectangularLattice, AbstractRectangularInfiniteLattice})
+function get_Λ_in_uc(Λ::Int, lattice::Union{AbstractInfiniteBrickWallLattice, AbstractBrickWallLattice})
+    # Check this again if this holds for arbitrary sizes. Only tested it for 1x1 and 2x2.
+    return 2Λ*(lattice.Lx + lattice.Ly)
+end
+
+function get_number_of_modes(Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     return get_Nf_in_uc(Nf, lattice) + get_Λ_in_uc(Λ, lattice)
 end

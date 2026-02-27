@@ -49,8 +49,8 @@ end
 
 """
     MomentumSpaceBdGHamiltonian(
-        hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, 
-        pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, 
+        hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
+        pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
         μ::Real, 
         ξ_fct::Function, 
         Δ_fct::Function,
@@ -65,10 +65,10 @@ H_BdG_k = [hopping_mat(k)  pairing_mat(k);
 ``
 
 # Fields
-- `hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}`: where the dict entries represent the hopping amplitude on the corresponding connection:
+- `hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}`: where the dict entries represent the hopping amplitude on the corresponding connection:
     * (x, y) => t_ij, where x and y follow the lattice geometry
     * (Example for square lattice x=±1, y=±1): (1,0) => t_(1,x), (-1,0) => t_(1,-x), (0,1) => t_(1,y), (0,-1) => t_(1,-y), (1,1) => t_(2,xy) etc.
-- `pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}`: where the dict entries represent the pairing amplitude on the corresponding connection:
+- `pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}`: where the dict entries represent the pairing amplitude on the corresponding connection:
     * (x, y) => Δ_ij, where x and y follow the lattice geometry
     * (Example for square lattice x=±1, y=±1): (1,0) => Δ_(1,x), (-1,0) => Δ_(1,-x), (0,1) => Δ_(1,y), (0,-1) => Δ_(1,-y), (1,1) => Δ_(2,xy) etc.
 - `μ::Real`: Chemical potential (can be updated when solve_μ_from_δ = true in DopingSettings)
@@ -78,8 +78,8 @@ H_BdG_k = [hopping_mat(k)  pairing_mat(k);
 
 """
 mutable struct MomentumSpaceBdGHamiltonian <: AbstractBdGHamiltonian
-    hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}
-    pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}
+    hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}
+    pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}
     μ::Real # chemical potential -> This can be changed when solve_μ_from_δ = true in DopingSettings
 
     ξ_fct::Function     # function to compute ξ(k, hopping, μ)
@@ -87,8 +87,8 @@ mutable struct MomentumSpaceBdGHamiltonian <: AbstractBdGHamiltonian
     E_shift::Function   # function to implement arbitrary energy shifts
 
     function MomentumSpaceBdGHamiltonian(
-        hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, 
-        pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, 
+        hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
+        pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
         μ::Real, 
         ξ_fct::Function, 
         Δ_fct::Function;
@@ -103,8 +103,8 @@ end
 =#
 """
     default_BCS_hamiltonian(
-        hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, 
-        pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, 
+        hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
+        pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
         μ::Real, lattice::AbstractInfiniteLattice; 
         interaction_type::Vector{String} = ["NN"], 
         pairing_type::String = "d_wave")
@@ -115,8 +115,8 @@ Returns a `MomentumSpaceBdGHamiltonian` which follows the standard BCS form:
 ´´´
 
 # Keyword Arguments
-- `hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}`: where the dict entries represent the hopping amplitude on the corresponding connection.
-- `pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}`: where the dict entries represent the pairing amplitude on the corresponding connection.
+- `hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}`: where the dict entries represent the hopping amplitude on the corresponding connection.
+- `pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}`: where the dict entries represent the pairing amplitude on the corresponding connection.
 - `μ::Real`: Chemical potential
 - `lattice::AbstractInfiniteLattice`: The lattice on which the BCS model is defined
 - `h::Real = 0.0`: External field
@@ -129,61 +129,80 @@ Returns a `MomentumSpaceBdGHamiltonian` which follows the standard BCS form:
 
 """
 function default_BCS_hamiltonian(
-    hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}},
-    pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}},
+    hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}},
+    pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}},
     μ::Real,
     lattice::AbstractInfiniteLattice;
     E_shift::Function = (k, ξ_k, Δ_k, μ) -> 0.0,
     interaction_type::Vector{String} = ["NN"])
 
-    function ξ_fct(k::AbstractVector{<:Real}, hopping::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}}, μ::Real)
+    function ξ_fct(k::AbstractVector{<:Real}, hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, μ::Real)
         # TODO: add more lattice types here
-        if lattice isa AbstractRectangularInfiniteLattice
-            #=  
-                collection of standard interaction types which can be combined
-                TODO: add higher neighbor interactions here if needed
-            =#
-            NN(k, hopping) = -2 * (hopping[(1,0)] * cos(k[1]) + hopping[(0,1)] * cos(k[2]))
-            NNN(k, hopping) = - 2 * hopping[(1,1)] * cos(k[1]+k[2]) - 2 * hopping[(1,-1)] * cos(k[1]-k[2])
 
-            # recall (t_x = t_-x and t_y = t_-y because of hermiticity)
-            # NN hopping 
-            interaction_type == ["NN"] && return NN(k, hopping) - μ
+        NN(k, hopping) = begin
+            if lattice isa AbstractInfiniteRectangularLattice
+                -2 * (hopping[(1,0)] * cos(k[1]) + hopping[(0,1)] * cos(k[2]))
+            elseif lattice isa AbstractInfiniteBrickWallLattice
+                -2 * (hopping[(1,sqrt(3))] * cos(k[1]) + hopping[(1,-sqrt(3))] * cos(k[2]))
+            else
+                throw(ArgumentError("Unsupported lattice type for ξ_fct."))
+            end
+        end
 
-            # NNN hopping
-            interaction_type == ["NNN"] && return NNN(k, hopping) - μ
+        NNN(k, hopping) = begin
+            if lattice isa AbstractInfiniteRectangularLattice
+                - 2 * hopping[(1,1)] * cos(k[1]+k[2]) - 2 * hopping[(1,-1)] * cos(k[1]-k[2])
+            else
+                throw(ArgumentError("Unsupported lattice type for ξ_fct."))
+            end
+        end
 
-            # NN + NNN hopping
-            interaction_type == ["NN","NNN"] && return NN(k, hopping) + NNN(k, hopping) - μ
+        # recall (t_x = t_-x and t_y = t_-y because of hermiticity)
+        # NN hopping 
+        interaction_type == ["NN"] && return NN(k, hopping) - μ
 
-            # TODO: add more scenarios here
-            throw(ArgumentError("Unsupported interaction_type $interaction_type."))
-        end 
+        # NNN hopping
+        interaction_type == ["NNN"] && return NNN(k, hopping) - μ
+
+        # NN + NNN hopping
+        interaction_type == ["NN","NNN"] && return NN(k, hopping) + NNN(k, hopping) - μ
+
+        # TODO: add more scenarios here
+        throw(ArgumentError("Unsupported interaction_type $interaction_type."))
     end
 
-    function Δ_fct(k::AbstractVector{<:Real}, pairing::Union{Dict{Tuple{Int64, Int64}, ComplexF64}, Dict{Tuple{Int64, Int64}, Float64}})
+    function Δ_fct(k::AbstractVector{<:Real}, pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}})
         # TODO: add more lattice types here
-        if lattice isa AbstractRectangularInfiniteLattice
-            #= 
-                collection of standard pairing symmetries which can be combined
-                TODO: add higher neighbor pairings here if needed
-            =#
-            # (This form allows for all pairing types depending on the choice of pairing)
-            NN(k, pairing) = pairing[(1,0)]*cis(k[1]) + pairing[(-1,0)] * cis(-k[1]) + pairing[(0,1)] * cis(k[2]) + pairing[(0,-1)] * cis(-k[2])
-            NNN(k, pairing) = pairing[(1,1)] * cis(k[1]+k[2]) + pairing[(-1,-1)] * conj(cis(k[1]+k[2])) + pairing[(1,-1)] * cis(k[1]-k[2]) + pairing[(-1,1)] * conj(cis(k[1]-k[2]))
 
-            # NN hopping 
-            interaction_type == ["NN"] && return NN(k, pairing)
-            
-            # NNN hopping
-            interaction_type == ["NNN"] && return NNN(k, pairing)
+        NN(k, pairing) = begin
+            if lattice isa AbstractInfiniteRectangularLattice
+                pairing[(1,0)]*cis(k[1]) + pairing[(-1,0)] * cis(-k[1]) + pairing[(0,1)] * cis(k[2]) + pairing[(0,-1)] * cis(-k[2])
+            elseif lattice isa AbstractInfiniteBrickWallLattice
+                pairing[(1,sqrt(3))]*cis(k[1]) + pairing[(-1,sqrt(3))] * cis(-k[1]) + pairing[(1,-sqrt(3))] * cis(k[2]) + pairing[(-1,-sqrt(3))] * cis(-k[2])
+            else
+                throw(ArgumentError("Unsupported lattice type for Δ_fct."))
+            end
+        end
 
-            # NN + NNN hopping
-            interaction_type == ["NN","NNN"] && return NN(k, pairing) + NNN(k, pairing)
+        NNN(k, pairing) = begin
+            if lattice isa AbstractInfiniteRectangularLattice
+                pairing[(1,1)] * cis(k[1]+k[2]) + pairing[(-1,-1)] * conj(cis(k[1]+k[2])) + pairing[(1,-1)] * cis(k[1]-k[2]) + pairing[(-1,1)] * conj(cis(k[1]-k[2]))
+            else
+                throw(ArgumentError("Unsupported lattice type for Δ_fct."))
+            end
+        end
 
-            # TODO: add more scenarios here
-            throw(ArgumentError("Unsupported interaction_type $interaction_type."))
-        end 
+        # NN hopping 
+        interaction_type == ["NN"] && return NN(k, pairing)
+        
+        # NNN hopping
+        interaction_type == ["NNN"] && return NNN(k, pairing)
+
+        # NN + NNN hopping
+        interaction_type == ["NN","NNN"] && return NN(k, pairing) + NNN(k, pairing)
+
+        # TODO: add more scenarios here
+        throw(ArgumentError("Unsupported interaction_type $interaction_type."))
     end
 
     return MomentumSpaceBdGHamiltonian(hopping, pairing, μ, ξ_fct, Δ_fct; E_shift=E_shift)
@@ -224,9 +243,20 @@ function kitaev_BCS_hamiltonian(
     interaction_type::Vector{String} = ["NN"])
 
     # TODO: add Honeycomb lattice
-    if lattice isa AbstractRectangularInfiniteLattice
+    if lattice isa AbstractInfiniteRectangularLattice
         μ = -2Jz
         E_shift = (k, ξ_k, Δ_k, μ) -> -Jz # Z2 background gauge field
+
+        # TODO: add more interaction types here if needed
+        if interaction_type == ["NN"]
+             hopping = get_anisotropic_coupling_dict(lattice, [[Jx, Jx, Jy, Jy]], interaction_type=["NN"])
+             pairing = get_anisotropic_coupling_dict(lattice, [[Jx,-Jx,Jy,-Jy]], interaction_type=["NN"])
+
+             return default_BCS_hamiltonian(hopping, pairing, μ, lattice; interaction_type=["NN"], E_shift=E_shift)
+        end
+    elseif lattice isa AbstractInfiniteBrickWallLattice
+        μ = 2Jz
+        E_shift = (k, ξ_k, Δ_k, μ) -> Jz
 
         # TODO: add more interaction types here if needed
         if interaction_type == ["NN"]
@@ -253,28 +283,34 @@ Returns a dictionary of isotropic couplings for the specified interaction type.
     * "NNN" (Next nearest neighbor)
 
 # Returns
-- `Dict{Tuple{Int64, Int64}, eltype(couplings)}`: Dictionary where the keys are tuples representing the lattice connections and the values are the corresponding coupling constants.
+- `Dict{Tuple{Float64, Float64}, eltype(couplings)}`: Dictionary where the keys are tuples representing the lattice connections and the values are the corresponding coupling constants.
     * For "NN": (1,0), (-1,0), (0,1), (0,-1) => coupling value
     * For "NNN": (1,1), (-1,-1), (1,-1), (-1,1) => coupling value
 """
 function get_isotropic_coupling_dict(lattice::AbstractInfiniteLattice, couplings::Union{Vector{ComplexF64}, Vector{Float64}}; interaction_type::Vector{String} = ["NN"])
     length(couplings) != length(interaction_type) && throw(ArgumentError("Length of couplings vector must match the number of interaction types specified in interaction_type."))
 
-    coupling_dict = Dict{Tuple{Int64, Int64}, eltype(couplings)}()
+    coupling_dict = Dict{Tuple{Float64, Float64}, eltype(couplings)}()
     valid_interaction_type = false
 
     # TODO: add more lattice types here
     if "NN" in interaction_type
-        if lattice isa AbstractRectangularInfiniteLattice
+        if lattice isa AbstractInfiniteRectangularLattice
             coupling_dict[(1,0)] = couplings[1]
             coupling_dict[(-1,0)] = couplings[1]
             coupling_dict[(0,1)] = couplings[1]
             coupling_dict[(0,-1)] = couplings[1]
             valid_interaction_type = true
+       elseif lattice isa AbstractInfiniteBrickWallLattice
+            coupling_dict[(1,sqrt(3))] = couplings[1]
+            coupling_dict[(-1,sqrt(3))] = couplings[1]
+            coupling_dict[(1,-sqrt(3))] = couplings[1]
+            coupling_dict[(-1,-sqrt(3))] = couplings[1]
+            valid_interaction_type = true
         end
     end
     if "NNN" in interaction_type
-        if lattice isa AbstractRectangularInfiniteLattice
+        if lattice isa AbstractInfiniteRectangularLattice
             coupling_dict[(1,1)] = couplings[1]
             coupling_dict[(-1,-1)] = couplings[1]
             coupling_dict[(1,-1)] = couplings[1]
@@ -300,7 +336,7 @@ Returns a dictionary of anisotropic couplings for the specified interaction type
     * "NNN" (Next nearest neighbor)
 
 # Returns
-- `Dict{Tuple{Int64, Int64}, eltype(couplings)}`
+- `Dict{Tuple{Float64, Float64}, eltype(couplings)}`
     Dictionary where the keys are tuples representing the lattice connections and the values are the corresponding coupling constants.
     * For "NN": (1,0) => t_x, (-1,0) => t_-x, (0,1) => t_y, (0,-1) => t_-y
     * For "NNN": (1,1) => t_(xy), (-1,-1) => t_(-xy), (1,-1) => t_(x-y), (-1,1) => t_(-x+y)
@@ -308,20 +344,26 @@ Returns a dictionary of anisotropic couplings for the specified interaction type
 function get_anisotropic_coupling_dict(lattice::AbstractInfiniteLattice, couplings::Union{Vector{Vector{ComplexF64}}, Vector{Vector{Float64}}}; interaction_type::Vector{String} = ["NN"])
     length(couplings) != length(interaction_type) && throw(ArgumentError("Length of couplings vector must match the number of interaction types specified in interaction_type."))
 
-    coupling_dict = Dict{Tuple{Int64, Int64}, eltype(couplings[1])}()
+    coupling_dict = Dict{Tuple{Float64, Float64}, eltype(couplings[1])}()
     valid_interaction_type = false
 
     if "NN" in interaction_type
-        if lattice isa AbstractRectangularInfiniteLattice
+        if lattice isa AbstractInfiniteRectangularLattice
             coupling_dict[(1,0)] = couplings[1][1]
             coupling_dict[(-1,0)] = couplings[1][2]
             coupling_dict[(0,1)] = couplings[1][3]
             coupling_dict[(0,-1)] = couplings[1][4]
             valid_interaction_type = true
+        elseif lattice isa AbstractInfiniteBrickWallLattice
+            coupling_dict[(1,sqrt(3))] = couplings[1][1]
+            coupling_dict[(-1,sqrt(3))] = couplings[1][2]
+            coupling_dict[(1,-sqrt(3))] = couplings[1][3]
+            coupling_dict[(-1,-sqrt(3))] = couplings[1][4]
+            valid_interaction_type = true
         end
     end
     if "NNN" in interaction_type
-        if lattice isa AbstractRectangularInfiniteLattice
+        if lattice isa AbstractInfiniteRectangularLattice
             coupling_dict[(1,1)] = couplings[2][1]
             coupling_dict[(-1,-1)] = couplings[2][2]
             coupling_dict[(1,-1)] = couplings[2][3]

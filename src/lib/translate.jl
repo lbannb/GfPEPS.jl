@@ -42,7 +42,7 @@ function H_BdG_majorana_k(Nf::Int, k::AbstractVector{<:Real}, H_bdg_k::MomentumS
     # 2. Permute to qq-ordering: (a₁, a₂, ..., a_Nf, a†₁, a†₂, ..., a†_Nf) -> (a₁, a†₁, a₂, a†₂, ...)
     p = zeros(Int, 2*Nf_in_uc)
     for i in 1:Nf_in_uc
-        p[2*i - 1] = i          # aᵢ
+        p[2*i - 1] = i                # aᵢ
         p[2*i]     = Nf_in_uc + i     # a†ᵢ
     end
     H_BdG_k_mat = H_BdG_k_mat[p, p]
