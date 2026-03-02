@@ -18,7 +18,7 @@ Random.seed!(1234) # for reproducibility
         Jz = 1.0
         H_BdG = kitaev_BCS_hamiltonian(Jx, Jy, Jz, lattice; interaction_type=["NN"])
 
-        E = GfPEPS.exact_energy(lattice.kvals, H_BdG, Nf)
+        E = GfPEPS.exact_energy(lattice, H_BdG, Nf)
 
         Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, H_BdG)
 

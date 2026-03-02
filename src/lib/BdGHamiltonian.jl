@@ -380,6 +380,33 @@ end
     Energy functions for BCS Hamiltonians
 =#
 
+function get_BdG_k_matrix(lattice::AbstractInfiniteLattice, Nf::Int, k::AbstractVector{<:Real}, H_bdg_k::MomentumSpaceBdGHamiltonian)
+    Nf_in_uc = get_Nf_in_uc(Nf, lattice)
+
+    # 1. Construct H_BdG in Nambu basis (Dirac fermions qp-ordered)
+    #= 
+        The Nambu spinor for momentum k is α† = (a†ₖ a-ₖ)
+    =#
+    ξ_mat = Diagonal([H_bdg_k.ξ_fct(k, H_bdg_k.hopping, H_bdg_k.μ) for i in 1:Nf_in_uc])
+
+    # flipped diagonal for pairing with our choice of nambu spinor
+    Δ_mat = zeros(ComplexF64, Nf_in_uc, Nf_in_uc)
+    for i in 1:cld(Nf_in_uc, 2)
+        j = Nf_in_uc - i + 1
+        if i == j
+            # Spinless / unpaired fermion exactly in the middle (odd Nf_in_uc)
+            Δ_mat[i, i] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
+        else
+            # Paired fermions (e.g., spin up and spin down)
+            Δ_mat[i, j] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
+            Δ_mat[j, i] = -H_bdg_k.Δ_fct(-k, H_bdg_k.pairing)
+        end
+    end
+
+    H_BdG_k_mat = [ξ_mat Δ_mat; Δ_mat' -ξ_mat]
+    return H_BdG_k_mat
+end
+
 """
     E(k::AbstractVector{<:Real}, H_bdg::MomentumSpaceBdGHamiltonian)
 
@@ -400,10 +427,25 @@ end
 Returns the exact ground state energy per site of a BCS mean field Hamiltonian.
 
 """
-function exact_energy(kvals::AbstractMatrix, H_bdg::MomentumSpaceBdGHamiltonian, Nf::Int)
-    return mean(map(eachcol(kvals)) do k
+function exact_energy(lattice::AbstractInfiniteLattice, H_bdg::MomentumSpaceBdGHamiltonian, Nf::Int)
+    return mean(map(eachcol(lattice.kvals)) do k
         # Nf / 2 to account for spinless (Nf=1) and spinful (Nf=2) cases
         0.5 * Nf * ( H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ) - E(k, H_bdg) ) + H_bdg.E_shift(k, H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ), H_bdg.Δ_fct(k, H_bdg.pairing), H_bdg.μ)
+
+        # H_BdG_k_mat = get_BdG_k_matrix(lattice, Nf, k, H_bdg)
+        # ξ_mat = H_BdG_k_mat[1:cld(size(H_BdG_k_mat, 1), 2), 1:cld(size(H_BdG_k_mat, 2), 2)]
+
+        # # Compute eigenvalues of the full matrix
+        # evals = eigvals(Hermitian(H_BdG_k_mat))
+        
+        # # Sum only the positive eigenvalues (Bogoliubov quasiparticle energies)
+        # sum_E = sum(e for e in evals if e > 0)
+        
+        # # Find number of sites via total flavors / flavors per site
+        # Ns = get_Nf_in_uc(Nf, lattice) / Nf
+        
+        # # Calculate per-site energy: 0.5 * (Tr(ξ) - Sum(E>0)) / Ns + Shift
+        # (0.5 * (real(tr(ξ_mat)) - sum_E) / Ns) + H_bdg.E_shift(k, H_bdg.ξ_fct(k, H_bdg.hopping, H_bdg.μ), H_bdg.Δ_fct(k, H_bdg.pairing), H_bdg.μ)
     end)
 end
 

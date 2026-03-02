@@ -238,3 +238,10 @@ end
 function get_number_of_modes(Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     return get_Nf_in_uc(Nf, lattice) + get_Λ_in_uc(Λ, lattice)
 end
+
+#= 
+    Functions for number of sites in the lattice
+=#
+function get_number_of_sites(lattice::Union{AbstractInfiniteRectangularLattice, AbstractRectangularLattice})
+    return lattice.Lx * lattice.Ly
+end

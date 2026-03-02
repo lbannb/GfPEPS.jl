@@ -17,27 +17,28 @@ Returns i/2 * (Ω H_BdG_k Ω†) for momentum `k` in qq-ordering.
 function H_BdG_majorana_k(Nf::Int, k::AbstractVector{<:Real}, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
     Nf_in_uc = get_Nf_in_uc(Nf, lattice)
 
-    # 1. Construct H_BdG in Nambu basis (Dirac fermions qp-ordered)
-    #= 
-        The Nambu spinor for momentum k is α† = (a†ₖ a-ₖ)
-    =#
-    ξ_mat = Diagonal([H_bdg_k.ξ_fct(k, H_bdg_k.hopping, H_bdg_k.μ) for i in 1:Nf_in_uc])
+    # # 1. Construct H_BdG in Nambu basis (Dirac fermions qp-ordered)
+    # #= 
+    #     The Nambu spinor for momentum k is α† = (a†ₖ a-ₖ)
+    # =#
+    # ξ_mat = Diagonal([H_bdg_k.ξ_fct(k, H_bdg_k.hopping, H_bdg_k.μ) for i in 1:Nf_in_uc])
 
-    # flipped diagonal for pairing with our choice of nambu spinor
-    Δ_mat = zeros(ComplexF64, Nf_in_uc, Nf_in_uc)
-    for i in 1:cld(Nf_in_uc, 2)
-        j = Nf_in_uc - i + 1
-        if i == j
-            # Spinless / unpaired fermion exactly in the middle (odd Nf_in_uc)
-            Δ_mat[i, i] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
-        else
-            # Paired fermions (e.g., spin up and spin down)
-            Δ_mat[i, j] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
-            Δ_mat[j, i] = -H_bdg_k.Δ_fct(-k, H_bdg_k.pairing)
-        end
-    end
+    # # flipped diagonal for pairing with our choice of nambu spinor
+    # Δ_mat = zeros(ComplexF64, Nf_in_uc, Nf_in_uc)
+    # for i in 1:cld(Nf_in_uc, 2)
+    #     j = Nf_in_uc - i + 1
+    #     if i == j
+    #         # Spinless / unpaired fermion exactly in the middle (odd Nf_in_uc)
+    #         Δ_mat[i, i] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
+    #     else
+    #         # Paired fermions (e.g., spin up and spin down)
+    #         Δ_mat[i, j] = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
+    #         Δ_mat[j, i] = -H_bdg_k.Δ_fct(-k, H_bdg_k.pairing)
+    #     end
+    # end
 
-    H_BdG_k_mat = [ξ_mat Δ_mat; Δ_mat' -ξ_mat]
+    # H_BdG_k_mat = [ξ_mat Δ_mat; Δ_mat' -ξ_mat]
+    H_BdG_k_mat = get_BdG_k_matrix(lattice, Nf, k, H_bdg_k)
 
     # 2. Permute to qq-ordering: (a₁, a₂, ..., a_Nf, a†₁, a†₂, ..., a†_Nf) -> (a₁, a†₁, a₂, a†₂, ...)
     p = zeros(Int, 2*Nf_in_uc)

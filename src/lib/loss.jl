@@ -16,7 +16,7 @@ function energy_loss(Nf::Int, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::Abs
 
     # divide by number of k-points
     Nk = size(kvals, 2)
-    invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
+    invN = 1.0 / (Nk * get_number_of_sites(lattice)) # actually faster when precomputed, because multiplication is faster than division
     
     # Construct the Hamiltonian tensor (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
     H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, H_bdg_k, lattice), eachcol(kvals)))
@@ -40,7 +40,7 @@ This function should be highly optimized as it is called many times during the o
 function doping_loss(Nf::Int, lattice::AbstractInfiniteLattice)
     # divide by number of k-points
     Nk = size(lattice.kvals, 2)
-    invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
+    invN = 1.0 / (Nk * get_number_of_sites(lattice)) # actually faster when precomputed, because multiplication is faster than division
 
     # Construct the symplectic form (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
     # occupation in the majorana basis
