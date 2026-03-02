@@ -6,12 +6,14 @@ using Random
 
 Random.seed!(1234) # for reproducibility
 
-# fluxfree sector: E_exact = -1.5746 per unit cell
-@testset "Kitaev HC model" begin
-    @testset "Single unit cell (square lattice)" begin
-        Nf = 1
+@testset "Larger unit cell" begin
+    @testset "π-flux AFM S=1/2 Heisenberg model" begin
+        # Exact energy = -0.172 J
+        # see https://www.mit.edu/~8.334/grades/projects/projects24/LukeKim.pdf for exact energy
+
+        Nf = 2
         Λ = 2
-        lattice = InfiniteRectLattice(1,1;N_kx=6, N_ky=6, bc=(:PBC, :APBC))
+        lattice = InfiniteRectLattice(2,2;N_kx=6, N_ky=6, bc=(:PBC, :APBC))
 
         Jx = 1.0
         Jy = 1.0
