@@ -19,12 +19,16 @@ function energy_loss(Nf::Int, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::Abs
     invN = 1.0 / (Nk * get_number_of_sites(lattice)) # actually faster when precomputed, because multiplication is faster than division
     
     # Construct the Hamiltonian tensor (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
-    H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, H_bdg_k, lattice), eachcol(kvals)))
+    # we need the adjoint here because dot(H, CM_out) = sum(H' .* CM_out))
+    H_BdG_batched = stack(map(k -> conj(H_BdG_majorana_k(Nf, k, H_bdg_k, lattice)), eachcol(kvals)))
+    # H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, H_bdg_k, lattice), eachcol(kvals)))
 
     function energy(CM_out::AbstractArray)
-        # Fast Trace Formula: Tr(H * CM) = sum(H .* CM^T)
+        # Fast Trace Formula: Tr(H * CM) = sum(H .* CM^T) = - sum(H .* CM) = - dot(conj(H), CM)
         # Since input is already CM^T (see GaussianMap), this is just a dot product.
-        return real((E_shift_summed - 0.25 * sum(H_BdG_batched .* CM_out)) * invN)
+
+        # return real((E_shift_summed - 0.25 * sum(H_BdG_batched .* CM_out)) * invN)
+        return real((E_shift_summed - 0.25 * dot(H_BdG_batched, CM_out)) * invN)
     end
 
     return energy
@@ -47,10 +51,18 @@ function doping_loss(Nf::Int, lattice::AbstractInfiniteLattice)
     J0 = [0 1; -1 0]
     J = kron(I(get_Nf_in_uc(Nf,lattice)), J0)
 
+    # repeat for all k-points
+    J_batched = Array{eltype(J)}(undef, size(J,1), size(J,2), Nk)
+    @inbounds for k in 1:Nk
+        J_batched[:, :, k] = J
+    end
+    # J = stack(fill(J, Nk)) # repeat for all k-points
+
     function doping(CM_out::AbstractArray)
-        # Fast Trace Formula: Tr(J * CM) = sum(J .* CM^T)
+        # Fast Trace Formula: Tr(J * CM) = sum(J .* CM^T) = - sum(J .* CM) = - dot(J, CM)
         # Since input is already CM^T (see GaussianMap), this is just a dot product.
-        return real((0.5 * Nf + 0.25*sum(J .* CM_out)) * invN)
+        return real((0.5 * Nf - 0.25*dot(J_batched, CM_out)) * invN)
+        # return real((0.5 * Nf - 0.25*sum(J .* CM_out)) * invN)
     end
 end
 

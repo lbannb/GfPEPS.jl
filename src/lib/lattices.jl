@@ -230,6 +230,14 @@ function get_Λ_in_uc(Λ::Int, lattice::Union{AbstractInfiniteRectangularLattice
     return 2Λ*(lattice.Lx + lattice.Ly)
 end
 
+function get_Λ_in_uc_x_dir(Λ::Int, lattice::Union{AbstractInfiniteRectangularLattice, AbstractRectangularLattice})
+    return 2Λ*lattice.Lx
+end
+
+function get_Λ_in_uc_y_dir(Λ::Int, lattice::Union{AbstractInfiniteRectangularLattice, AbstractRectangularLattice})
+    return 2Λ*lattice.Ly
+end
+
 function get_Λ_in_uc(Λ::Int, lattice::Union{AbstractInfiniteBrickWallLattice, AbstractBrickWallLattice})
     # Check this again if this holds for arbitrary sizes. Only tested it for 1x1 and 2x2.
     return 2Λ*(lattice.Lx + lattice.Ly)

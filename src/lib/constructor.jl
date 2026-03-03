@@ -25,9 +25,9 @@ This structure holds all the relevant information about the fermionic Gaussian s
         Nf::Int, 
         Λ::Int, 
         lattice::Union{AbstractLattice,AbstractInfiniteLattice},
-        BCS_params::BCS;
+        H_bdg::AbstractBdGHamiltonian;
         doping_kwargs::DopingSettings=DopingSettings(),
-        optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
+        optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel(:CholQR)),
         optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true)
     )
 
@@ -59,10 +59,9 @@ mutable struct Gaussian_fPEPS
         lattice::Union{AbstractLattice,AbstractInfiniteLattice},
         H_bdg::AbstractBdGHamiltonian;
         doping_kwargs::DopingSettings=DopingSettings(),
-        optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel()),
-        # optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.BFGS(; manifold = Optim.Stiefel()),
+        optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=15, manifold = Optim.Stiefel(:CholQR)),
+        # optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.BFGS(; manifold = Optim.Stiefel(:CholQR)),
         optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
-        # optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-8, f_reltol=1e-10, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
 
         X_opt, optim_energy, E_exact, info_obj = get_X_opt(lattice, Nf, Λ, H_bdg; doping_kwargs=doping_kwargs, optim_alg_options=optim_alg_options, optim_options=optim_options)
         

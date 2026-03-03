@@ -12,7 +12,8 @@ using TensorOperations
 using SkewLinearAlgebra
 using MatrixFactorizations
 using Roots
-# using LineSearches
+using LineSearches
+import ChainRulesCore: rrule, NoTangent, unthunk, ProjectTo
 
 # using SparseArrays: sparse, blockdiag, spdiagm
 using TensorKit

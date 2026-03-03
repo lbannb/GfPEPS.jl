@@ -4,14 +4,14 @@ using GfPEPS
 using Random
 # using PEPSKit
 
-Random.seed!(1234) # for reproducibility
+Random.seed!(123456) # for reproducibility
 
 # fluxfree sector: E_exact = -1.5746 per unit cell
 @testset "Kitaev HC model" begin
     @testset "Single unit cell (square lattice)" begin
         Nf = 1
         Λ = 2
-        lattice = InfiniteRectLattice(1,1;N_kx=6, N_ky=6, bc=(:PBC, :APBC))
+        lattice = InfiniteRectLattice(1,1;N_kx=96, N_ky=96, bc=(:APBC, :PBC))
 
         Jx = 1.0
         Jy = 1.0
@@ -26,3 +26,11 @@ Random.seed!(1234) # for reproducibility
         @test Ψ_trial.exact_energy ≈ Ψ_trial.optim_energy atol=1e-5
     end
 end;
+
+
+# t = 1e-6
+# size_stages = [6, 12, 24, 48, 96, 192]
+
+# (length(size_stages) - 1)
+
+# t *= 4^length(size_stages)

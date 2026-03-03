@@ -62,7 +62,7 @@ Zygote.@nograd build_J # constructing J is not something we need gradients throu
 """
     Γ_fiducial(X::AbstractMatrix, Λ::Int, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
 
-Construct the covariance matrix for the fiducial state A from orthogonal matrix X in the Majorana representation.
+Construct the covariance matrix for the fiducial state Q from the orthogonal matrix X in the Majorana representation.
 We choose Γ to be qq-ordered.
 
 Γ_fiducial = [A B; -B' D]
@@ -92,9 +92,9 @@ Helper function to extract the A, B, D blocks from the covariance matrix Γ of t
 function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     NF_in_uc = get_Nf_in_uc(Nf, lattice)
 
-    A = Γ[1:2*NF_in_uc, 1:2*NF_in_uc]
-    B = Γ[1:2*NF_in_uc, 2*NF_in_uc+1:end]
-    D = Γ[2*NF_in_uc+1:end, 2*NF_in_uc+1:end]
+    A = @view Γ[1:2*NF_in_uc, 1:2*NF_in_uc]
+    B = @view Γ[1:2*NF_in_uc, 2*NF_in_uc+1:end]
+    D = @view Γ[2*NF_in_uc+1:end, 2*NF_in_uc+1:end]
     return A,B,D
 end
 
@@ -103,32 +103,159 @@ end
 
 Returns the Gaussian map: CM_out = B * inv(D + CM_in) * B' + A.
 This contracts the virtual bonds and only the physical modes remain.
+The computation is parallelized over k-points using threads and uses pre-allocated output to avoid `map`/`stack` overhead.
 
-Keyword arguments:
+# Keyword Arguments:
 - `A`, `B`, `D` are the blocks of the covariance matrix of the fiducial state
-- `CM_in` is the covariance matrix of the virtual bonds 
+- `CM_in` is the covariance matrix of the virtual bonds (Nk × d × d)
 
+# Returns:
+- `CM_out` of shape (n × n × Nk)
 """
-# function GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractArray)
-#     Bt = transpose(B)
-
-#     # Gaussian map for each (kx,ky)
-#     # mats = map(s -> B * ((D .- s) \ transpose(B)) .+ A, eachslice(CM_in; dims=1)) # Kraus thesis
-#     mats = map(s -> B * ((D .+ s) \ Bt) .+ A, eachslice(CM_in; dims=1)) # Hong hao paper
-#     return permutedims(stack(mats, dims=3), (3,1,2))
-# end
 function GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractArray)
-    Bt = transpose(B)
+    Nk = size(CM_in, 1)
+    n = size(A, 1)
+    d = size(D, 1)
+    T = promote_type(eltype(A), eltype(B), eltype(D), eltype(CM_in))
+    Γ_out = Array{T}(undef, n, n, Nk)
 
-    # Gaussian map for each (kx,ky)
-    # mats = map(s -> B * ((D .- s) \ transpose(B)) .+ A, eachslice(CM_in; dims=1)) # Kraus thesis
-    mats = map(s -> B * ((D .+ s) \ Bt) .+ A, eachslice(CM_in; dims=1)) # Hong hao paper
+    # Pre-convert to promoted element type so all mul!/ldiv! dispatch to BLAS
+    B_T  = convert(Matrix{T}, B)
+    Bt_T = Matrix{T}(transpose(B))
 
-    # Stack into a 3D tensor [i, j, k]
-    # return stack(mats)
-    return permutedims(stack(mats, dims=3), (2,1,3))
+    # Per-thread scratch buffers (reused across k iterations within each thread)
+    nt = Threads.nthreads()
+    M_bufs = [Matrix{T}(undef, d, d) for _ in 1:nt]
+    S_bufs = [Matrix{T}(undef, d, n) for _ in 1:nt]
+
+    Threads.@threads for k in 1:Nk
+        @inbounds begin
+            tid = Threads.threadid()
+            G_k = @view CM_in[k, :, :]
+
+            # M = D + G_k  (fused broadcast into thread-local buffer)
+            M = M_bufs[tid]
+            @. M = D + G_k
+
+            # In-place LU factorization (no copy)
+            F = lu!(M)
+
+            # S = F \ Bᵀ  (in-place solve into thread-local buffer)
+            ldiv!(S_bufs[tid], F, Bt_T)
+
+            # Γ_out[:,:,k] = B * S + A  (in-place multiply + add)
+            out_k = @view Γ_out[:, :, k]
+            mul!(out_k, B_T, S_bufs[tid])
+            out_k .+= A
+        end
+    end
+
+    return Γ_out
 end
 
+"""
+    rrule(::typeof(GaussianMap), A, B, D, CM_in)
+
+Custom reverse-mode differentiation rule for `GaussianMap`.
+Stores LU factorizations from the forward pass and reuses them in the backward
+pass (adjoint solves via `F' \\ v`), cutting the number of factorizations in half.
+Both forward and backward passes are parallelized over k-points.
+"""
+function rrule(::typeof(GaussianMap), A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractArray)
+    Nk = size(CM_in, 1)
+    d = size(D, 1)
+    n = size(A, 1)
+    T = promote_type(eltype(A), eltype(B), eltype(D), eltype(CM_in))
+
+    # Pre-convert to promoted element type so all mul!/ldiv! dispatch to BLAS
+    B_T  = convert(Matrix{T}, B)
+    Bt_T = Matrix{T}(transpose(B))
+
+    # Forward pass: compute output and store LU factorizations + solutions for reuse in backward pass
+    Γ_out = Array{T}(undef, n, n, Nk)
+    factors = Vector{LU{T, Matrix{T}, Vector{Int}}}(undef, Nk)
+    S_all = Array{T}(undef, d, n, Nk)
+
+    Threads.@threads for k in 1:Nk
+        @inbounds begin
+            G_k = @view CM_in[k, :, :]
+
+            # Fresh alloc needed per k: lu! stores reference and we keep factors[k]
+            M_k = D .+ G_k
+            F_k = lu!(M_k)              # in-place LU (saves copy vs lu())
+            factors[k] = F_k
+
+            # S_k = F_k \ Bᵀ  (in-place solve directly into S_all view)
+            S_k = @view S_all[:, :, k]
+            ldiv!(S_k, F_k, Bt_T)
+
+            # Γ_out[:,:,k] = B * S_k + A  (in-place multiply + add)
+            out_k = @view Γ_out[:, :, k]
+            mul!(out_k, B_T, S_k)
+            out_k .+= A
+        end
+    end
+
+    # Projectors to ensure gradients match the input types (real for A, B, D)
+    project_A = ProjectTo(A)
+    project_B = ProjectTo(B)
+    project_D = ProjectTo(D)
+
+    function GaussianMap_pullback(Δ_raw)
+        Δ = unthunk(Δ_raw)
+
+        # Thread-local accumulators (zero-initialized) to avoid race conditions
+        nt = Threads.nthreads()
+        dA_local = [zeros(T, n, n) for _ in 1:nt]
+        dB_local = [zeros(T, size(B)...) for _ in 1:nt]
+        dD_local = [zeros(T, d, d) for _ in 1:nt]
+
+        # Thread-local scratch buffers for in-place matrix operations
+        W_bufs  = [Matrix{T}(undef, d, n) for _ in 1:nt]
+        tmp_dd  = [Matrix{T}(undef, d, d) for _ in 1:nt]  # for W_k * S_kᴴ
+
+        dCM = similar(CM_in)
+
+        Threads.@threads for k in 1:Nk
+            @inbounds begin
+                tid = Threads.threadid()
+                Δ_k = @view Δ[:, :, k]
+                S_k = @view S_all[:, :, k]
+
+                # ∂L/∂A += Δ_k
+                dA_local[tid] .+= Δ_k
+
+                # ∂L/∂B (contribution 1): dB += Δ_k * S_kᴴ  (in-place accumulate)
+                mul!(dB_local[tid], Δ_k, adjoint(S_k), one(T), one(T))
+
+                # W_k = M_kᴴ \ (Bᵀ * Δ_k)  (adjoint solve, reusing stored LU)
+                mul!(W_bufs[tid], Bt_T, Δ_k)
+                ldiv!(adjoint(factors[k]), W_bufs[tid])
+
+                # ∂L/∂B (contribution 2): W_kᵀ  →  (d,n)ᵀ = (n,d)
+                dB_local[tid] .+= transpose(W_bufs[tid])
+
+                # ∂L/∂M_k = -W_k * S_kᴴ  →  (d,n)*(n,d) = (d,d)
+                mul!(tmp_dd[tid], W_bufs[tid], adjoint(S_k), -one(T), zero(T))
+
+                # ∂L/∂D += ∂L/∂M_k ,  ∂L/∂G_k = ∂L/∂M_k
+                dD_local[tid] .+= tmp_dd[tid]
+                @view(dCM[k, :, :]) .= tmp_dd[tid]
+            end
+        end
+
+        # Reduce thread-local accumulators in-place (no extra allocation)
+        for i in 2:nt
+            dA_local[1] .+= dA_local[i]
+            dB_local[1] .+= dB_local[i]
+            dD_local[1] .+= dD_local[i]
+        end
+
+        return NoTangent(), project_A(dA_local[1]), project_B(dB_local[1]), project_D(dD_local[1]), dCM
+    end
+
+    return Γ_out, GaussianMap_pullback
+end
 
 function GaussianMap_single_k(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractMatrix)
     return B * ((D + CM_in) \ transpose(B)) .+ A
