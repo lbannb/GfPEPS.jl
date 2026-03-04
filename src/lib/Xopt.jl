@@ -149,6 +149,7 @@ function get_X_opt(
     # compute final energy and compare to exact energy
     E_exact = exact_energy(lattice, H_bdg, Nf)
     optim_energy = Optim.minimum(stage_res)
+    # optim_energy = doping_kwargs.enforce_density ? energy_CM(X_opt, Nf, Λ, H_bdg, lattice) : Optim.minimum(stage_res)
     deviation = abs(optim_energy - E_exact)
     
     @info "Final energy summary" target=E_exact achieved=optim_energy deviation=deviation

@@ -56,13 +56,12 @@ function doping_loss(Nf::Int, lattice::AbstractInfiniteLattice)
     @inbounds for k in 1:Nk
         J_batched[:, :, k] = J
     end
-    # J = stack(fill(J, Nk)) # repeat for all k-points
 
     function doping(CM_out::AbstractArray)
         # Fast Trace Formula: Tr(J * CM) = sum(J .* CM^T) = - sum(J .* CM) = - dot(J, CM)
-        # Since input is already CM^T (see GaussianMap), this is just a dot product.
-        return real((0.5 * Nf - 0.25*dot(J_batched, CM_out)) * invN)
-        # return real((0.5 * Nf - 0.25*sum(J .* CM_out)) * invN)
+        # Recall: δ = 1 - <n>, <n> = 0.25 * Tr(J * CM) + 0.5*Nf
+        # Note: I am not sure about the last part + 0.5*Nf -> true for S=1/2 but check for general S.
+        return real(0.25 * dot(J_batched, CM_out) * invN)
     end
 end
 
