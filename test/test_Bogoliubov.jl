@@ -7,8 +7,9 @@ using LinearAlgebra
 # Also test the Bloch-Messiah decomposition of the Bogoliubov transformation.
 Nf = 2
 Λ = 2
-N = (Nf + 4*Λ)
-Γ,_ = GfPEPS.rand_CM(Nf, Λ)
+lattice = InfiniteRectLattice(1,1;N_kx=6, N_ky=6, bc=(:PBC, :APBC))
+N = GfPEPS.get_number_of_modes(Nf, Λ, lattice)
+Γ,_ = GfPEPS.rand_CM(Nf, Λ, lattice)
 H = GfPEPS.get_parent_hamiltonian(Γ, Nf, Λ)
 _, M = GfPEPS.bogoliubov(H)
 

@@ -13,7 +13,10 @@ using SkewLinearAlgebra
 using MatrixFactorizations
 using Roots
 using LineSearches
-import ChainRulesCore: rrule, NoTangent, unthunk, ProjectTo
+
+# For custom adjoints during optimization with Zygote
+using ChainRulesCore: NoTangent, unthunk, ProjectTo
+import ChainRulesCore: rrule
 
 # using SparseArrays: sparse, blockdiag, spdiagm
 using TensorKit
@@ -41,7 +44,7 @@ include("lib/Gutzwiller.jl")
 include("lib/translate.jl")
 
 include("models/bcs.jl")
-# include("models/kitaev.jl")
+include("models/kitaev.jl")
 # include("models/tj_model.jl")
 
 include("lib/constructor.jl")
