@@ -86,15 +86,18 @@ mutable struct MomentumSpaceBdGHamiltonian <: AbstractBdGHamiltonian
     Δ_fct::Function     # function to compute Δ(k, pairing)
     E_shift::Function   # function to implement arbitrary energy shifts
 
+    interaction_type::Vector{String} # ["NN"], ["NNN"], ["NN","NNN"] 
+
     function MomentumSpaceBdGHamiltonian(
         hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
         pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
         μ::Real, 
         ξ_fct::Function, 
-        Δ_fct::Function;
+        Δ_fct::Function,
+        interaction_type::Vector{String};
         E_shift::Function = (k, ξ_k, Δ_k, μ) -> 0.0
     )
-        return new(hopping, pairing, μ, ξ_fct, Δ_fct, E_shift)
+        return new(hopping, pairing, μ, ξ_fct, Δ_fct, E_shift, interaction_type)
     end
 end
 
@@ -205,7 +208,7 @@ function default_BCS_hamiltonian(
         throw(ArgumentError("Unsupported interaction_type $interaction_type."))
     end
 
-    return MomentumSpaceBdGHamiltonian(hopping, pairing, μ, ξ_fct, Δ_fct; E_shift=E_shift)
+    return MomentumSpaceBdGHamiltonian(hopping, pairing, μ, ξ_fct, Δ_fct, interaction_type; E_shift=E_shift)
 end
 
 """

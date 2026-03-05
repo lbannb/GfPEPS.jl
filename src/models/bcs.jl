@@ -1,5 +1,7 @@
 """
-BCS spin-1/2 Hamiltonian with singlet pairing terms on square lattice
+    BCS_spin_hamiltonian(T::Type{<:Number}, lattice::InfiniteSquare, H_BdG::MomentumSpaceBdGHamiltonian)
+
+Returns a BCS spin-1/2 (Nf=2) Hamiltonian as a TensorMap object on the infinite square lattice.
 ```
     H = -t ∑_{i,v} (c†_{iα} c_{i+v,α} + h.c.) - μ ∑_i c†_{iα} c_{iα}
         + ∑_{i,v} (Δv ϵ_{αβ} c†_{iα} c†_{i+v,β} + h.c.)
@@ -10,36 +12,53 @@ where v sums over the basis vectors e_x, e_y.
 - d-wave state: Δy = -Δx.
 - (p+ip) state: Δy = i Δx.
 """
-function BCS_spin_hamiltonian(
-        T::Type{<:Number}, lattice::InfiniteSquare; pairing_type::String="d_wave", t::Float64 = 1.0,
-        Δ_0::Float64 = 0.5, μ::Float64 = 0.0
-    )
-    Δx = Δ_0
-    if pairing_type == "s_wave"
-        Δy = Δx
-    elseif pairing_type == "d_wave"
-        Δy = -Δx
-    elseif pairing_type == "p_ip_wave"
-        Δy = im*Δx
-    end
-
+function BCS_spin_hamiltonian(T::Type{<:Number}, lattice::InfiniteSquare, H_BdG::MomentumSpaceBdGHamiltonian)
     pspace = hub.hubbard_space(Trivial, Trivial)
     pspaces = fill(pspace, (lattice.Nrows, lattice.Ncols))
     num = hub.e_num(T, Trivial, Trivial)
 
     unit = TensorKit.id(T, pspace)
-    hopping = (-t) * hub.e_hopping(T, Trivial, Trivial) -
-        (μ / 4) * (num ⊗ unit + unit ⊗ num)
-    pairing = sqrt(2) * hub.singlet_plus(T, Trivial, Trivial)
-    pairing += pairing'
+    # hopping = (-t) * hub.e_hopping(T, Trivial, Trivial) -
+    #     (μ / 4) * (num ⊗ unit + unit ⊗ num)
+    # pairing = sqrt(2) * hub.singlet_plus(T, Trivial, Trivial)
+    # pairing += pairing'
+
+    ham_terms = begin
+        vcat(
+            if "NN" in H_BdG.interaction_type
+                map(nearest_neighbours(lattice)) do bond
+                    bond_dir = bond[2] - bond[1]
+                    hopping = H_BdG.hopping[(bond_dir[2], bond_dir[1])] * hub.e_hopping(T, Trivial, Trivial) - (H_BdG.μ / 4) * (num ⊗ unit + unit ⊗ num)
+                    pairing = sqrt(2) * H_BdG.pairing[(bond_dir[2], bond_dir[1])] * hub.singlet_plus(T, Trivial, Trivial)
+                    pairing += pairing'
+                    return bond => hopping + pairing
+                end
+            else
+                []
+            end,
+            if "NNN" in H_BdG.interaction_type
+                map(next_nearest_neighbours(lattice)) do bond
+                    bond_dir = bond[2] - bond[1]
+                    hopping = H_BdG.hopping[(bond_dir[2], bond_dir[1])] * hub.e_hopping(T, Trivial, Trivial)
+                    pairing = sqrt(2) * H_BdG.pairing[(bond_dir[2], bond_dir[1])] * hub.singlet_plus(T, Trivial, Trivial)
+                    pairing += pairing'
+                    return bond => hopping + pairing
+                end
+            else
+                []
+            end
+        )
+    end
+
     return LocalOperator(
         pspaces,
-        map(nearest_neighbours(lattice)) do bond
-            return bond => hopping + pairing * (_is_xbond(bond) ? Δx : Δy)
-        end...
+        ham_terms...
+        # map(nearest_neighbours(lattice)) do bond
+        #     return bond => hopping + pairing * (_is_xbond(bond) ? Δx : Δy)
+        # end...
     )
 end
-BCS_spin_hamiltonian(lattice; pairing_type="d_wave", Δ_0=1.0, μ=0.0) = BCS_spin_hamiltonian(ComplexF64, lattice; pairing_type=pairing_type, Δ_0=Δ_0, μ=μ)
+BCS_spin_hamiltonian(lattice, H_BdG) = BCS_spin_hamiltonian(ComplexF64, lattice, H_BdG)
 
 """
 Check if a 2-site bond is a nearest neighbor x-bond
