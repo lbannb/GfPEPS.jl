@@ -80,6 +80,25 @@ function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice},
 end
 
 """
+    energy_loss_X_persite(lattice, Nf, Λ, H_bdg_k)
+
+Returns the energy from `CM_out` as a function of a vector of per-site
+orthogonal matrices `Xs`, using the per-site Gaussian map.
+
+The returned closure accepts an `AbstractVector{<:AbstractMatrix}` with
+`Nsites` elements, each of size `n × n` where `n = 2(Nf + 4Λ)`.
+"""
+function energy_loss_X_persite(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int, H_bdg_k::MomentumSpaceBdGHamiltonian)
+    G_in = G_in_Fourier_persite(Λ, lattice)
+    energy = energy_loss(Nf, H_bdg_k, lattice)
+    function loss(Xs::AbstractVector)
+        A, B, D = Γ_fiducial_blocks(Xs, Nf, Λ)
+        return real(energy(GaussianMap(A, B, D, G_in)))
+    end
+    return loss
+end
+
+"""
     doping_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int)
 
 Returns the doping from the CM_out as a function of the orthogonal matrix X, using the Gaussian map.
@@ -89,6 +108,22 @@ function doping_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice},
     doping = doping_loss(Nf, lattice)
     function loss(X)
         return real(doping(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Nf, Λ, lattice), Nf, lattice)..., G_in)))
+    end
+    return loss
+end
+
+"""
+    doping_loss_X_persite(lattice, Nf, Λ)
+
+Returns the doping from `CM_out` as a function of a vector of per-site
+orthogonal matrices `Xs`, using the per-site Gaussian map.
+"""
+function doping_loss_X_persite(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int)
+    G_in = G_in_Fourier_persite(Λ, lattice)
+    doping = doping_loss(Nf, lattice)
+    function loss(Xs::AbstractVector)
+        A, B, D = Γ_fiducial_blocks(Xs, Nf, Λ)
+        return real(doping(GaussianMap(A, B, D, G_in)))
     end
     return loss
 end

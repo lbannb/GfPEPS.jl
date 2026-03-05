@@ -30,6 +30,8 @@ function G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::Union{Ab
     return Matrix(BlockDiagonal([⊕(helper(k[1], lattice.Lx), Λ),⊕(helper(k[2], lattice.Ly), Λ)]))
 end
 
+
+
 """
     G_in_Fourier(kvals::AbstractMatrix, Λ::Int)
 
@@ -54,8 +56,18 @@ Construct the symplectic matrix J for `N = get_number_of_modes()` modes.
 Example: For a trivial unit cell: N = Nf + 4Λ
 
 """
-function build_J(Λ::Int, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    return ⊕([0.0 1.0; -1.0 0.0], get_number_of_modes(Nf, Λ, lattice))
+function build_J(Λ::Int, Nf::Int)
+    return ⊕([0.0 1.0; -1.0 0.0], Nf + 4Λ)
+end
+
+"""
+    build_J(Λ::Int, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+
+Overload that accepts a lattice argument.  For the per-site ansatz every site
+carries the *same* single-site symplectic matrix `J` of size `2(Nf + 4Λ)`.
+"""
+function build_J(Λ::Int, Nf::Int, ::Union{AbstractLattice, AbstractInfiniteLattice})
+    return build_J(Λ, Nf)
 end
 Zygote.@nograd build_J # constructing J is not something we need gradients through
 
@@ -78,24 +90,194 @@ Note:
 - X must be an orthogonal matrix: X * X' = I 
 - Γ_fiducial is either given in Fourier space or real space, depending on X
 """
-function Γ_fiducial(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    Γ = transpose(X) * build_J(Λ, Nf, lattice) * X
+function Γ_fiducial(X::AbstractMatrix, Nf::Int, Λ::Int)
+    Γ = transpose(X) * build_J(Λ, Nf) * X
 
     return (Γ - transpose(Γ)) / 2 # ensure exact antisymmetry
 end
 
 """
-    get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    Γ_fiducial(X::AbstractMatrix, Nf::Int, Λ::Int, lattice)
+
+Backward-compatible overload that ignores the lattice argument for a single
+(coarse-grained) X matrix.
+"""
+function Γ_fiducial(X::AbstractMatrix, Nf::Int, Λ::Int, ::Union{AbstractLattice, AbstractInfiniteLattice})
+    return Γ_fiducial(X, Nf, Λ)
+end
+
+"""
+    get_Γ_blocks(Γ::AbstractMatrix, Nf::Int)
 
 Helper function to extract the A, B, D blocks from the covariance matrix Γ of the fiducial state.
 """
-function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    NF_in_uc = get_Nf_in_uc(Nf, lattice)
-
-    A = @view Γ[1:2*NF_in_uc, 1:2*NF_in_uc]
-    B = @view Γ[1:2*NF_in_uc, 2*NF_in_uc+1:end]
-    D = @view Γ[2*NF_in_uc+1:end, 2*NF_in_uc+1:end]
+function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int)
+    A = @view Γ[1:2*Nf, 1:2*Nf]
+    B = @view Γ[1:2*Nf, 2*Nf+1:end]
+    D = @view Γ[2*Nf+1:end, 2*Nf+1:end]
     return A,B,D
+end
+
+"""
+    get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice)
+
+Extract A, B, D blocks from the covariance matrix of a coarse-grained fiducial
+state with `Nf_in_uc = Nf * Lx * Ly` physical fermions.
+"""
+function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    Nf_in_uc = get_Nf_in_uc(Nf, lattice)
+    A = @view Γ[1:2*Nf_in_uc, 1:2*Nf_in_uc]
+    B = @view Γ[1:2*Nf_in_uc, 2*Nf_in_uc+1:end]
+    D = @view Γ[2*Nf_in_uc+1:end, 2*Nf_in_uc+1:end]
+    return A, B, D
+end
+
+#= ============================================================
+   Per-site ansatz: each site in the unit cell carries its own
+   independent fiducial state parameterised by an orthogonal
+   matrix X_{i,j}.  The virtual bond contraction distinguishes
+   intra-cell bonds (Bloch phase = 1) from inter-cell bonds
+   (Bloch phase = e^{ik}).
+============================================================ =#
+
+"""
+    G_in_single_k_persite(k, Λ, lattice)
+
+Construct the Fourier-transformed virtual-bond covariance matrix for one k-point
+in the **per-site** picture.
+
+Each site `(ix, iy)` in the `Lx × Ly` unit cell carries `4Λ` virtual fermions
+(= `8Λ` Majorana modes), ordered as (lrud) within each site:
+
+    [l₁, l₁', r₁, r₁', …, lΛ, lΛ', rΛ, rΛ',
+     u₁, u₁', d₁, d₁', …, uΛ, uΛ', dΛ, dΛ']
+
+Sites are linearly indexed in column-major order: `s = ix + (iy-1)*Lx`.
+The resulting matrix has size `(8Λ Lx Ly) × (8Λ Lx Ly)`.
+
+Bond contractions (right↔left, down↔up) use:
+- Phase `e^{ikx}` / `e^{iky}` for inter-cell bonds (wrapping around the unit cell boundary).
+- Phase `1` for intra-cell bonds.
+"""
+function G_in_single_k_persite(k::AbstractVector{<:Real}, Λ::Integer,
+                               lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    σ_x = [0 1; 1 0]
+    Lx, Ly = lattice.Lx, lattice.Ly
+    Λ_per_site = 8Λ
+
+    G = zeros(ComplexF64, Λ_per_site * Lx * Ly, Λ_per_site * Lx * Ly)
+
+    for iy in 1:Ly, ix in 1:Lx
+        s = ix + (iy - 1) * Lx   # column-major linear index of current site
+
+        # --- x-direction bond: right(ix,iy) ← left(ix+1,iy) ---
+        s_next_x = mod1(ix + 1, Lx) + (iy - 1) * Lx # column-major linear index of next site in x direction
+        phase_x  = (ix == Lx) ? k[1] : 0.0          # only phase for inter-cell (ix == Lx)
+
+        for α in 1:Λ
+            # right modes of source  (within LR block, bond α)
+            r0 = Λ_per_site * (s - 1) + 4(α - 1) + 3
+            # left modes of target   (within LR block, bond α)
+            l0 = Λ_per_site * (s_next_x - 1) + 4(α - 1) + 1
+
+            # fill in the 2×2 block for this bond
+            for a in 0:1, b in 0:1
+                v = σ_x[a + 1, b + 1]
+                G[l0 + a, r0 + b] = -cis(phase_x)  * v      # G[left, right]  = -e^{iφ} σ_x
+                G[r0 + b, l0 + a] = conj(cis(phase_x)) * v  # G[right, left]  =  e^{-iφ} σ_x
+            end
+        end
+
+        # --- y-direction bond: down(ix,iy) → up(ix,iy+1) ---
+        s_next_y = ix + (mod1(iy + 1, Ly) - 1) * Lx # column-major linear index of next site in y direction
+        phase_y  = (iy == Ly) ? k[2] : 0.0          # only phase for inter-cell (iy == Ly)
+
+        for α in 1:Λ
+            # down modes of source  (within UD block, bond α)
+            d0 = Λ_per_site * (s - 1) + 4Λ + 4(α - 1) + 3
+            # up modes of target    (within UD block, bond α)
+            u0 = Λ_per_site * (s_next_y - 1) + 4Λ + 4(α - 1) + 1
+
+            for a in 0:1, b in 0:1
+                v = σ_x[a + 1, b + 1]
+                G[u0 + a, d0 + b] = -cis(phase_y)  * v
+                G[d0 + b, u0 + a] = conj(cis(phase_y)) * v
+            end
+        end
+    end
+
+    return G
+end
+
+"""
+    G_in_Fourier_persite(Λ, lattice)
+
+Fourier-transformed virtual bond covariance matrix for all k-points in the
+**per-site** ansatz.  Returns an `(Nk × n_virt × n_virt)` array where
+`n_virt = 8Λ Lx Ly`.
+"""
+function G_in_Fourier_persite(Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    kvals  = lattice.kvals
+    n_virt = 8Λ * lattice.Lx * lattice.Ly
+
+    res = Array{ComplexF64, 3}(undef, size(kvals, 2), n_virt, n_virt)
+    for (i, k) in enumerate(eachcol(kvals))
+        res[i, :, :] = G_in_single_k_persite(k, Λ, lattice)
+    end
+    return res
+end
+
+"""
+    Γ_fiducial_blocks(Xs, Nf, Λ)
+
+Assemble the block-diagonal `A`, `B`, `D` blocks from a collection of per-site
+orthogonal matrices `Xs` (one per unit-cell site).
+
+The physical modes of all sites are concatenated first, followed by the virtual
+modes of all sites (same ordering convention as `G_in_single_k_persite`).
+
+# Returns
+- `A_total  ::Matrix{Float64}`    (2 Nf Nsites) x (2 Nf Nsites),  block-diagonal
+- `B_total  ::Matrix{Float64}`    (2 Nf Nsites) x (8Λ Nsites),    block-diagonal
+- `D_total  ::Matrix{Float64}`    (8Λ Nsites)   x (8Λ Nsites),    block-diagonal
+"""
+function Γ_fiducial_blocks(Xs::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int)
+    Nsites = length(Xs)
+
+    # Compute per-site Γ matrices, then extract A/B/D blocks separately.
+    # Using separate map calls avoids Zygote's Tangent-vs-Tuple issue that
+    # arises when map returns tuples.
+    Γs = map(X -> Γ_fiducial(X, Nf, Λ), Xs)
+    As = map(Γ -> Γ[1:2Nf, 1:2Nf], Γs)
+    Bs = map(Γ -> Γ[1:2Nf, 2Nf+1:end], Γs)
+    Ds = map(Γ -> Γ[2Nf+1:end, 2Nf+1:end], Γs)
+
+    # Build block-diagonal matrices
+    Z_pp = zeros(2Nf, 2Nf)
+    Z_pv = zeros(2Nf, 8Λ)
+    Z_vv = zeros(8Λ, 8Λ)
+
+    A_total = vcat([hcat([(i == j ? As[i] : Z_pp) for j in 1:Nsites]...) for i in 1:Nsites]...)
+    B_total = vcat([hcat([(i == j ? Bs[i] : Z_pv) for j in 1:Nsites]...) for i in 1:Nsites]...)
+    D_total = vcat([hcat([(i == j ? Ds[i] : Z_vv) for j in 1:Nsites]...) for i in 1:Nsites]...)
+
+    return A_total, B_total, D_total
+end
+
+function X_matrix_form(X_vec::AbstractVector{<:AbstractMatrix}, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    return reshape(X_vec, lattice.Lx, lattice.Ly)
+end
+
+"""
+    Γ_fiducial_blocks_from_packed(X_total, Nf, Λ, Nsites)
+
+Backward-compatible wrapper: unpack a block-diagonal packed X matrix into
+per-site matrices and delegate to `Γ_fiducial_blocks`.
+"""
+function Γ_fiducial_blocks_from_packed(X_total::AbstractMatrix, Nf::Int, Λ::Int, Nsites::Int)
+    n = 2 * (Nf + 4Λ)
+    Xs = [X_total[(s-1)*n+1:s*n, (s-1)*n+1:s*n] for s in 1:Nsites]
+    return Γ_fiducial_blocks(Xs, Nf, Λ)
 end
 
 """
@@ -255,8 +437,4 @@ function rrule(::typeof(GaussianMap), A::AbstractMatrix, B::AbstractMatrix, D::A
     end
 
     return Γ_out, GaussianMap_pullback
-end
-
-function GaussianMap_single_k(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractMatrix)
-    return B * ((D + CM_in) \ transpose(B)) .+ A
 end

@@ -34,13 +34,13 @@ Generate a random covariance matrix `Γ` of a pure Gaussian state with given par
 
 Returns `Γ`, `X` where `X` is the orthogonal matrix used to construct `Γ`.
 """
-function rand_CM(Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice}; parity::Int = 1)
-    N = get_number_of_modes(Nf, Λ, lattice)
+function rand_CM(Nf::Int, Λ::Int; parity::Int = 1)
+    N = Nf + 4Λ
     info = parity == 1 ? "even" : "odd"
 
     while true
         X = rand_orth(2N)
-        Γ = Γ_fiducial(X, Nf, Λ, lattice)
+        Γ = Γ_fiducial(X, Nf, Λ)
 
         if pfaffian(Γ) ≈ parity # for pure BCS state, parity = Pf(Γ) = +1 (even) / -1 (odd)
             @info "Created initial covariance matrix with $info parity"

@@ -255,7 +255,7 @@ function kitaev_BCS_hamiltonian(
              hopping = get_anisotropic_coupling_dict(lattice, [[Jx, Jx, Jy, Jy]], interaction_type=["NN"])
              pairing = get_anisotropic_coupling_dict(lattice, [[Jx,-Jx,Jy,-Jy]], interaction_type=["NN"])
 
-             return default_BCS_hamiltonian(hopping, pairing, μ, lattice; interaction_type=["NN"], E_shift=E_shift)
+             return default_BCS_hamiltonian(hopping, pairing, μ, lattice; E_shift=E_shift, interaction_type=["NN"])
         end
     elseif lattice isa AbstractInfiniteBrickWallLattice
         μ = 2Jz
@@ -266,7 +266,7 @@ function kitaev_BCS_hamiltonian(
              hopping = get_anisotropic_coupling_dict(lattice, [[Jx, Jx, Jy, Jy]], interaction_type=["NN"])
              pairing = get_anisotropic_coupling_dict(lattice, [[Jx,-Jx,Jy,-Jy]], interaction_type=["NN"])
 
-             return default_BCS_hamiltonian(hopping, pairing, μ, lattice; interaction_type=["NN"], E_shift=E_shift)
+             return default_BCS_hamiltonian(hopping, pairing, μ, lattice; E_shift=E_shift, interaction_type=["NN"])
         end
     else
         throw(ArgumentError("Unsupported lattice type for Kitaev BCS Hamiltonian."))
@@ -502,7 +502,7 @@ Finds the chemical potential `μ` that corresponds to a given doping level `δ` 
 
 """
 function solve_for_mu(kvals::AbstractMatrix, δ::Real, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
-    μ = find_zero(x -> δ - exact_doping(kvals, MomentumSpaceBdGHamiltonian(H_bdg.hopping, H_bdg.pairing, x, H_bdg.ξ_fct, H_bdg.Δ_fct)), μ_range)
+    μ = find_zero(x -> δ - exact_doping(kvals, MomentumSpaceBdGHamiltonian(H_bdg.hopping, H_bdg.pairing, x, H_bdg.ξ_fct, H_bdg.Δ_fct, H_bdg.interaction_type)), μ_range)
     return μ
 end
 

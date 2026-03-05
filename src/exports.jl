@@ -12,6 +12,12 @@ export get_isotropic_coupling_dict, get_anisotropic_coupling_dict
 #= export constructor =#
 export Gaussian_fPEPS
 
+#= export per-site Gaussian map functions =#
+export G_in_Fourier_persite, G_in_single_k_persite
+export Γ_fiducial_blocks, Γ_fiducial_blocks_from_packed
+export pack_Xs, X_matrix_form
+export energy_loss_X_persite, doping_loss_X_persite
+
 #= export utils functions =#
 export init_ctmrg_env
 export grow_env

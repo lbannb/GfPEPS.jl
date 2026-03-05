@@ -45,8 +45,8 @@ mutable struct Gaussian_fPEPS
     optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} # options for the optimization algorithm (LBFGS or BFGS)
     optim_options::Optim.Options # options for the Optim.jl optimizer
 
-    X_opt::Matrix{Float64} # optimal orthogonal matrix X
-    Γ_fiducial::Matrix{ComplexF64} # fiducial state correlation matrix in Majorana representation
+    X_opt::Vector{Matrix{Float64}} # optimal orthogonal matrices (one per unit-cell site)
+    Γ_fiducial::Matrix{Float64} # fiducial state correlation matrix (block-diagonal packed)
     peps::InfinitePEPS # iPEPS tensor (PEPSKit.jl format) TODO: add finite PEPS support here
 
     exact_energy::Float64 # exact energy from BCS solution
@@ -70,9 +70,14 @@ mutable struct Gaussian_fPEPS
             H_bdg.μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, H_bdg)
         end
 
-        Γ = Γ_fiducial(X_opt, Nf, Λ, lattice)
-        peps = translate(X_opt, Nf, Λ, lattice);
+        # Build block-diagonal Γ from per-site X matrices (X_opt is Lx×Ly matrix of matrices)
+        X_vec = vec(X_opt)  # flatten to vector for Γ_fiducial_blocks
+        A_bd, B_bd, D_bd = Γ_fiducial_blocks(X_vec, Nf, Λ)
+        Γ = [A_bd B_bd; -B_bd' D_bd]
 
-        new(Nf, Λ, lattice, H_bdg, doping_kwargs, optim_alg_options, optim_options, X_opt, Γ, peps, E_exact, optim_energy, info_obj)
+        # translate to PEPS (currently uses single-site X for 1×1; TODO: per-site translate for larger UC)
+        peps = translate(X_vec[1], Nf, Λ, lattice);
+
+        new(Nf, Λ, lattice, H_bdg, doping_kwargs, optim_alg_options, optim_options, X_vec, Γ, peps, E_exact, optim_energy, info_obj)
     end
 end

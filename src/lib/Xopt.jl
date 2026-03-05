@@ -66,27 +66,22 @@ function get_X_opt(
     Nf::Int, 
     Λ::Int,
     H_bdg::AbstractBdGHamiltonian;
-    X_init::Union{AbstractMatrix, Nothing}=nothing,
+    X_init::Union{AbstractVector{<:AbstractMatrix}, Nothing}=nothing,
     doping_kwargs::DopingSettings=DopingSettings(),
     optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=15, manifold = Optim.Stiefel(:CholQR)),
     optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
 
     # build gauge-projected manifold for better L-BFGS convergence.
-    # This removes the U(N) gauge redundancy (~50% of optimization dimensions) from the tangent space, preventing L-BFGS Hessian pollution.
-    J = build_J(Λ, Nf, lattice)
-    gauge_manifold = GaugeFixedStiefel(J)
+    # For per-site ansatz the optimisation variable is a block-diagonal
+    # matrix X_total = diag(X_1, …, X_N) living on the product Stiefel
+    # manifold.  The block-diagonal J_total preserves block-diagonality.
+    Nsites = get_number_of_sites(lattice)
+    J_single = build_J(Λ, Nf) # 2(Nf+4Λ) × 2(Nf+4Λ)
+    gauge_manifold = GaugeFixedStiefel(J_single)
     optim_alg_options = with_manifold(optim_alg_options, gauge_manifold)
 
-    # TODO: implement / test odd parity optimization
-    # initial ortogonal matrix X to construct Γ_Q with correct parity sector (even = 1, odd = -1)
-    X_opt = begin
-        if isnothing(X_init)
-            rand_CM(Nf, Λ, lattice; parity=1)[2]
-        else
-            @info "Using initial X matrix for optimization."
-            X_init
-        end
-    end
+    # each fiducial state gets its own X matrix
+    X_opt = isnothing(X_init) ? [rand_CM(Nf, Λ; parity=1)[2] for i in 1:get_number_of_sites(lattice)] : X_init
 
     # warn if dirac points are present -> then optimization of Γ can be harder, so user can adjust different kvals set
     has_dirac_points(lattice.kvals, H_bdg) 
@@ -116,10 +111,10 @@ function get_X_opt(
         training_lattice = InfiniteRectLattice(lattice.Lx, lattice.Ly; N_kx=N_kx_init, N_ky=N_ky_init, bc=lattice.bc, shift_x=lattice.shift_x, shift_y=lattice.shift_y)
         has_dirac_points(training_lattice.kvals, H_bdg)
 
-        loss_fct = energy_loss_X(training_lattice, Nf, Λ, H_bdg)
-        doping_fct = doping_loss_X(training_lattice, Nf, Λ)
+        loss_fct = energy_loss_X_persite(training_lattice, Nf, Λ, H_bdg)
+        doping_fct = doping_loss_X_persite(training_lattice, Nf, Λ)
 
-        # optimize X for current stage and get energy and doping results
+        # optimize the packed (block-diagonal) X on the product Stiefel manifold
         X_opt, stage_res, stage_doping = optimize_X(X_opt, loss_fct, doping_fct; doping_kwargs=doping_kwargs, optim_alg_options=optim_alg_options, optim_options=optim_options)
 
         if Optim.converged(stage_res)
@@ -155,13 +150,16 @@ function get_X_opt(
     @info "Final energy summary" target=E_exact achieved=optim_energy deviation=deviation
     println()
 
+    # unpack the optimised block-diagonal matrix back into per-site X matrices
+    X_mat = X_matrix_form(X_opt, lattice)
+
     # return final results and optimization info
     info_obj = (
         converged = Optim.converged(stage_res),
         trace = stage_res.trace
     )
 
-    return X_opt, optim_energy, E_exact, info_obj
+    return X_mat, optim_energy, E_exact, info_obj
 end
 
 
@@ -192,15 +190,21 @@ function get_kgrids(lattice::AbstractInfiniteLattice)
 end
 
 """
-    optimize_X(X, loss_fct, doping_fct; kwargs...)
+    optimize_X(Xs, loss_fct, doping_fct; kwargs...)
 
-Optimize the orthogonal matrix `X` on the Stiefel manifold to minimize `loss_fct`,
-optionally enforcing a density constraint via an augmented Lagrangian.
+Optimize a vector of per-site orthogonal matrices `Xs` on the product Stiefel
+manifold to minimize `loss_fct`, optionally enforcing a density constraint via
+an augmented Lagrangian.
+
+Internally the `Vector{Matrix}` is packed into a 3D `Array{Float64,3}` of shape
+`(n, n, Nsites)` so that `eltype` is `Float64`, which is required by Optim.jl.
+Loss closures that accept `AbstractVector{<:AbstractMatrix}` are wrapped
+automatically to slice the 3D array before evaluation.
 
 # Arguments
-- `X::AbstractMatrix`: Initial guess for the orthogonal matrix.
-- `loss_fct::Function`: `X -> energy` loss.
-- `doping_fct::Function`: `X -> doping` (can be `nothing` when density is not enforced).
+- `Xs::AbstractVector{<:AbstractMatrix}`: Initial guess — one orthogonal matrix per unit-cell site.
+- `loss_fct::Function`: `Xs -> energy` loss (accepts a vector of per-site X matrices).
+- `doping_fct::Function`: `Xs -> doping` (can be `nothing` when density is not enforced).
 
 # Keyword Arguments
 - `doping_kwargs::DopingSettings`: Augmented Lagrangian settings.
@@ -208,31 +212,42 @@ optionally enforcing a density constraint via an augmented Lagrangian.
 - `optim_options::Optim.Options`: Convergence tolerances and tracing.
 
 # Returns
-- `X_opt::AbstractMatrix`: Optimized orthogonal matrix.
+- `X_opt::Vector{Matrix{Float64}}`: Optimized per-site orthogonal matrices.
 - `res`: Optim result object (convergence info, trace).
 - `final_doping::Union{Float64, Nothing}`: Achieved doping, or `nothing`.
 
 """
-function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
+function optimize_X(Xs::AbstractVector{<:AbstractMatrix}, loss_fct::Function, doping_fct::Function;
     doping_kwargs::DopingSettings=DopingSettings(),
     optim_alg_options::Union{Optim.LBFGS, Optim.BFGS},
     optim_options::Optim.Options)
 
-     # No density constraint: minimize the pure energy objective on the Stiefel manifold.
+    # ── Pack Vector{Matrix} → 3D Array (n × n × Nsites) for Optim ──────
+    Nsites = length(Xs)
+    n = size(Xs[1], 1)
+    X3d = Array{Float64, 3}(undef, n, n, Nsites)
+    for s in 1:Nsites
+        X3d[:, :, s] .= Xs[s]
+    end
+
+    # Wrap a Vector{Matrix}-accepting closure into one that accepts a 3D array.
+    _slices(X3d) = [@view X3d[:, :, s] for s in axes(X3d, 3)]
+    loss3d(X3d)    = loss_fct(_slices(X3d))
+    doping3d(X3d)  = doping_fct(_slices(X3d))
+
+    # No density constraint: minimize the pure energy objective on the Stiefel manifold.
     if !doping_kwargs.enforce_density
-        # Combined value-and-gradient via Zygote pullback.
-        # When Optim requests both value and gradient for the same x, we avoid a
-        # redundant forward pass by computing both from a single Zygote.pullback.
-        grad_energy!(G, x) = copyto!(G, first(Zygote.gradient(loss_fct, x)))
+        grad_energy!(G, x) = copyto!(G, first(Zygote.gradient(loss3d, x)))
         function energy_fvg!(G, x)
-            val, back = Zygote.pullback(loss_fct, x)
+            val, back = Zygote.pullback(loss3d, x)
             copyto!(G, first(back(one(val))))
             return val
         end
 
-        optimized_loss = Optim.OnceDifferentiable(loss_fct, grad_energy!, energy_fvg!, X)
-        res = Optim.optimize(optimized_loss, X, optim_alg_options, optim_options)
-        X_opt = Optim.minimizer(res)
+        optimized_loss = Optim.OnceDifferentiable(loss3d, grad_energy!, energy_fvg!, X3d)
+        res = Optim.optimize(optimized_loss, X3d, optim_alg_options, optim_options)
+        X_opt_3d = Optim.minimizer(res)
+        X_opt = [X_opt_3d[:, :, s] for s in 1:Nsites]
         return X_opt, res, nothing
     end
 
@@ -243,20 +258,20 @@ function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
     λ = doping_kwargs.λ
 
     # run density optimization loop, where in each iteration we minimize the augmented Lagrangian with the current penalty and multiplier, then update those based on the constraint violation.
-    X_current = X
+    X_current = X3d
     last_res = nothing
-    last_doping = doping_fct(X_current)
+    last_doping = doping3d(X_current)
     total_iters = 0
     total_trace = []
     for _ in 1:max(doping_kwargs.density_opt_iters, 1) # usually only a few iterations are needed
         η_local = η
         λ_local = λ
 
-        # new loss funciton with penalty term for density constraint
+        # new loss function with penalty term for density constraint
         loss_augmented(x) = begin
-            dens = doping_fct(x)
+            dens = doping3d(x)
             constraint = dens - doping_kwargs.δ
-            return loss_fct(x) + η_local * constraint + 0.5 * λ_local * constraint^2
+            return loss3d(x) + η_local * constraint + 0.5 * λ_local * constraint^2
         end
 
         # Combined value-and-gradient via Zygote pullback (avoids redundant forward pass)
@@ -275,7 +290,7 @@ function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
         # update augmented Lagrangian parameters based on constraint violation
         last_res = res
         X_current = Optim.minimizer(res)
-        last_doping = doping_fct(X_current)
+        last_doping = doping3d(X_current)
         constraint = last_doping - doping_kwargs.δ
 
         if abs(constraint) <= doping_kwargs.density_tol
@@ -292,7 +307,8 @@ function optimize_X(X::AbstractMatrix, loss_fct::Function, doping_fct::Function;
     last_res.iterations = total_iters
     last_res.trace = total_trace
 
-    return X_current, last_res, last_doping
+    X_opt = [X_current[:, :, s] for s in 1:Nsites]
+    return X_opt, last_res, last_doping
 end
 
 """
@@ -388,6 +404,58 @@ function Optim.project_tangent!(m::GaugeFixedStiefel, G, X)
     mul!(G, X, m._XG)                                   # G = X · A_phys
 
     return G
+end
+
+"""
+    Optim.retract!(m::GaugeFixedStiefel, X3d::AbstractArray{<:Real, 3})
+
+CholQR retraction applied slice-wise to a 3D array of per-site X matrices
+(product Stiefel manifold).  Each `X3d[:,:,s]` is retracted independently.
+"""
+function Optim.retract!(m::GaugeFixedStiefel, X3d::AbstractArray{<:Real, 3})
+    for s in axes(X3d, 3)
+        Xs = @view X3d[:, :, s]
+        overlap = Xs'Xs + I * 1e-15
+        Xs .= Xs / cholesky(overlap).U
+    end
+    return X3d
+end
+
+"""
+    Optim.project_tangent!(m::GaugeFixedStiefel, G3d::AbstractArray{<:Real, 3}, X3d::AbstractArray{<:Real, 3})
+
+Gauge-fixed Stiefel tangent projection applied slice-wise to 3D arrays of
+per-site gradient / direction and position matrices.  Scratch buffers are
+reused across sites (sequential loop).
+"""
+function Optim.project_tangent!(m::GaugeFixedStiefel, G3d::AbstractArray{<:Real, 3}, X3d::AbstractArray{<:Real, 3})
+    for s in axes(X3d, 3)
+        G = @view G3d[:, :, s]
+        X = @view X3d[:, :, s]
+
+        # Step 1: Stiefel tangent projection
+        mul!(m._XG, transpose(X), G)
+        @inbounds for j in axes(m._Γ, 2), i in axes(m._Γ, 1)
+            m._Γ[i,j] = (m._XG[i,j] + m._XG[j,i]) / 2
+        end
+        mul!(G, X, m._Γ, -1.0, 1.0)
+
+        # Step 2: Extract Lie-algebra element A = X'G
+        mul!(m._XG, transpose(X), G)
+
+        # Step 3: Compute covariance matrix Γ = X'JX
+        mul!(m._ΓA, m.J, X)
+        mul!(m._Γ, transpose(X), m._ΓA)
+
+        # Step 4: Gauge projection — keep only the physical component
+        mul!(m._ΓA, m._Γ, m._XG)
+        mul!(m._ΓAΓ, m._ΓA, m._Γ)
+        @. m._XG = (m._XG + m._ΓAΓ) / 2
+
+        # Step 5: Reconstruct gradient in ambient space
+        mul!(G, X, m._XG)
+    end
+    return G3d
 end
 
 """
