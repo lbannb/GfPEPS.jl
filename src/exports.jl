@@ -1,6 +1,5 @@
 #= Lattices =#
 export RectLattice, InfiniteRectLattice
-export InfiniteBrickWallLattice
 
 #= export BdG Hamiltonian parmeters =#
 export RealSpaceBdGHamiltonian
