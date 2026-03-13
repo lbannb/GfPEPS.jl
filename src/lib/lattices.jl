@@ -191,6 +191,10 @@ end
 #= 
     Functions for number of sites in the lattice
 =#
+function get_number_of_distinct_sites_in_uc(lattice::AbstractInfiniteLattice)
+    return length(unique(vec(lattice.uc_layout)))
+end
+
 function get_number_of_sites(lattice::Union{AbstractInfiniteRectangularLattice, AbstractRectangularLattice})
     return lattice.Lx * lattice.Ly
 end

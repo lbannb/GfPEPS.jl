@@ -49,8 +49,8 @@ end
 
 """
     MomentumSpaceBdGHamiltonian(
-        hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
-        pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
+        hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
+        pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
         μ::Real, 
         ξ_mat::Function, 
         Δ_mat::Function,
@@ -65,10 +65,10 @@ H_BdG_k = [ξ_mat(k)  Δ_mat(k);
 ``
 
 # Fields
-- `hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}`: where the dict entries represent the hopping amplitude on the corresponding connection:
+- `hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: where the dict entries represent the hopping amplitude on the corresponding connection:
     * (x, y) => t_ij, where x and y follow the lattice geometry
     * (Example for square lattice x=±1, y=±1): (1,0) => t_(1,x), (-1,0) => t_(1,-x), (0,1) => t_(1,y), (0,-1) => t_(1,-y), (1,1) => t_(2,xy) etc.
-- `pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}`: where the dict entries represent the pairing amplitude on the corresponding connection:
+- `pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: where the dict entries represent the pairing amplitude on the corresponding connection:
     * (x, y) => Δ_ij, where x and y follow the lattice geometry
     * (Example for square lattice x=±1, y=±1): (1,0) => Δ_(1,x), (-1,0) => Δ_(1,-x), (0,1) => Δ_(1,y), (0,-1) => Δ_(1,-y), (1,1) => Δ_(2,xy) etc.
 - `μ::Real`: Chemical potential (can be updated when solve_μ_from_δ = true in DopingSettings)
@@ -78,24 +78,22 @@ H_BdG_k = [ξ_mat(k)  Δ_mat(k);
 
 """
 mutable struct MomentumSpaceBdGHamiltonian <: AbstractBdGHamiltonian
-    hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}
-    pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}
+    hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}
+    pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}
     μ::Real # chemical potential -> This can be changed when solve_μ_from_δ = true in DopingSettings
     ξ_mat_k::Function # Function to compute hopping matrix ξ_mat(k)
     Δ_mat_k::Function # Function to compute pairing matrix Δ_mat(k)
     E_shift::Function # Function to implement arbitrary energy shifts
-    interaction_type::Vector{String} # ["NN"], ["NNN"], ["NN","NNN"] 
 
     function MomentumSpaceBdGHamiltonian(
-        hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
-        pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
+        hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
+        pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
         μ::Real, 
         ξ_mat_k::Function, 
         Δ_mat_k::Function,
-        interaction_type::Vector{String};
         E_shift::Function = (k, ξ_k, Δ_k, μ) -> 0.0
     )
-        return new(hopping, pairing, μ, ξ_mat_k, Δ_mat_k, E_shift, interaction_type)
+        return new(hopping, pairing, μ, ξ_mat_k, Δ_mat_k, E_shift)
     end
 end
 
@@ -104,8 +102,8 @@ end
 =#
 """
     default_BCS_hamiltonian(
-        hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
-        pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, 
+        hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
+        pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
         μ::Real, lattice::AbstractInfiniteLattice; 
         interaction_type::Vector{String} = ["NN"], 
         pairing_type::String = "d_wave")
@@ -116,97 +114,28 @@ Returns a `MomentumSpaceBdGHamiltonian` which follows the standard BCS form (Nf=
 ´´´
 
 # Keyword Arguments
-- `hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}`: where the dict entries represent the hopping amplitude on the corresponding connection.
-- `pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}`: where the dict entries represent the pairing amplitude on the corresponding connection.
+- `hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: where the dict entries represent the hopping amplitude on the corresponding connection.
+- `pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: where the dict entries represent the pairing amplitude on the corresponding connection.
 - `μ::Real`: Chemical potential
 - `lattice::AbstractInfiniteLattice`: The lattice on which the BCS model is defined
 - `h::Real = 0.0`: External field
-- `interaction_type::Vector{String}=["NN"]`: Type of hopping interactions to include. Options: 
-    * "NN" (Nearest neighbor)
-    * "NNN" (Next nearest neighbor)
 
 # Returns
 - `MomentumSpaceBdGHamiltonian`: A `MomentumSpaceBdGHamiltonian` object with the specified parameters and functions to compute ξ(k) and Δ(k) for the given lattice and interaction types.
 
 """
 function default_BCS_hamiltonian(
-    hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}},
-    pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}},
+    hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}},
+    pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}},
     μ::Real,
     lattice::AbstractInfiniteLattice;
     Nf::Int = 2,
-    E_shift::Function = (k, ξ_mat_k, Δ_mat_k, μ) -> 0.0,
-    interaction_type::Vector{String} = ["NN"])
+    E_shift::Function = (k, ξ_mat_k, Δ_mat_k, μ) -> 0.0)
 
     ξ_mat_k = get_ξ_mat_k(lattice, Nf, hopping, μ)
     Δ_mat_k = get_Δ_mat_k(lattice, Nf, pairing)
 
-    # function ξ_k(k::AbstractVector{<:Real}, hopping::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, μ::Real)
-    #     # TODO: add more lattice types here
-
-    #     NN(k, hopping) = begin
-    #         if lattice isa AbstractInfiniteRectangularLattice
-    #             -2 * (hopping[(1,0)] * cos(k[1]) + hopping[(0,1)] * cos(k[2]))
-    #         else
-    #             throw(ArgumentError("Unsupported lattice type for ξ_k."))
-    #         end
-    #     end
-
-    #     NNN(k, hopping) = begin
-    #         if lattice isa AbstractInfiniteRectangularLattice
-    #             - 2 * hopping[(1,1)] * cos(k[1]+k[2]) - 2 * hopping[(1,-1)] * cos(k[1]-k[2])
-    #         else
-    #             throw(ArgumentError("Unsupported lattice type for ξ_k."))
-    #         end
-    #     end
-
-    #     # recall (t_x = t_-x and t_y = t_-y because of hermiticity)
-    #     # NN hopping 
-    #     interaction_type == ["NN"] && return NN(k, hopping) - μ
-
-    #     # NNN hopping
-    #     interaction_type == ["NNN"] && return NNN(k, hopping) - μ
-
-    #     # NN + NNN hopping
-    #     interaction_type == ["NN","NNN"] && return NN(k, hopping) + NNN(k, hopping) - μ
-
-    #     # TODO: add more scenarios here
-    #     throw(ArgumentError("Unsupported interaction_type $interaction_type."))
-    # end
-
-    # function Δ_k(k::AbstractVector{<:Real}, pairing::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}})
-    #     # TODO: add more lattice types here
-
-    #     NN(k, pairing) = begin
-    #         if lattice isa AbstractInfiniteRectangularLattice
-    #             pairing[(1,0)]*cis(k[1]) + pairing[(-1,0)] * cis(-k[1]) + pairing[(0,1)] * cis(k[2]) + pairing[(0,-1)] * cis(-k[2])
-    #         else
-    #             throw(ArgumentError("Unsupported lattice type for Δ_k."))
-    #         end
-    #     end
-
-    #     NNN(k, pairing) = begin
-    #         if lattice isa AbstractInfiniteRectangularLattice
-    #             pairing[(1,1)] * cis(k[1]+k[2]) + pairing[(-1,-1)] * conj(cis(k[1]+k[2])) + pairing[(1,-1)] * cis(k[1]-k[2]) + pairing[(-1,1)] * conj(cis(k[1]-k[2]))
-    #         else
-    #             throw(ArgumentError("Unsupported lattice type for Δ_k."))
-    #         end
-    #     end
-
-    #     # NN hopping 
-    #     interaction_type == ["NN"] && return NN(k, pairing)
-        
-    #     # NNN hopping
-    #     interaction_type == ["NNN"] && return NNN(k, pairing)
-
-    #     # NN + NNN hopping
-    #     interaction_type == ["NN","NNN"] && return NN(k, pairing) + NNN(k, pairing)
-
-    #     # TODO: add more scenarios here
-    #     throw(ArgumentError("Unsupported interaction_type $interaction_type."))
-    # end
-
-    return MomentumSpaceBdGHamiltonian(hopping, pairing, μ, ξ_mat_k, Δ_mat_k, interaction_type; E_shift=E_shift)
+    return MomentumSpaceBdGHamiltonian(hopping, pairing, μ, ξ_mat_k, Δ_mat_k, E_shift)
 end
 
 """
@@ -243,115 +172,36 @@ function kitaev_BCS_hamiltonian(
     lattice::AbstractInfiniteLattice;
     interaction_type::Vector{String} = ["NN"])
 
-    # TODO: add Honeycomb lattice
     if lattice isa AbstractInfiniteRectangularLattice
+        @assert get_number_of_distinct_sites_in_uc(lattice) == 1 "Currently only supports 1 site per unit cell for the Kitaev BCS Hamiltonian."
+
         μ = -2Jz
         E_shift = (k, ξ_k, Δ_k, μ) -> -Jz # Z2 background gauge field
 
         # TODO: add more interaction types here if needed
         if interaction_type == ["NN"]
-             hopping = get_anisotropic_coupling_dict(lattice, [[Jx, Jx, Jy, Jy]], interaction_type=["NN"])
-             pairing = get_anisotropic_coupling_dict(lattice, [[Jx,-Jx,Jy,-Jy]], interaction_type=["NN"])
+            hopping = Dict(
+                1 => Dict(
+                    (1,0) => Jx, 
+                    (-1,0) => Jx, 
+                    (0,1) => Jy, 
+                    (0,-1) => Jy
+                )
+            )
+            pairing = Dict(
+                1 => Dict(
+                    (1,0) => Jx, 
+                    (-1,0) => -Jx, 
+                    (0,1) => Jy, 
+                    (0,-1) => -Jy
+                )
+            )
 
-             return default_BCS_hamiltonian(hopping, pairing, μ, lattice; E_shift=E_shift, interaction_type=["NN"], Nf=1)
+             return default_BCS_hamiltonian(hopping, pairing, μ, lattice; E_shift=E_shift,  Nf=1)
         end
     else
         throw(ArgumentError("Unsupported lattice type for Kitaev BCS Hamiltonian."))
     end
-end
-
-"""
-    get_isotropic_coupling_dict(couplings::Union{Vector{ComplexF64}, Vector{Float64}}; interaction_type::Vector{String} = ["NN"])
-
-Returns a dictionary of isotropic couplings for the specified interaction type.
-
-# Keyword Arguments
-- `lattice::AbstractInfiniteLattice`: The lattice object for which the coupling dictionary is being constructed.
-- `couplings::Vector{Union{Vector{ComplexF64}, Vector{Float64}}}`: Vector of coupling values. Example: [t_1 (NN), t_2 (NNN), etc.]
-- `interaction_type::Vector{String}=["NN"]`: Vector of interaction types to include. Options:
-    * "NN" (Nearest neighbor)
-    * "NNN" (Next nearest neighbor)
-
-# Returns
-- `Dict{Tuple{Float64, Float64}, eltype(couplings)}`: Dictionary where the keys are tuples representing the lattice connections and the values are the corresponding coupling constants.
-    * For "NN": (1,0), (-1,0), (0,1), (0,-1) => coupling value
-    * For "NNN": (1,1), (-1,-1), (1,-1), (-1,1) => coupling value
-"""
-function get_isotropic_coupling_dict(lattice::AbstractInfiniteLattice, couplings::Union{Vector{ComplexF64}, Vector{Float64}}; interaction_type::Vector{String} = ["NN"])
-    length(couplings) != length(interaction_type) && throw(ArgumentError("Length of couplings vector must match the number of interaction types specified in interaction_type."))
-
-    coupling_dict = Dict{Tuple{Float64, Float64}, eltype(couplings)}()
-    valid_interaction_type = false
-
-    # TODO: add more lattice types here
-    if "NN" in interaction_type
-        if lattice isa AbstractInfiniteRectangularLattice
-            coupling_dict[(1,0)] = couplings[1]
-            coupling_dict[(-1,0)] = couplings[1]
-            coupling_dict[(0,1)] = couplings[1]
-            coupling_dict[(0,-1)] = couplings[1]
-            valid_interaction_type = true
-        end
-    end
-    if "NNN" in interaction_type
-        if lattice isa AbstractInfiniteRectangularLattice
-            coupling_dict[(1,1)] = couplings[1]
-            coupling_dict[(-1,-1)] = couplings[1]
-            coupling_dict[(1,-1)] = couplings[1]
-            coupling_dict[(-1,1)] = couplings[1]
-            valid_interaction_type = true
-        end
-    end
-
-    !valid_interaction_type && throw(ArgumentError("Unsupported interaction_type $interaction_type."))
-    return coupling_dict
-end
-
-"""
-        get_anisotropic_coupling_dict(lattice::AbstractInfiniteLattice, couplings::Vector{Union{Vector{ComplexF64}, Vector{Float64}}}; interaction_type::Vector{String} = ["NN"])
-
-Returns a dictionary of anisotropic couplings for the specified interaction type.
-
-# Keyword Arguments
-- `lattice::AbstractInfiniteLattice`: The lattice object for which the coupling dictionary is being constructed.
-- `couplings::Vector{Union{Vector{ComplexF64}, Vector{Float64}}}`: Every Vector contains the couplings for the given interaction type. Example: [ [t_1_(1,0), t_1_(-1,0), ...], [t_2_(1,1), t_2_(-1,1),...], ... ] for a square lattice
-- `interaction_type::Vector{String}=["NN"]`: Vector of interaction types to include. Options:
-    * "NN" (Nearest neighbor)
-    * "NNN" (Next nearest neighbor)
-
-# Returns
-- `Dict{Tuple{Float64, Float64}, eltype(couplings)}`
-    Dictionary where the keys are tuples representing the lattice connections and the values are the corresponding coupling constants.
-    * For "NN": (1,0) => t_x, (-1,0) => t_-x, (0,1) => t_y, (0,-1) => t_-y
-    * For "NNN": (1,1) => t_(xy), (-1,-1) => t_(-xy), (1,-1) => t_(x-y), (-1,1) => t_(-x+y)
-"""
-function get_anisotropic_coupling_dict(lattice::AbstractInfiniteLattice, couplings::Union{Vector{Vector{ComplexF64}}, Vector{Vector{Float64}}}; interaction_type::Vector{String} = ["NN"])
-    length(couplings) != length(interaction_type) && throw(ArgumentError("Length of couplings vector must match the number of interaction types specified in interaction_type."))
-
-    coupling_dict = Dict{Tuple{Float64, Float64}, eltype(couplings[1])}()
-    valid_interaction_type = false
-
-    if "NN" in interaction_type
-        if lattice isa AbstractInfiniteRectangularLattice
-            coupling_dict[(1,0)] = couplings[1][1]
-            coupling_dict[(-1,0)] = couplings[1][2]
-            coupling_dict[(0,1)] = couplings[1][3]
-            coupling_dict[(0,-1)] = couplings[1][4]
-            valid_interaction_type = true
-        end
-    end
-    if "NNN" in interaction_type
-        if lattice isa AbstractInfiniteRectangularLattice
-            coupling_dict[(1,1)] = couplings[2][1]
-            coupling_dict[(-1,-1)] = couplings[2][2]
-            coupling_dict[(1,-1)] = couplings[2][3]
-            coupling_dict[(-1,1)] = couplings[2][4]
-            valid_interaction_type = true
-        end
-    end
-
-    !valid_interaction_type && throw(ArgumentError("Unsupported interaction_type $interaction_type."))
-    return coupling_dict
 end
 
 #= 
@@ -359,7 +209,7 @@ end
 =#
 
 """
-        get_site_index(x::Union{Int, Float64}, y::Union{Int, Float64}, lattice::AbstractInfiniteLattice)
+        get_site_index(x::Number, y::Number, lattice::AbstractInfiniteLattice)
 
 Returns the site index corresponding to the coordinates (x, y) on the given lattice. 
 The indexing convention is column-major, meaning that sites are indexed first along the x-direction and then along the y-direction.
@@ -372,10 +222,10 @@ Example: [(1,1)=>1 (2,1)=>2; (1,2)=>3 (2,2)=>4] for a 2x2 unit cell.
 - `lattice::AbstractInfiniteLattice`: The lattice on which the site is located. The function currently supports `AbstractInfiniteRectangularLattice` and will throw an error for unsupported lattice types.
 
 # Returns
-- `site_index::Int`: The corresponding site index in column-major order.
+- `site_index::Number`: The corresponding site index in column-major order.
 
 """
-function get_site_index(x::Union{Int, Float64}, y::Union{Int, Float64}, lattice::AbstractInfiniteLattice)
+function get_site_index(x::Number, y::Number, lattice::AbstractInfiniteLattice)
     @assert 1 <= x <= lattice.Lx && 1 <= y <= lattice.Ly "Site coordinates out of bounds for the given lattice dimensions."
 
     if lattice isa AbstractInfiniteRectangularLattice
@@ -386,27 +236,27 @@ function get_site_index(x::Union{Int, Float64}, y::Union{Int, Float64}, lattice:
 end
 
 """
-    wrap_site_index(x::Int, y::Int, dx::Float64, dy::Float64, lattice::AbstractInfiniteLattice)
+    wrap_site_index(x::Number, y::Number, dx::Number, dy::Number, lattice::AbstractInfiniteLattice)
 
 Returns the wrapped destination coordinates (xdst, ydst) and the number of crossed supercells (Tx, Ty) when applying a displacement (dx, dy) to a site at coordinates (x, y) on the given lattice. 
 The function handles periodic boundary conditions by wrapping the destination coordinates back into the unit cell and calculating how many times the displacement crosses the boundaries of the unit cell.
 
 # Keyword Arguments
-- `x::Int`: x-coordinate of the original site
-- `y::Int`: y-coordinate of the original site
-- `dx::Float64`: x-component of the displacement
-- `dy::Float64`: y-component of the displacement
+- `x::Number`: x-coordinate of the original site
+- `y::Number`: y-coordinate of the original site
+- `dx::Number`: x-component of the displacement
+- `dy::Number`: y-component of the displacement
 - `lattice::AbstractInfiniteLattice`: The lattice on which the site is located. The function currently supports `AbstractInfiniteRectangularLattice` and will throw an error for unsupported lattice types.
 
 # Returns
 - `wrapped_x::Float64`: x-coordinate of the wrapped destination site within the unit cell
 - `wrapped_y::Float64`: y-coordinate of the wrapped destination site within the unit cell
-- `Tx::Int`: Number of times the displacement crosses the boundary in the x-direction (number of supercells crossed)
-- `Ty::Int`: Number of times the displacement crosses the boundary in the y-direction (number of supercells crossed)
+- `Tx::Number`: Number of times the displacement crosses the boundary in the x-direction (number of supercells crossed)
+- `Ty::Number`: Number of times the displacement crosses the boundary in the y-direction (number of supercells crossed)
 
 """
 
-function wrap_site_index(x::Int, y::Int, dx::Float64, dy::Float64, lattice::AbstractInfiniteLattice)
+function wrap_site_index(x::Number, y::Number, dx::Number, dy::Number, lattice::AbstractInfiniteLattice)
     Lx, Ly = lattice.Lx, lattice.Ly
 
     if lattice isa AbstractInfiniteRectangularLattice
@@ -425,7 +275,7 @@ function wrap_site_index(x::Int, y::Int, dx::Float64, dy::Float64, lattice::Abst
 end
 
 """
-    get_k_matrix_kernel(k::AbstractVector{<:Real}, coupling_dict::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, lattice::AbstractInfiniteLattice)
+    get_k_matrix_kernel(k::AbstractVector{<:Real}, coupling_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, lattice::AbstractInfiniteLattice)
 
 Returns the kernel matrix in momentum space for a given momentum `k`, coupling dictionary, and lattice geometry. 
 The kernel matrix is constructed by summing over the contributions from all couplings specified in the `coupling_dict`, where each coupling corresponds to a specific displacement (dx, dy) on the lattice. 
@@ -433,21 +283,26 @@ The function handles the wrapping of site indices according to the lattice geome
 
 # Keyword Arguments
 - `k::AbstractVector{<:Real}`: Momentum vector for which to compute the kernel matrix
-- `coupling_dict::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}`: Dictionary where keys are tuples representing displacements (dx, dy) and values are the corresponding coupling amplitudes (hopping or pairing)
+- `coupling_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: Dictionary where keys are tuples representing displacements (dx, dy) and values are the corresponding coupling amplitudes (hopping or pairing)
 - `lattice::AbstractInfiniteLattice`: The lattice geometry which determines how site indices are wrapped and how the kernel matrix is constructed. The function currently supports `AbstractInfiniteRectangularLattice` and will throw an error for unsupported lattice types.
 
 # Returns
 - `mat_kernel::Matrix{ComplexF64}`: The resulting kernel matrix in momentum space for the given momentum `k`.
 
 """
-function get_k_matrix_kernel(k::AbstractVector{<:Real}, coupling_dict::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, lattice::AbstractInfiniteLattice)
+function get_k_matrix_kernel(k::AbstractVector{<:Real}, coupling_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, lattice::AbstractInfiniteLattice)
     Lx, Ly = lattice.Lx, lattice.Ly
     Nsites = get_number_of_sites(lattice)
     mat_kernel = zeros(ComplexF64, Nsites, Nsites)
 
-    for (bond, amplitude) in coupling_dict
-        dx, dy = bond
-        for x in 1:Lx, y in 1:Ly
+    for x in 1:Lx, y in 1:Ly
+        site_label = lattice.uc_layout[x, y] # site label in the unit cell
+
+        # Get the valid bonds for this specific site type
+        site_bonds = get(coupling_dict, site_label, Dict())
+
+        for (bond, amplitude) in site_bonds
+            dx, dy = bond
             src = get_site_index(x, y, lattice)
 
             xdst, ydst, Tx, Ty = wrap_site_index(x, y, dx, dy, lattice)
@@ -478,7 +333,7 @@ Returns the hopping matrix ξ(k) in momentum space for a given momentum `k`, lat
 - `ξ_mat_k::Function`: The function returning the hopping matrix ξ(k) in momentum space for the given momentum `k`.
 
 """
-function get_ξ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, hopping_dict::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}}, μ::Real)
+function get_ξ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, μ::Real)
     function ξ_mat_k(k::AbstractVector{<:Real})
         Nsites = get_number_of_sites(lattice)
         mat = get_k_matrix_kernel(k, hopping_dict, lattice)
@@ -510,7 +365,7 @@ Returns the pairing matrix Δ(k) in momentum space for a given momentum `k`, lat
 - `Δ_mat_k::Function`: The function returning the pairing matrix Δ(k) in momentum space for the given momentum `k`.
 
 """
-function get_Δ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, pairing_dict::Union{Dict{Tuple{Float64, Float64}, ComplexF64}, Dict{Tuple{Float64, Float64}, Float64}})
+function get_Δ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, pairing_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}})
     function Δ_mat_k(k::AbstractVector{<:Real})
         Nsites = get_number_of_sites(lattice)
         Δ_sites_k = get_k_matrix_kernel(k, pairing_dict, lattice)
@@ -540,36 +395,6 @@ end
 #= 
     Energy functions for BCS Hamiltonians
 =#
-
-# function get_ξ_mat_k(Nf::Int, k::AbstractVector{<:Real}, H_bdg_k::MomentumSpaceBdGHamiltonian)
-#     return kron(H_bdg_k.ξ_k(k, H_bdg_k.μ), I(Nf))
-# end
-
-# function get_Δ_mat_k(Nf::Int, k::AbstractVector{<:Real}, H_bdg_k::MomentumSpaceBdGHamiltonian)
-#     Δ_mat_k = H_bdg_k.Δ_k(k)
-
-#     if Nf == 1
-#         return Δ_mat_k
-#     elseif Nf == 2
-#         Δ_minus_k_mat = H_bdg_k.Δ_k(-k)
-#         Nsites = size(Δ_mat_k, 1)
-#         Δ_full = zeros(ComplexF64, 2 * Nsites, 2 * Nsites)
-
-#         for src_site in 1:Nsites, dst_site in 1:Nsites
-#             src_up = 2src_site - 1
-#             src_dn = 2src_site
-#             dst_up = 2dst_site - 1
-#             dst_dn = 2dst_site
-
-#             Δ_full[src_up, dst_dn] = Δ_mat_k[src_site, dst_site]
-#             Δ_full[src_dn, dst_up] = -Δ_minus_k_mat[dst_site, src_site]
-#         end
-
-#         return Δ_full
-#     end
-
-#     throw(ArgumentError("Momentum-space BdG Hamiltonians currently support Nf = 1 or Nf = 2. Got Nf = $Nf."))
-# end
 
 """
     E(k::AbstractVector{<:Real}, H_bdg::MomentumSpaceBdGHamiltonian)
