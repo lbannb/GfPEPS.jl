@@ -1,5 +1,5 @@
 """
-    H_BdG_majorana_k(k::AbstractVector{<:Real}, H_bdg_k::MomentumSpaceBdGHamiltonian)
+    H_BdG_majorana_k(k::AbstractVector{<:Real}, H_BdG_k::MomentumSpaceBdGHamiltonian)
 
 Constructs the Hamiltonian matrix `H_BdG_k` in the Majorana basis (qq-ordered) for momentum `k`.
 
@@ -14,11 +14,12 @@ In Majorana basis (Majorana fermions cᵢ), the Hamiltonian becomes:
 
 Returns i/2 * (Ω H_BdG_k Ω†) for momentum `k` in qq-ordering.
 """
-function H_BdG_majorana_k(Nf::Int, k::AbstractVector{<:Real}, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
+function H_BdG_majorana_k(Nf::Int, k::AbstractVector{<:Real}, H_BdG::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
     Nf_in_uc = get_Nf_in_uc(Nf, lattice)
 
     # 1. Construct H_BdG in Nambu basis (Dirac fermions qp-ordered)
-    H_BdG_k_mat = get_BdG_k_matrix(lattice, Nf, k, H_bdg_k)
+    H_BdG_k_mat = [H_BdG.ξ_mat_k(k)  H_BdG.Δ_mat_k(k); 
+               H_BdG.Δ_mat_k(k)' -transpose(H_BdG.ξ_mat_k(-k))]
 
     # 2. Permute to qq-ordering: (a₁, a₂, ..., a_Nf, a†₁, a†₂, ..., a†_Nf) -> (a₁, a†₁, a₂, a†₂, ...)
     p = zeros(Int, 2*Nf_in_uc)

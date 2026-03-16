@@ -1,27 +1,29 @@
 """
-    energy_loss(Nf::Int, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
+    energy_loss(Nf::Int, H_BdG::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
 
 Returns a function energy(CM_out) that computes the mean energy for BCS Hamiltonians with parameters `params`.
 This funciton is used for the optimization of the covariance matrix of the PEPS ansatz.
 This function should be highly optimized as it is called many times during the optimization, so we precompute as much as possible and avoid allocations in the inner loop.
 """
-function energy_loss(Nf::Int, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
+function energy_loss(Nf::Int, H_BdG::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
     kvals = lattice.kvals
 
-    E_shift_summed = sum(map(eachcol(kvals)) do k
-        ξ_k = H_bdg_k.ξ_fct(k, H_bdg_k.hopping, H_bdg_k.μ)
-        Δ_k = H_bdg_k.Δ_fct(k, H_bdg_k.pairing)
-        return Nf * 0.5 * ξ_k + H_bdg_k.E_shift(k, ξ_k, Δ_k, H_bdg_k.μ)
+    Nsites = get_number_of_sites(lattice)
+    E_shift_summed = Nsites * sum(map(eachcol(kvals)) do k
+        ξ_mat_k = H_BdG.ξ_mat_k(k)
+        Δ_mat_k = H_BdG.Δ_mat_k(k)
+        return 0.5 * Nf * real(tr(ξ_mat_k)) + H_BdG.E_shift(k, ξ_mat_k, Δ_mat_k, H_BdG.μ)
     end)
 
-    # divide by number of k-points
+    # divide by number of k-points and number of sites
+    # actually faster when precomputed, because multiplication is faster than division
     Nk = size(kvals, 2)
-    invN = 1.0 / (Nk * get_number_of_sites(lattice)) # actually faster when precomputed, because multiplication is faster than division
+    invN = 1.0 / (Nk * Nsites) 
     
     # Construct the Hamiltonian tensor (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
     # we need the adjoint here because dot(H, CM_out) = sum(H' .* CM_out))
-    H_BdG_batched = stack(map(k -> conj(H_BdG_majorana_k(Nf, k, H_bdg_k, lattice)), eachcol(kvals)))
-    # H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, H_bdg_k, lattice), eachcol(kvals)))
+    H_BdG_batched = stack(map(k -> conj(H_BdG_majorana_k(Nf, k, H_BdG, lattice)), eachcol(kvals)))
+    # H_BdG_batched = stack(map(k -> H_BdG_majorana_k(Nf, k, H_BdG, lattice), eachcol(kvals)))
 
     function energy(CM_out::AbstractArray)
         # Fast Trace Formula: Tr(H * CM) = sum(H .* CM^T) = - sum(H .* CM) = - dot(conj(H), CM)
@@ -70,9 +72,9 @@ end
 
 Returns the energy from the CM_out as a function of the orthogonal matrix X, using the Gaussian map.
 """
-function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int, H_bdg_k::MomentumSpaceBdGHamiltonian)
+function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int, H_BdG::MomentumSpaceBdGHamiltonian)
     G_in = G_in_Fourier(Λ, lattice)
-    energy = energy_loss(Nf, H_bdg_k, lattice)
+    energy = energy_loss(Nf, H_BdG, lattice)
     function loss(X)
         return real(energy(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Nf, Λ, lattice), Nf, lattice)..., G_in)))
     end
@@ -80,7 +82,7 @@ function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice},
 end
 
 """
-    energy_loss_X_persite(lattice, Nf, Λ, H_bdg_k)
+    energy_loss_X_persite(lattice, Nf, Λ, H_BdG)
 
 Returns the energy from `CM_out` as a function of a vector of per-site
 orthogonal matrices `Xs`, using the per-site Gaussian map.
@@ -88,9 +90,9 @@ orthogonal matrices `Xs`, using the per-site Gaussian map.
 The returned closure accepts an `AbstractVector{<:AbstractMatrix}` with
 `Nsites` elements, each of size `n × n` where `n = 2(Nf + 4Λ)`.
 """
-function energy_loss_X_persite(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int, H_bdg_k::MomentumSpaceBdGHamiltonian)
+function energy_loss_X_persite(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int, H_BdG::MomentumSpaceBdGHamiltonian)
     G_in = G_in_Fourier_persite(Λ, lattice)
-    energy = energy_loss(Nf, H_bdg_k, lattice)
+    energy = energy_loss(Nf, H_BdG, lattice)
     function loss(Xs::AbstractVector)
         A, B, D = Γ_fiducial_blocks(Xs, Nf, Λ)
         return real(energy(GaussianMap(A, B, D, G_in)))

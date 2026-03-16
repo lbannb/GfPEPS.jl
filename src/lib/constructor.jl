@@ -76,7 +76,10 @@ mutable struct Gaussian_fPEPS
         Γ = [A_bd B_bd; -B_bd' D_bd]
 
         # translate to PEPS (currently uses single-site X for 1×1; TODO: per-site translate for larger UC)
-        peps = translate(X_vec[1], Nf, Λ, lattice);
+        # peps = translate(X_vec[1], Nf, Λ, lattice);
+        physical_spaces = Vect[fℤ₂](0 => 1, 1 => 1)
+        virtual_spaces = Vect[fℤ₂](0 => 2, 1 => 2)
+        peps = InfinitePEPS(randn, ComplexF64, physical_spaces, virtual_spaces)
 
         new(Nf, Λ, lattice, H_bdg, doping_kwargs, optim_alg_options, optim_options, X_vec, Γ, peps, E_exact, optim_energy, info_obj)
     end

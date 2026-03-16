@@ -10,6 +10,7 @@ Struct to hold settings for doping optimization in the augmented Lagrangian meth
 - `enforce_density::Bool=false`: Whether to enforce the density constraint or not.
 - `density_opt_iters::Int=8`: Maximum number of iterations for the density optimization loop.
 - `λ::Float64=1e2`: Initial penalty parameter for the augmented Lagrangian method. If not positive and finite, a default fallback value will be used.
+- `solve_μ_from_δ::Bool=true`: Whether to solve for the chemical potential μ from the target doping δ before optimization. If false, the provided μ in the Hamiltonian will be used and the doping constraint will be enforced around that.
 """
 struct DopingSettings
     δ::Float64
@@ -81,7 +82,7 @@ function get_X_opt(
     optim_alg_options = with_manifold(optim_alg_options, gauge_manifold)
 
     # each fiducial state gets its own X matrix
-    X_opt = isnothing(X_init) ? [rand_CM(Nf, Λ; parity=1)[2] for i in 1:get_number_of_sites(lattice)] : X_init
+    X_opt = isnothing(X_init) ? [rand_CM(Nf, Λ; parity=1)[2] for i in 1:get_number_of_distinct_sites_in_uc(lattice)] : X_init
 
     # warn if dirac points are present -> then optimization of Γ can be harder, so user can adjust different kvals set
     has_dirac_points(lattice.kvals, H_bdg) 
@@ -108,7 +109,13 @@ function get_X_opt(
         stage_label = !(N_kx_init==lattice.N_kx) ? "Warmup stage $(stage_idx) (N_kx=$(N_kx_init), N_ky=$(N_ky_init))" : "Final optimization stage (N_kx=$(N_kx_init), N_ky=$(N_ky_init))"
         @info "Optimize X for: N_kx = $(N_kx_init), N_ky = $(N_ky_init)"
 
-        training_lattice = InfiniteRectLattice(lattice.Lx, lattice.Ly; N_kx=N_kx_init, N_ky=N_ky_init, bc=lattice.bc, shift_x=lattice.shift_x, shift_y=lattice.shift_y)
+        training_lattice = InfiniteRectLattice(lattice.Lx, lattice.Ly;
+            uc_layout=lattice.uc_layout,
+            N_kx=N_kx_init,
+            N_ky=N_ky_init,
+            bc=lattice.bc,
+            shift_x=lattice.shift_x,
+            shift_y=lattice.shift_y)
         has_dirac_points(training_lattice.kvals, H_bdg)
 
         loss_fct = energy_loss_X_persite(training_lattice, Nf, Λ, H_bdg)
