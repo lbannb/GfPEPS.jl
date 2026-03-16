@@ -30,11 +30,22 @@ end
 Represents a unit cell of size ```Lx * Ly``` which is repeated over the infinite lattice.
 Also contains the allowed momentum values ```kvals::Matrix{Float64}``` for the given unit cell.
 
+Lattice orientation:
+```
+    ⟶ x
+    ↓
+    y
+```
+
 # Keyword arguments
 - `Lx::Int`: Number of sites in the x-direction of the unit cell
 - `Ly::Int`: Number of sites in the y-direction of the unit cell
 
 # Optional keyword arguments:
+- `uc_layout::Matrix{Int} = fill(1, Ly, Lx)`: Ly x Lx matrix specifying the layout of sites in the unit cell, e.g. for a 2x2 unit cell with 4 different sites: [1 2; 3 4]
+    - dim 1: y-direction
+    - dim 2: x-direction
+
 - `N_kx::Int = 48`: Number of k-points in the x-direction
 - `N_ky::Int = 48`: Number of k-points in the y-direction
 - `bc::Tuple{Symbol, Symbol} = (:APBC, :PBC)`: Tuple specifying boundary conditions for x and y directions, e.g. `(:PBC, :APBC)`
@@ -44,8 +55,7 @@ Also contains the allowed momentum values ```kvals::Matrix{Float64}``` for the g
 struct InfiniteRectLattice <: AbstractInfiniteRectangularLattice 
     Lx::Int
     Ly::Int
-    uc_layout::Matrix{Int} # Lx x Ly matrix specifying the layout of sites in the unit cell
-
+    uc_layout::Matrix{Int}
     kvals::Matrix{Float64} # 2 x (N_kx * N_ky) matrix of k-points in the Brillouin zone
     N_kx::Int
     N_ky::Int
@@ -54,7 +64,7 @@ struct InfiniteRectLattice <: AbstractInfiniteRectangularLattice
     shift_y::Float64
 
     function InfiniteRectLattice(Lx::Int, Ly::Int; 
-        uc_layout::Matrix{Int} = fill(1, Lx, Ly),
+        uc_layout::Matrix{Int} = fill(1, Ly, Lx),
         N_kx::Int = 48, 
         N_ky::Int = 48,
         bc::Tuple{Symbol, Symbol} = (:APBC, :PBC),
@@ -66,7 +76,7 @@ struct InfiniteRectLattice <: AbstractInfiniteRectangularLattice
             throw(ArgumentError("Boundary conditions must be :APBC or :PBC. Got: $bc"))
         end
 
-        @assert size(uc_layout) == (Lx, Ly) "uc_layout must be of size Lx x Ly"
+        @assert size(uc_layout) == (Ly, Lx) "uc_layout must be of size Ly x Lx"
 
         new(Lx, Ly, uc_layout, get_2D_k_grid(Lx, Ly, N_kx, N_ky; x_bc=Val(bc[1]), shift_x=shift_x, y_bc=Val(bc[2]), shift_y=shift_y), N_kx, N_ky, bc, shift_x, shift_y)
     end

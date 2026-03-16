@@ -296,7 +296,7 @@ function get_k_matrix_kernel(k::AbstractVector{<:Real}, coupling_dict::Dict{Int,
     mat_kernel = zeros(ComplexF64, Nsites, Nsites)
 
     for x in 1:Lx, y in 1:Ly
-        site_label = lattice.uc_layout[x, y] # site label in the unit cell
+        site_label = lattice.uc_layout[y, x] # site label in the unit cell
 
         # Get the valid bonds for this specific site type
         site_bonds = get(coupling_dict, site_label, Dict())

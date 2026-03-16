@@ -8,17 +8,16 @@ This function should be highly optimized as it is called many times during the o
 function energy_loss(Nf::Int, H_BdG::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
     kvals = lattice.kvals
 
-    Nsites = get_number_of_sites(lattice)
-    E_shift_summed = Nsites * sum(map(eachcol(kvals)) do k
+    E_shift_summed = sum(map(eachcol(kvals)) do k
         ξ_mat_k = H_BdG.ξ_mat_k(k; μ = H_BdG.μ)
         Δ_mat_k = H_BdG.Δ_mat_k(k)
         return 0.5 * real(tr(ξ_mat_k)) + H_BdG.E_shift(k, ξ_mat_k, Δ_mat_k, H_BdG.μ)
     end)
 
-    # divide by number of k-points and number of sites
+    # divide by number of k-points
     # actually faster when precomputed, because multiplication is faster than division
     Nk = size(kvals, 2)
-    invN = 1.0 / (Nk * Nsites) 
+    invN = 1.0 / Nk
     
     # Construct the Hamiltonian tensor (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
     # we need the adjoint here because dot(H, CM_out) = sum(H' .* CM_out))
@@ -46,7 +45,7 @@ This function should be highly optimized as it is called many times during the o
 function doping_loss(Nf::Int, lattice::AbstractInfiniteLattice)
     # divide by number of k-points
     Nk = size(lattice.kvals, 2)
-    invN = 1.0 / (Nk * get_number_of_sites(lattice)) # actually faster when precomputed, because multiplication is faster than division
+    invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
 
     # Construct the symplectic form (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
     # occupation in the majorana basis
@@ -134,21 +133,23 @@ end
 =#
 
 """
-    energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, H_bdg::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, H_BdG::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
 
 The energy of a Gaussian fPEPS evaluated from the fiducial state correlation matrix `Γ_fiducial`.
 """
-function energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, H_bdg::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    Nf_in_uc = get_Nf_in_uc(Nf, lattice)
+# function energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, H_BdG::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+#     Nf_in_uc = get_Nf_in_uc(Nf, lattice)
 
-    Λ = div(size(Γ_fiducial, 1) - 2 * Nf_in_uc, 8)
-    G_in = G_in_Fourier(Λ, lattice)
+#     Λ = div(size(Γ_fiducial, 1) - 2 * Nf_in_uc, 8)
+#     G_in = G_in_Fourier(Λ, lattice)
     
-    return energy_loss(Nf, H_bdg, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
-end
-function energy_CM(X::AbstractMatrix, Nf::Int, Λ::Int, H_bdg::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    Γ = Γ_fiducial(X, Nf, Λ, lattice)
-    return energy_CM(Γ, Nf, H_bdg, lattice)
+#     return energy_loss(Nf, H_BdG, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
+# end
+function energy_CM(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int, H_BdG::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    G_in = G_in_Fourier_persite(Λ, lattice)
+    A, B, D = Γ_fiducial_blocks(X_vec, Nf, Λ, lattice)
+    
+    return real(energy_loss(Nf, H_BdG, lattice)(GaussianMap(A, B, D, G_in)))
 end
 
 """

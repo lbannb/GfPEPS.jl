@@ -12,53 +12,60 @@ where v sums over the basis vectors e_x, e_y.
 - d-wave state: Δy = -Δx.
 - (p+ip) state: Δy = i Δx.
 """
-function BCS_spin_hamiltonian(T::Type{<:Number}, lattice::InfiniteSquare, H_BdG::MomentumSpaceBdGHamiltonian)
+function BCS_spin_hamiltonian(T::Type{<:Number}, lattice::InfiniteSquare, H_BdG::MomentumSpaceBdGHamiltonian, uc_layout::AbstractMatrix)
     pspace = hub.hubbard_space(Trivial, Trivial)
     pspaces = fill(pspace, (lattice.Nrows, lattice.Ncols))
     num = hub.e_num(T, Trivial, Trivial)
 
-    unit = TensorKit.id(T, pspace)
-    # hopping = (-t) * hub.e_hopping(T, Trivial, Trivial) -
-    #     (μ / 4) * (num ⊗ unit + unit ⊗ num)
-    # pairing = sqrt(2) * hub.singlet_plus(T, Trivial, Trivial)
-    # pairing += pairing'
+    ham_terms = []
 
-    ham_terms = begin
-        vcat(
-            if "NN" in H_BdG.interaction_type
-                map(nearest_neighbours(lattice)) do bond
-                    bond_dir = bond[2] - bond[1]
-                    hopping = H_BdG.hopping[(bond_dir[2], bond_dir[1])] * hub.e_hopping(T, Trivial, Trivial) - (H_BdG.μ / 4) * (num ⊗ unit + unit ⊗ num)
-                    pairing = sqrt(2) * H_BdG.pairing[(bond_dir[2], bond_dir[1])] * hub.singlet_plus(T, Trivial, Trivial)
-                    pairing += pairing'
-                    return bond => hopping + pairing
-                end
-            else
-                []
-            end,
-            if "NNN" in H_BdG.interaction_type
-                map(next_nearest_neighbours(lattice)) do bond
-                    bond_dir = bond[2] - bond[1]
-                    hopping = H_BdG.hopping[(bond_dir[2], bond_dir[1])] * hub.e_hopping(T, Trivial, Trivial)
-                    pairing = sqrt(2) * H_BdG.pairing[(bond_dir[2], bond_dir[1])] * hub.singlet_plus(T, Trivial, Trivial)
-                    pairing += pairing'
-                    return bond => hopping + pairing
-                end
-            else
-                []
+    # Map each site in the unit cell
+    for y in 1:lattice.Nrows, x in 1:lattice.Ncols
+        src_pos = CartesianIndex(y, x)
+        site_label = uc_layout[y, x]
+
+        # On-site chemical potential term
+        push!(ham_terms, (src_pos,) => - (H_BdG.μ) * num)
+
+        # Get the valid bonds for site_label
+        site_hoppings = get(H_BdG.hopping, site_label, Dict())
+        site_pairings = get(H_BdG.pairing, site_label, Dict())
+
+        unique_bonds = Set{Tuple{Int, Int}}() # set only contains unique elements
+        for (dx, dy) in keys(site_hoppings)
+            if dx > 0 || (dx == 0 && dy > 0)
+                push!(unique_bonds, (Int(dx), Int(dy)))
             end
-        )
+        end
+        for (dx, dy) in keys(site_pairings)
+            if dx > 0 || (dx == 0 && dy > 0)
+                push!(unique_bonds, (Int(dx), Int(dy)))
+            end
+        end
+
+        for bond in unique_bonds
+            dx, dy = bond
+            hopping_amplitude = get(site_hoppings, bond, 0.0)
+            pairing_amplitude = get(site_pairings, bond, 0.0)
+
+            dst_pos = CartesianIndex(y + dy, x + dx)
+            # hopping
+            bond_term = hopping_amplitude * hub.e_hopping(T, Trivial, Trivial)
+            # pairing
+            pairing_term = pairing_amplitude * sqrt(2) * hub.singlet_plus(T, Trivial, Trivial)
+            pairing_term += pairing_term' # add hermitian conjugate
+            bond_term += pairing_term
+
+            push!(ham_terms, (src_pos, dst_pos) => bond_term)
+        end
     end
 
     return LocalOperator(
         pspaces,
         ham_terms...
-        # map(nearest_neighbours(lattice)) do bond
-        #     return bond => hopping + pairing * (_is_xbond(bond) ? Δx : Δy)
-        # end...
     )
 end
-BCS_spin_hamiltonian(lattice, H_BdG) = BCS_spin_hamiltonian(ComplexF64, lattice, H_BdG)
+BCS_spin_hamiltonian(lattice, H_BdG, uc_layout) = BCS_spin_hamiltonian(ComplexF64, lattice, H_BdG, uc_layout)
 
 """
 Check if a 2-site bond is a nearest neighbor x-bond

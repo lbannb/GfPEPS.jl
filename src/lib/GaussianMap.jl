@@ -172,7 +172,7 @@ function G_in_single_k_persite(k::AbstractVector{<:Real}, Λ::Integer,
 
         # --- x-direction bond: right(ix,iy) ← left(ix+1,iy) ---
         s_next_x = mod1(ix + 1, Lx) + (iy - 1) * Lx # column-major linear index of next site in x direction
-        phase_x  = (ix == Lx) ? k[1] : 0.0          # only phase for inter-cell (ix == Lx)
+        phase_x  = (ix == Lx) ? k[1] * Lx : 0.0          # only phase for inter-cell (ix == Lx)
 
         for α in 1:Λ
             # right modes of source  (within LR block, bond α)
@@ -190,7 +190,7 @@ function G_in_single_k_persite(k::AbstractVector{<:Real}, Λ::Integer,
 
         # --- y-direction bond: down(ix,iy) → up(ix,iy+1) ---
         s_next_y = ix + (mod1(iy + 1, Ly) - 1) * Lx # column-major linear index of next site in y direction
-        phase_y  = (iy == Ly) ? k[2] : 0.0          # only phase for inter-cell (iy == Ly)
+        phase_y  = (iy == Ly) ? k[2] * Ly : 0.0          # only phase for inter-cell (iy == Ly)
 
         for α in 1:Λ
             # down modes of source  (within UD block, bond α)
@@ -245,7 +245,7 @@ function Γ_fiducial_blocks(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ:
     Nsites = get_number_of_sites(lattice)
 
     # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
-    X_vec = [X_vec[lattice.uc_layout[i, j]] for j in 1:lattice.Ly, i in 1:lattice.Lx]
+    X_vec = [X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
     
     # Compute per-site Γ matrices, then extract A/B/D blocks separately.
     # Using separate map calls avoids Zygote's Tangent-vs-Tuple issue that
@@ -269,7 +269,7 @@ end
 
 function X_matrix_form(X_vec::AbstractVector{<:AbstractMatrix}, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
-    X_vec = [X_vec[lattice.uc_layout[i, j]] for j in 1:lattice.Ly, i in 1:lattice.Lx]
+    X_vec = [X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
 
     return reshape(X_vec, lattice.Lx, lattice.Ly)
 end
