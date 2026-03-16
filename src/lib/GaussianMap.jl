@@ -228,10 +228,10 @@ function G_in_Fourier_persite(Λ::Int, lattice::Union{AbstractLattice, AbstractI
 end
 
 """
-    Γ_fiducial_blocks(Xs, Nf, Λ)
+    Γ_fiducial_blocks(X_vec, Nf, Λ)
 
 Assemble the block-diagonal `A`, `B`, `D` blocks from a collection of per-site
-orthogonal matrices `Xs` (one per unit-cell site).
+orthogonal matrices `X_vec` (one per unit-cell site).
 
 The physical modes of all sites are concatenated first, followed by the virtual
 modes of all sites (same ordering convention as `G_in_single_k_persite`).
@@ -241,13 +241,16 @@ modes of all sites (same ordering convention as `G_in_single_k_persite`).
 - `B_total  ::Matrix{Float64}`    (2 Nf Nsites) x (8Λ Nsites),    block-diagonal
 - `D_total  ::Matrix{Float64}`    (8Λ Nsites)   x (8Λ Nsites),    block-diagonal
 """
-function Γ_fiducial_blocks(Xs::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int)
-    Nsites = length(Xs)
+function Γ_fiducial_blocks(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice)
+    Nsites = get_number_of_sites(lattice)
 
+    # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
+    X_vec = [X_vec[lattice.uc_layout[i, j]] for j in 1:lattice.Ly, i in 1:lattice.Lx]
+    
     # Compute per-site Γ matrices, then extract A/B/D blocks separately.
     # Using separate map calls avoids Zygote's Tangent-vs-Tuple issue that
     # arises when map returns tuples.
-    Γs = map(X -> Γ_fiducial(X, Nf, Λ), Xs)
+    Γs = map(X -> Γ_fiducial(X, Nf, Λ), X_vec)
     As = map(Γ -> Γ[1:2Nf, 1:2Nf], Γs)
     Bs = map(Γ -> Γ[1:2Nf, 2Nf+1:end], Γs)
     Ds = map(Γ -> Γ[2Nf+1:end, 2Nf+1:end], Γs)
@@ -265,20 +268,23 @@ function Γ_fiducial_blocks(Xs::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::In
 end
 
 function X_matrix_form(X_vec::AbstractVector{<:AbstractMatrix}, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
+    X_vec = [X_vec[lattice.uc_layout[i, j]] for j in 1:lattice.Ly, i in 1:lattice.Lx]
+
     return reshape(X_vec, lattice.Lx, lattice.Ly)
 end
 
-"""
-    Γ_fiducial_blocks_from_packed(X_total, Nf, Λ, Nsites)
+# """
+#     Γ_fiducial_blocks_from_packed(X_total, Nf, Λ, Nsites)
 
-Backward-compatible wrapper: unpack a block-diagonal packed X matrix into
-per-site matrices and delegate to `Γ_fiducial_blocks`.
-"""
-function Γ_fiducial_blocks_from_packed(X_total::AbstractMatrix, Nf::Int, Λ::Int, Nsites::Int)
-    n = 2 * (Nf + 4Λ)
-    Xs = [X_total[(s-1)*n+1:s*n, (s-1)*n+1:s*n] for s in 1:Nsites]
-    return Γ_fiducial_blocks(Xs, Nf, Λ)
-end
+# Backward-compatible wrapper: unpack a block-diagonal packed X matrix into
+# per-site matrices and delegate to `Γ_fiducial_blocks`.
+# """
+# function Γ_fiducial_blocks_from_packed(X_total::AbstractMatrix, Nf::Int, Λ::Int, Nsites::Int)
+#     n = 2 * (Nf + 4Λ)
+#     X_vec = [X_total[(s-1)*n+1:s*n, (s-1)*n+1:s*n] for s in 1:Nsites]
+#     return Γ_fiducial_blocks(X_vec, Nf, Λ, lattice)
+# end
 
 """
     GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractArray)

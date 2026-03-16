@@ -319,22 +319,22 @@ function get_k_matrix_kernel(k::AbstractVector{<:Real}, coupling_dict::Dict{Int,
 end
 
 """
-    get_ξ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, k::AbstractVector{<:Real}, H_bdg_k::MomentumSpaceBdGHamiltonian)
+    get_ξ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, μ_init::Real)
 
 Returns the hopping matrix ξ(k) in momentum space for a given momentum `k`, lattice geometry, and momentum-space BdG Hamiltonian parameters.
 
 # Keyword Arguments
 - `lattice::AbstractInfiniteLattice`: The lattice geometry which determines how site indices are wrapped and how the kernel matrix is constructed.
 - `Nf::Int`: Number of Abrikosov fermions
-- `k::AbstractVector{<:Real}`: Momentum vector for which to compute the hopping matrix
-- `H_bdg_k::MomentumSpaceBdGHamiltonian`: The momentum-space BdG Hamiltonian containing the hopping parameters and chemical potential
+- `hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: Dictionary where keys are tuples representing displacements (dx, dy) and values are the corresponding hopping amplitudes
+- `μ_init::Real`: Initial chemical potential for H_BdG (Can be updated when solve_μ_from_δ = true in DopingSettings)
 
 # Returns
 - `ξ_mat_k::Function`: The function returning the hopping matrix ξ(k) in momentum space for the given momentum `k`.
 
 """
-function get_ξ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, μ::Real)
-    function ξ_mat_k(k::AbstractVector{<:Real})
+function get_ξ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, μ_init::Real)
+    function ξ_mat_k(k::AbstractVector{<:Real}; μ::Real = μ_init)
         Nsites = get_number_of_sites(lattice)
         mat = get_k_matrix_kernel(k, hopping_dict, lattice)
 
@@ -407,8 +407,8 @@ Returns the positive quasiparticle energies for a given momentum `k` based on th
 
 """
 function E(k::AbstractVector{<:Real}, H_bdg::MomentumSpaceBdGHamiltonian)
-    H_bdG_k = [H_bdg.ξ_mat_k(k)  H_bdg.Δ_mat_k(k); 
-               H_bdg.Δ_mat_k(k)' -transpose(H_bdg.ξ_mat_k(-k))]
+    H_bdG_k = [H_bdg.ξ_mat_k(k; μ = H_bdg.μ)  H_bdg.Δ_mat_k(k); 
+               H_bdg.Δ_mat_k(k)' -transpose(H_bdg.ξ_mat_k(-k; μ = H_bdg.μ))]
 
     eigenvals = eigen(Hermitian(H_bdG_k)).values
     return eigenvals[eigenvals .> 1e-10]
@@ -427,7 +427,7 @@ function exact_energy(lattice::AbstractInfiniteLattice, H_bdg::MomentumSpaceBdGH
         E_k = E(k, H_bdg)
         sum_E = sum(E_k)
 
-        0.5 * (real(tr(H_bdg.ξ_mat_k(k))) - sum_E) / Nsites +
+        0.5 * (real(tr(H_bdg.ξ_mat_k(k; μ = H_bdg.μ))) - sum_E) / Nsites +
             H_bdg.E_shift(k, H_bdg.ξ_mat_k, H_bdg.Δ_mat_k, H_bdg.μ)
         
         # ξ_mat_k = H_bdg.ξ_k(k, H_bdg.μ)
@@ -492,10 +492,10 @@ function avg_density(lattice::AbstractInfiniteLattice, H_bdg::MomentumSpaceBdGHa
     Nsites = get_number_of_sites(lattice)
 
     return mean(map(eachcol(lattice.kvals)) do k
-        H_bdG_k = [H_bdg.ξ_mat_k(k)  H_bdg.Δ_mat_k(k); 
-               H_bdg.Δ_mat_k(k)' -transpose(H_bdg.ξ_mat_k(-k))]
+        H_bdG_k = [H_bdg.ξ_mat_k(k; μ = H_bdg.μ)  H_bdg.Δ_mat_k(k); 
+               H_bdg.Δ_mat_k(k)' -transpose(H_bdg.ξ_mat_k(-k; μ = H_bdg.μ))]
         
-        Np = size(H_bdg.ξ_mat_k(k), 1) # number of particle modes = number of sites * number of flavors
+        Np = size(H_bdg.ξ_mat_k(k; μ = H_bdg.μ), 1) # number of particle modes = number of sites * number of flavors
 
         F = eigen(Hermitian(H_bdG_k))
         pos_inds = F.values .> 1e-10
@@ -540,14 +540,12 @@ Finds the chemical potential `μ` that corresponds to a given doping level `δ` 
 
 """
 function solve_for_mu(lattice::AbstractInfiniteLattice, δ::Real, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
-    μ_initial = H_bdg.μ
     objective(x) = begin
         H_bdg.μ = x
         return δ - exact_doping(lattice, H_bdg)
     end
-
     μ = find_zero(objective, μ_range)
-    H_bdg.μ = μ_initial
+    H_bdg.μ = μ
 
     return μ
 end

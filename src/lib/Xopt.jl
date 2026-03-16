@@ -72,23 +72,24 @@ function get_X_opt(
     optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=15, manifold = Optim.Stiefel(:CholQR)),
     optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
 
-    # build gauge-projected manifold for better L-BFGS convergence.
-    # For per-site ansatz the optimisation variable is a block-diagonal
-    # matrix X_total = diag(X_1, …, X_N) living on the product Stiefel
-    # manifold.  The block-diagonal J_total preserves block-diagonality.
-    Nsites = get_number_of_sites(lattice)
+    #= 
+    build gauge-projected manifold for better L-BFGS convergence.
+    For per-site ansatz the optimisation variable is a block-diagonal
+    matrix X_total = diag(X_1, …, X_N) living on the product Stiefel manifold.
+    The block-diagonal J_total preserves block-diagonality. 
+    =#
     J_single = build_J(Λ, Nf) # 2(Nf+4Λ) × 2(Nf+4Λ)
     gauge_manifold = GaugeFixedStiefel(J_single)
     optim_alg_options = with_manifold(optim_alg_options, gauge_manifold)
 
-    # each fiducial state gets its own X matrix
+    # each distinct site in the unit cell has its own X matrix
     X_opt = isnothing(X_init) ? [rand_CM(Nf, Λ; parity=1)[2] for i in 1:get_number_of_distinct_sites_in_uc(lattice)] : X_init
 
     # warn if dirac points are present -> then optimization of Γ can be harder, so user can adjust different kvals set
     has_dirac_points(lattice.kvals, H_bdg) 
 
     if doping_kwargs.enforce_density && doping_kwargs.solve_μ_from_δ
-        H_bdg.μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, H_bdg)
+        H_bdg.μ = solve_for_mu(lattice, doping_kwargs.δ, H_bdg)
     end
 
     # smaller set of momentum pairs for initial optimization for faster convergence
@@ -149,9 +150,8 @@ function get_X_opt(
     end
 
     # compute final energy and compare to exact energy
-    E_exact = exact_energy(lattice, H_bdg, Nf)
+    E_exact = exact_energy(lattice, H_bdg)
     optim_energy = Optim.minimum(stage_res)
-    # optim_energy = doping_kwargs.enforce_density ? energy_CM(X_opt, Nf, Λ, H_bdg, lattice) : Optim.minimum(stage_res)
     deviation = abs(optim_energy - E_exact)
     
     @info "Final energy summary" target=E_exact achieved=optim_energy deviation=deviation
@@ -209,7 +209,7 @@ Loss closures that accept `AbstractVector{<:AbstractMatrix}` are wrapped
 automatically to slice the 3D array before evaluation.
 
 # Arguments
-- `Xs::AbstractVector{<:AbstractMatrix}`: Initial guess — one orthogonal matrix per unit-cell site.
+- `Xs::AbstractVector{<:AbstractMatrix}`: Initial guess — one orthogonal matrix per distinct site in the unit cell.
 - `loss_fct::Function`: `Xs -> energy` loss (accepts a vector of per-site X matrices).
 - `doping_fct::Function`: `Xs -> doping` (can be `nothing` when density is not enforced).
 

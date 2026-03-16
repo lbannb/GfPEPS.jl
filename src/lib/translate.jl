@@ -18,8 +18,8 @@ function H_BdG_majorana_k(Nf::Int, k::AbstractVector{<:Real}, H_BdG::MomentumSpa
     Nf_in_uc = get_Nf_in_uc(Nf, lattice)
 
     # 1. Construct H_BdG in Nambu basis (Dirac fermions qp-ordered)
-    H_BdG_k_mat = [H_BdG.ξ_mat_k(k)  H_BdG.Δ_mat_k(k); 
-               H_BdG.Δ_mat_k(k)' -transpose(H_BdG.ξ_mat_k(-k))]
+    H_BdG_k_mat = [H_BdG.ξ_mat_k(k; μ = H_BdG.μ)  H_BdG.Δ_mat_k(k); 
+               H_BdG.Δ_mat_k(k)' -transpose(H_BdG.ξ_mat_k(-k; μ = H_BdG.μ))]
 
     # 2. Permute to qq-ordering: (a₁, a₂, ..., a_Nf, a†₁, a†₂, ..., a†_Nf) -> (a₁, a†₁, a₂, a†₂, ...)
     p = zeros(Int, 2*Nf_in_uc)
@@ -38,11 +38,11 @@ function H_BdG_majorana_k(Nf::Int, k::AbstractVector{<:Real}, H_BdG::MomentumSpa
 end
 
 """
-    get_parent_hamiltonian(Γ::AbstractMatrix)
+    get_parent_hamiltonian(Γ::AbstractMatrix, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice)
 
 Return the parent Hamiltonian in Dirac representation (qp-ordering) of the fiducial state correlation matrix `Γ` in Majorana representation (qq-ordering).
 """
-function get_parent_hamiltonian(Γ::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function get_parent_hamiltonian(Γ::AbstractMatrix, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice)
     Nf_in_uc = get_Nf_in_uc(Nf, lattice)
     Λ_in_uc = get_Λ_in_uc(Λ, lattice)
     N = div(size(Γ, 1), 2)

@@ -67,12 +67,12 @@ mutable struct Gaussian_fPEPS
         
         # update chemical potential if we optimized for doping
         if doping_kwargs.solve_μ_from_δ && doping_kwargs.enforce_density
-            H_bdg.μ = solve_for_mu(lattice.kvals, doping_kwargs.δ, H_bdg)
+            H_bdg.μ = solve_for_mu(lattice, doping_kwargs.δ, H_bdg)
         end
 
         # Build block-diagonal Γ from per-site X matrices (X_opt is Lx×Ly matrix of matrices)
         X_vec = vec(X_opt)  # flatten to vector for Γ_fiducial_blocks
-        A_bd, B_bd, D_bd = Γ_fiducial_blocks(X_vec, Nf, Λ)
+        A_bd, B_bd, D_bd = Γ_fiducial_blocks(X_vec, Nf, Λ, lattice)
         Γ = [A_bd B_bd; -B_bd' D_bd]
 
         # translate to PEPS (currently uses single-site X for 1×1; TODO: per-site translate for larger UC)

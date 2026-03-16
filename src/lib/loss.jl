@@ -10,9 +10,9 @@ function energy_loss(Nf::Int, H_BdG::MomentumSpaceBdGHamiltonian, lattice::Abstr
 
     Nsites = get_number_of_sites(lattice)
     E_shift_summed = Nsites * sum(map(eachcol(kvals)) do k
-        ξ_mat_k = H_BdG.ξ_mat_k(k)
+        ξ_mat_k = H_BdG.ξ_mat_k(k; μ = H_BdG.μ)
         Δ_mat_k = H_BdG.Δ_mat_k(k)
-        return 0.5 * Nf * real(tr(ξ_mat_k)) + H_BdG.E_shift(k, ξ_mat_k, Δ_mat_k, H_BdG.μ)
+        return 0.5 * real(tr(ξ_mat_k)) + H_BdG.E_shift(k, ξ_mat_k, Δ_mat_k, H_BdG.μ)
     end)
 
     # divide by number of k-points and number of sites
@@ -84,17 +84,16 @@ end
 """
     energy_loss_X_persite(lattice, Nf, Λ, H_BdG)
 
-Returns the energy from `CM_out` as a function of a vector of per-site
-orthogonal matrices `Xs`, using the per-site Gaussian map.
+Returns the energy from `CM_out` as a function of a vector of orthogonal matrices `Xs`, using the Gaussian map for every orthogonal matrix `X`.
+The number of orthogonal matrices in `Xs` matches the number of distinct sites in the unit cell.
 
-The returned closure accepts an `AbstractVector{<:AbstractMatrix}` with
-`Nsites` elements, each of size `n × n` where `n = 2(Nf + 4Λ)`.
+The returned closure accepts an `AbstractVector{<:AbstractMatrix}`, each of size `n × n` where `n = 2(Nf + 4Λ)`.
 """
 function energy_loss_X_persite(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int, H_BdG::MomentumSpaceBdGHamiltonian)
     G_in = G_in_Fourier_persite(Λ, lattice)
     energy = energy_loss(Nf, H_BdG, lattice)
     function loss(Xs::AbstractVector)
-        A, B, D = Γ_fiducial_blocks(Xs, Nf, Λ)
+        A, B, D = Γ_fiducial_blocks(Xs, Nf, Λ, lattice)
         return real(energy(GaussianMap(A, B, D, G_in)))
     end
     return loss
@@ -124,7 +123,7 @@ function doping_loss_X_persite(lattice::Union{AbstractLattice, AbstractInfiniteL
     G_in = G_in_Fourier_persite(Λ, lattice)
     doping = doping_loss(Nf, lattice)
     function loss(Xs::AbstractVector)
-        A, B, D = Γ_fiducial_blocks(Xs, Nf, Λ)
+        A, B, D = Γ_fiducial_blocks(Xs, Nf, Λ, lattice)
         return real(doping(GaussianMap(A, B, D, G_in)))
     end
     return loss
