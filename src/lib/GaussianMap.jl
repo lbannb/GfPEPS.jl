@@ -17,39 +17,6 @@ function helper(k::Real, Nrc::Int)
 end
 
 """
-    G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-
-Returns the Fourier transformed covariance matrix for one k value.
-
-The ordering of the majorana modes is (lrud) for each virtual fermion, i.e., (c_l1^1, c_l1^2, c_r1^1, c_r1^2, ..., c_lΛ^1, c_lΛ^2, c_rΛ^1, c_rΛ^2, c_u1^1, c_u1^2, c_d1^1, c_d1^2, ..., c_uΛ^1, c_uΛ^2, c_dΛ^1, c_dΛ^2) 
-
-G_in_single_k(k, Λ, lattice) = [⊕_{i=1}^{Λ} G_in_single_k(kx)] ⊕ [⊕_{i=1}^{Λ} G_in_single_k(ky)]
-
-"""
-function G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    return Matrix(BlockDiagonal([⊕(helper(k[1], lattice.Lx), Λ),⊕(helper(k[2], lattice.Ly), Λ)]))
-end
-
-
-
-"""
-    G_in_Fourier(kvals::AbstractMatrix, Λ::Int)
-
-Returns the Fourier transformed (F) covariance matrix of all the virtual bonds: G_in = F Γ_in F†
-
-"""
-function G_in_Fourier(Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    kvals = lattice.kvals
-    Λ_in_uc = get_Λ_in_uc(Λ, lattice)
-
-    res = Array{ComplexF64,3}(undef, size(kvals,2), 2*Λ_in_uc, 2*Λ_in_uc)
-    for (i, col) in enumerate(eachcol(kvals))
-        res[i, :, :] = G_in_single_k(col, Λ, lattice)
-    end
-    return res
-end
-
-"""
     build_J(Λ::Int, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
 
 Construct the symplectic matrix J for `N = get_number_of_modes()` modes.
@@ -70,6 +37,37 @@ function build_J(Λ::Int, Nf::Int, ::Union{AbstractLattice, AbstractInfiniteLatt
     return build_J(Λ, Nf)
 end
 Zygote.@nograd build_J # constructing J is not something we need gradients through
+
+"""
+    G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+
+Returns the Fourier transformed covariance matrix for one k value.
+
+The ordering of the majorana modes is (lrud) for each virtual fermion, i.e., (c_l1^1, c_l1^2, c_r1^1, c_r1^2, ..., c_lΛ^1, c_lΛ^2, c_rΛ^1, c_rΛ^2, c_u1^1, c_u1^2, c_d1^1, c_d1^2, ..., c_uΛ^1, c_uΛ^2, c_dΛ^1, c_dΛ^2) 
+
+G_in_single_k(k, Λ, lattice) = [⊕_{i=1}^{Λ} G_in_single_k(kx)] ⊕ [⊕_{i=1}^{Λ} G_in_single_k(ky)]
+
+"""
+function G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    return Matrix(BlockDiagonal([⊕(helper(k[1], lattice.Lx), Λ),⊕(helper(k[2], lattice.Ly), Λ)]))
+end
+
+"""
+    G_in_Fourier(kvals::AbstractMatrix, Λ::Int)
+
+Returns the Fourier transformed (F) covariance matrix of all the virtual bonds: G_in = F Γ_in F†
+
+"""
+function G_in_Fourier(Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    kvals = lattice.kvals
+    Λ_in_uc = get_Λ_in_uc(Λ, lattice)
+
+    res = Array{ComplexF64,3}(undef, size(kvals,2), 2*Λ_in_uc, 2*Λ_in_uc)
+    for (i, col) in enumerate(eachcol(kvals))
+        res[i, :, :] = G_in_single_k(col, Λ, lattice)
+    end
+    return res
+end
 
 """
     Γ_fiducial(X::AbstractMatrix, Λ::Int, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
@@ -107,30 +105,77 @@ function Γ_fiducial(X::AbstractMatrix, Nf::Int, Λ::Int, ::Union{AbstractLattic
 end
 
 """
-    get_Γ_blocks(Γ::AbstractMatrix, Nf::Int)
+    get_Γ_blocks(X_vec, Nf, Λ)
 
-Helper function to extract the A, B, D blocks from the covariance matrix Γ of the fiducial state.
+Assemble the block-diagonal `A`, `B`, `D` blocks from a collection of per-site
+orthogonal matrices `X_vec` (one per unit-cell site).
+
+The physical modes of all sites are concatenated first, followed by the virtual
+modes of all sites (same ordering convention as `G_in_single_k_persite`).
+
+# Returns
+- `A_total  ::Matrix{Float64}`    (2 Nf Nsites) x (2 Nf Nsites),  block-diagonal
+- `B_total  ::Matrix{Float64}`    (2 Nf Nsites) x (8Λ Nsites),    block-diagonal
+- `D_total  ::Matrix{Float64}`    (8Λ Nsites)   x (8Λ Nsites),    block-diagonal
 """
-function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int)
-    A = @view Γ[1:2*Nf, 1:2*Nf]
-    B = @view Γ[1:2*Nf, 2*Nf+1:end]
-    D = @view Γ[2*Nf+1:end, 2*Nf+1:end]
-    return A,B,D
+function get_Γ_blocks(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice)
+    Nsites = get_number_of_sites(lattice)
+
+    # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
+    X_vec = [X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
+    
+    # Compute per-site Γ matrices, then extract A/B/D blocks separately.
+    # Using separate map calls avoids Zygote's Tangent-vs-Tuple issue that
+    # arises when map returns tuples.
+    Γs = map(X -> Γ_fiducial(X, Nf, Λ), X_vec)
+    As = map(Γ -> Γ[1:2Nf, 1:2Nf], Γs)
+    Bs = map(Γ -> Γ[1:2Nf, 2Nf+1:end], Γs)
+    Ds = map(Γ -> Γ[2Nf+1:end, 2Nf+1:end], Γs)
+
+    # Build block-diagonal matrices
+    Z_pp = zeros(2Nf, 2Nf)
+    Z_pv = zeros(2Nf, 8Λ)
+    Z_vv = zeros(8Λ, 8Λ)
+
+    A_total = vcat([hcat([(i == j ? As[i] : Z_pp) for j in 1:Nsites]...) for i in 1:Nsites]...)
+    B_total = vcat([hcat([(i == j ? Bs[i] : Z_pv) for j in 1:Nsites]...) for i in 1:Nsites]...)
+    D_total = vcat([hcat([(i == j ? Ds[i] : Z_vv) for j in 1:Nsites]...) for i in 1:Nsites]...)
+
+    return A_total, B_total, D_total
 end
 
-"""
-    get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice)
+function X_matrix_form(X_vec::AbstractVector{<:AbstractMatrix}, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+    # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
+    X_vec = [X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
 
-Extract A, B, D blocks from the covariance matrix of a coarse-grained fiducial
-state with `Nf_in_uc = Nf * Lx * Ly` physical fermions.
-"""
-function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    Nf_in_uc = get_Nf_in_uc(Nf, lattice)
-    A = @view Γ[1:2*Nf_in_uc, 1:2*Nf_in_uc]
-    B = @view Γ[1:2*Nf_in_uc, 2*Nf_in_uc+1:end]
-    D = @view Γ[2*Nf_in_uc+1:end, 2*Nf_in_uc+1:end]
-    return A, B, D
+    return reshape(X_vec, lattice.Lx, lattice.Ly)
 end
+
+# """
+#     get_Γ_blocks(Γ::AbstractMatrix, Nf::Int)
+
+# Helper function to extract the A, B, D blocks from the covariance matrix Γ of the fiducial state.
+# """
+# function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int)
+#     A = @view Γ[1:2*Nf, 1:2*Nf]
+#     B = @view Γ[1:2*Nf, 2*Nf+1:end]
+#     D = @view Γ[2*Nf+1:end, 2*Nf+1:end]
+#     return A,B,D
+# end
+
+# """
+#     get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice)
+
+# Extract A, B, D blocks from the covariance matrix of a coarse-grained fiducial
+# state with `Nf_in_uc = Nf * Lx * Ly` physical fermions.
+# """
+# function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+#     Nf_in_uc = get_Nf_in_uc(Nf, lattice)
+#     A = @view Γ[1:2*Nf_in_uc, 1:2*Nf_in_uc]
+#     B = @view Γ[1:2*Nf_in_uc, 2*Nf_in_uc+1:end]
+#     D = @view Γ[2*Nf_in_uc+1:end, 2*Nf_in_uc+1:end]
+#     return A, B, D
+# end
 
 #= ============================================================
    Per-site ansatz: each site in the unit cell carries its own
@@ -226,65 +271,6 @@ function G_in_Fourier_persite(Λ::Int, lattice::Union{AbstractLattice, AbstractI
     end
     return res
 end
-
-"""
-    Γ_fiducial_blocks(X_vec, Nf, Λ)
-
-Assemble the block-diagonal `A`, `B`, `D` blocks from a collection of per-site
-orthogonal matrices `X_vec` (one per unit-cell site).
-
-The physical modes of all sites are concatenated first, followed by the virtual
-modes of all sites (same ordering convention as `G_in_single_k_persite`).
-
-# Returns
-- `A_total  ::Matrix{Float64}`    (2 Nf Nsites) x (2 Nf Nsites),  block-diagonal
-- `B_total  ::Matrix{Float64}`    (2 Nf Nsites) x (8Λ Nsites),    block-diagonal
-- `D_total  ::Matrix{Float64}`    (8Λ Nsites)   x (8Λ Nsites),    block-diagonal
-"""
-function Γ_fiducial_blocks(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice)
-    Nsites = get_number_of_sites(lattice)
-
-    # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
-    X_vec = [X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
-    
-    # Compute per-site Γ matrices, then extract A/B/D blocks separately.
-    # Using separate map calls avoids Zygote's Tangent-vs-Tuple issue that
-    # arises when map returns tuples.
-    Γs = map(X -> Γ_fiducial(X, Nf, Λ), X_vec)
-    As = map(Γ -> Γ[1:2Nf, 1:2Nf], Γs)
-    Bs = map(Γ -> Γ[1:2Nf, 2Nf+1:end], Γs)
-    Ds = map(Γ -> Γ[2Nf+1:end, 2Nf+1:end], Γs)
-
-    # Build block-diagonal matrices
-    Z_pp = zeros(2Nf, 2Nf)
-    Z_pv = zeros(2Nf, 8Λ)
-    Z_vv = zeros(8Λ, 8Λ)
-
-    A_total = vcat([hcat([(i == j ? As[i] : Z_pp) for j in 1:Nsites]...) for i in 1:Nsites]...)
-    B_total = vcat([hcat([(i == j ? Bs[i] : Z_pv) for j in 1:Nsites]...) for i in 1:Nsites]...)
-    D_total = vcat([hcat([(i == j ? Ds[i] : Z_vv) for j in 1:Nsites]...) for i in 1:Nsites]...)
-
-    return A_total, B_total, D_total
-end
-
-function X_matrix_form(X_vec::AbstractVector{<:AbstractMatrix}, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
-    X_vec = [X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
-
-    return reshape(X_vec, lattice.Lx, lattice.Ly)
-end
-
-# """
-#     Γ_fiducial_blocks_from_packed(X_total, Nf, Λ, Nsites)
-
-# Backward-compatible wrapper: unpack a block-diagonal packed X matrix into
-# per-site matrices and delegate to `Γ_fiducial_blocks`.
-# """
-# function Γ_fiducial_blocks_from_packed(X_total::AbstractMatrix, Nf::Int, Λ::Int, Nsites::Int)
-#     n = 2 * (Nf + 4Λ)
-#     X_vec = [X_total[(s-1)*n+1:s*n, (s-1)*n+1:s*n] for s in 1:Nsites]
-#     return Γ_fiducial_blocks(X_vec, Nf, Λ, lattice)
-# end
 
 """
     GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractArray)

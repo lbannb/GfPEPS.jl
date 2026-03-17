@@ -45,7 +45,7 @@ mutable struct Gaussian_fPEPS
     optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} # options for the optimization algorithm (LBFGS or BFGS)
     optim_options::Optim.Options # options for the Optim.jl optimizer
 
-    X_opt::Vector{Matrix{Float64}} # optimal orthogonal matrices (one per unit-cell site)
+    X_opt::Vector{Matrix{Float64}} # optimal orthogonal matrices (one per distinct unit-cell site)
     Γ_fiducial::Matrix{Float64} # fiducial state correlation matrix (block-diagonal packed)
     peps::InfinitePEPS # iPEPS tensor (PEPSKit.jl format) TODO: add finite PEPS support here
 
@@ -71,8 +71,8 @@ mutable struct Gaussian_fPEPS
         end
 
         # Build block-diagonal Γ from per-site X matrices (X_opt is Lx×Ly matrix of matrices)
-        X_vec = vec(X_opt)  # flatten to vector for Γ_fiducial_blocks
-        A_bd, B_bd, D_bd = Γ_fiducial_blocks(X_vec, Nf, Λ, lattice)
+        X_vec = vec(X_opt)  # flatten to vector for get_Γ_blocks
+        A_bd, B_bd, D_bd = get_Γ_blocks(X_vec, Nf, Λ, lattice)
         Γ = [A_bd B_bd; -B_bd' D_bd]
 
         # translate to PEPS

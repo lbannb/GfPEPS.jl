@@ -33,7 +33,7 @@ doping_kwargs = DopingSettings(; δ=0.16, enforce_density=true)
 
         @testset "Doping" begin
             Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, H_BdG; doping_kwargs=doping_kwargs);
-            δ_opt = GfPEPS.doping_CM(Ψ_trial.Γ_fiducial, Nf, lattice)
+            δ_opt = GfPEPS.doping_CM(Ψ_trial.X_opt, Nf, Λ, lattice)
 
             # test doping from CM
             @test δ_opt ≈ doping_kwargs.δ atol=doping_kwargs.density_tol
@@ -58,7 +58,7 @@ doping_kwargs = DopingSettings(; δ=0.16, enforce_density=true)
 
         @testset "Doping" begin
             Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, H_BdG; doping_kwargs=doping_kwargs);
-            δ_opt = GfPEPS.doping_CM(Ψ_trial.Γ_fiducial, Nf, lattice)
+            δ_opt = GfPEPS.doping_CM(Ψ_trial.X_opt, Nf, Λ, lattice)
 
             # test doping from CM
             @test δ_opt ≈ doping_kwargs.δ atol=doping_kwargs.density_tol
@@ -83,7 +83,7 @@ doping_kwargs = DopingSettings(; δ=0.16, enforce_density=true)
 
         @testset "Doping" begin
             Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, H_BdG; doping_kwargs=doping_kwargs);
-            δ_opt = GfPEPS.doping_CM(Ψ_trial.Γ_fiducial, Nf, lattice)
+            δ_opt = GfPEPS.doping_CM(Ψ_trial.X_opt, Nf, Λ, lattice)
 
             # test doping from CM
             @test δ_opt ≈ doping_kwargs.δ atol=doping_kwargs.density_tol

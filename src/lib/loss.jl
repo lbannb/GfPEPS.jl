@@ -74,7 +74,7 @@ Returns the energy from the CM_out as a function of the orthogonal matrix X, usi
 function energy_loss_X(lattice::Union{AbstractLattice, AbstractInfiniteLattice}, Nf::Int, Λ::Int, H_BdG::MomentumSpaceBdGHamiltonian)
     G_in = G_in_Fourier(Λ, lattice)
     energy = energy_loss(Nf, H_BdG, lattice)
-    function loss(X)
+    function loss(Xs::AbstractVector)
         return real(energy(GaussianMap(get_Γ_blocks(Γ_fiducial(X, Nf, Λ, lattice), Nf, lattice)..., G_in)))
     end
     return loss
@@ -92,7 +92,7 @@ function energy_loss_X_persite(lattice::Union{AbstractLattice, AbstractInfiniteL
     G_in = G_in_Fourier_persite(Λ, lattice)
     energy = energy_loss(Nf, H_BdG, lattice)
     function loss(Xs::AbstractVector)
-        A, B, D = Γ_fiducial_blocks(Xs, Nf, Λ, lattice)
+        A, B, D = get_Γ_blocks(Xs, Nf, Λ, lattice)
         return real(energy(GaussianMap(A, B, D, G_in)))
     end
     return loss
@@ -122,7 +122,7 @@ function doping_loss_X_persite(lattice::Union{AbstractLattice, AbstractInfiniteL
     G_in = G_in_Fourier_persite(Λ, lattice)
     doping = doping_loss(Nf, lattice)
     function loss(Xs::AbstractVector)
-        A, B, D = Γ_fiducial_blocks(Xs, Nf, Λ, lattice)
+        A, B, D = get_Γ_blocks(Xs, Nf, Λ, lattice)
         return real(doping(GaussianMap(A, B, D, G_in)))
     end
     return loss
@@ -137,17 +137,9 @@ end
 
 The energy of a Gaussian fPEPS evaluated from the fiducial state correlation matrix `Γ_fiducial`.
 """
-# function energy_CM(Γ_fiducial::AbstractMatrix, Nf::Int, H_BdG::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-#     Nf_in_uc = get_Nf_in_uc(Nf, lattice)
-
-#     Λ = div(size(Γ_fiducial, 1) - 2 * Nf_in_uc, 8)
-#     G_in = G_in_Fourier(Λ, lattice)
-    
-#     return energy_loss(Nf, H_BdG, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
-# end
 function energy_CM(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int, H_BdG::MomentumSpaceBdGHamiltonian, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     G_in = G_in_Fourier_persite(Λ, lattice)
-    A, B, D = Γ_fiducial_blocks(X_vec, Nf, Λ, lattice)
+    A, B, D = get_Γ_blocks(X_vec, Nf, Λ, lattice)
     
     return real(energy_loss(Nf, H_BdG, lattice)(GaussianMap(A, B, D, G_in)))
 end
@@ -162,13 +154,9 @@ For trivial unit cell and Nf=2:     `⟨f†_{k↑} f_{k↑}⟩ = 1/2 * (1 - Gf[
                                     `⟨f†_{k↓} f_{k↓}⟩ = 1/2 * (1 - Gf[3,4])`
 
 """
-function doping_CM(Γ_fiducial::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    Λ = div(size(Γ_fiducial, 1) - 2 * Nf, 8)
-    G_in = G_in_Fourier(Λ, lattice)
-
-    return doping_loss(Nf, lattice)(GaussianMap(get_Γ_blocks(Γ_fiducial, Nf, lattice)..., G_in))
-end
-function doping_CM(X::AbstractMatrix, Nf::Int, Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    Γ = Γ_fiducial(X, Nf, Λ, lattice)
-    return doping_CM(Γ, Nf, lattice)
+function doping_CM(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice)
+    G_in = G_in_Fourier_persite(Λ, lattice)
+    A, B, D = get_Γ_blocks(X_vec, Nf, Λ, lattice)
+    
+    return real(doping_loss(Nf, lattice)(GaussianMap(A, B, D, G_in)))
 end
