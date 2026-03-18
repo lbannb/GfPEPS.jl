@@ -39,37 +39,6 @@ end
 Zygote.@nograd build_J # constructing J is not something we need gradients through
 
 """
-    G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-
-Returns the Fourier transformed covariance matrix for one k value.
-
-The ordering of the majorana modes is (lrud) for each virtual fermion, i.e., (c_l1^1, c_l1^2, c_r1^1, c_r1^2, ..., c_lΛ^1, c_lΛ^2, c_rΛ^1, c_rΛ^2, c_u1^1, c_u1^2, c_d1^1, c_d1^2, ..., c_uΛ^1, c_uΛ^2, c_dΛ^1, c_dΛ^2) 
-
-G_in_single_k(k, Λ, lattice) = [⊕_{i=1}^{Λ} G_in_single_k(kx)] ⊕ [⊕_{i=1}^{Λ} G_in_single_k(ky)]
-
-"""
-function G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    return Matrix(BlockDiagonal([⊕(helper(k[1], lattice.Lx), Λ),⊕(helper(k[2], lattice.Ly), Λ)]))
-end
-
-"""
-    G_in_Fourier(kvals::AbstractMatrix, Λ::Int)
-
-Returns the Fourier transformed (F) covariance matrix of all the virtual bonds: G_in = F Γ_in F†
-
-"""
-function G_in_Fourier(Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    kvals = lattice.kvals
-    Λ_in_uc = get_Λ_in_uc(Λ, lattice)
-
-    res = Array{ComplexF64,3}(undef, size(kvals,2), 2*Λ_in_uc, 2*Λ_in_uc)
-    for (i, col) in enumerate(eachcol(kvals))
-        res[i, :, :] = G_in_single_k(col, Λ, lattice)
-    end
-    return res
-end
-
-"""
     Γ_fiducial(X::AbstractMatrix, Λ::Int, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
 
 Construct the covariance matrix for the fiducial state Q from the orthogonal matrix X in the Majorana representation.
@@ -177,19 +146,13 @@ end
 #     return A, B, D
 # end
 
-#= ============================================================
-   Per-site ansatz: each site in the unit cell carries its own
-   independent fiducial state parameterised by an orthogonal
-   matrix X_{i,j}.  The virtual bond contraction distinguishes
-   intra-cell bonds (Bloch phase = 1) from inter-cell bonds
-   (Bloch phase = e^{ik}).
-============================================================ =#
-
 """
-    G_in_single_k_persite(k, Λ, lattice)
+    G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::AbstractInfiniteLattice)
 
-Construct the Fourier-transformed virtual-bond covariance matrix for one k-point
-in the **per-site** picture.
+Returns the Fourier transformed covariance matrix fof the virtual bonds for one k-value:
+```
+    G_in_single_k(k, Λ, lattice) = [⊕_{i=1}^{Λ} G_in_single_k(kx)] ⊕ [⊕_{i=1}^{Λ} G_in_single_k(ky)]
+```
 
 Each site `(ix, iy)` in the `Lx × Ly` unit cell carries `4Λ` virtual fermions
 (= `8Λ` Majorana modes), ordered as (lrud) within each site:
@@ -200,12 +163,11 @@ Each site `(ix, iy)` in the `Lx × Ly` unit cell carries `4Λ` virtual fermions
 Sites are linearly indexed in column-major order: `s = ix + (iy-1)*Lx`.
 The resulting matrix has size `(8Λ Lx Ly) × (8Λ Lx Ly)`.
 
-Bond contractions (right↔left, down↔up) use:
-- Phase `e^{ikx}` / `e^{iky}` for inter-cell bonds (wrapping around the unit cell boundary).
-- Phase `1` for intra-cell bonds.
+Bond contraction direction (left ← right, down ← up) use:
+- Phase `e^{ikx}` / `e^{iky}` for inter-unit-cell bonds (wrapping around the unit cell boundary).
+- Phase `1` for intra-unit-cell bonds.
 """
-function G_in_single_k_persite(k::AbstractVector{<:Real}, Λ::Integer,
-                               lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::AbstractInfiniteLattice)
     σ_x = [0 1; 1 0]
     Lx, Ly = lattice.Lx, lattice.Ly
     Λ_per_site = 8Λ
@@ -217,7 +179,7 @@ function G_in_single_k_persite(k::AbstractVector{<:Real}, Λ::Integer,
 
         # --- x-direction bond: right(ix,iy) ← left(ix+1,iy) ---
         s_next_x = mod1(ix + 1, Lx) + (iy - 1) * Lx # column-major linear index of next site in x direction
-        phase_x  = (ix == Lx) ? k[1] * Lx : 0.0          # only phase for inter-cell (ix == Lx)
+        phase_x  = (ix == Lx) ? k[1] * Lx : 0.0          # only phase for inter-unit-cell (ix == Lx)
 
         for α in 1:Λ
             # right modes of source  (within LR block, bond α)
@@ -235,7 +197,7 @@ function G_in_single_k_persite(k::AbstractVector{<:Real}, Λ::Integer,
 
         # --- y-direction bond: down(ix,iy) → up(ix,iy+1) ---
         s_next_y = ix + (mod1(iy + 1, Ly) - 1) * Lx # column-major linear index of next site in y direction
-        phase_y  = (iy == Ly) ? k[2] * Ly : 0.0          # only phase for inter-cell (iy == Ly)
+        phase_y  = (iy == Ly) ? k[2] * Ly : 0.0          # only phase for inter-unit-cell (iy == Ly)
 
         for α in 1:Λ
             # down modes of source  (within UD block, bond α)
@@ -253,24 +215,40 @@ function G_in_single_k_persite(k::AbstractVector{<:Real}, Λ::Integer,
 
     return G
 end
+#= old single site implementation =#
+# function G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+#     return Matrix(BlockDiagonal([⊕(helper(k[1], lattice.Lx), Λ),⊕(helper(k[2], lattice.Ly), Λ)]))
+# end
+
 
 """
-    G_in_Fourier_persite(Λ, lattice)
+    G_in_Fourier(Λ::Int, lattice::AbstractInfiniteLattice)
 
-Fourier-transformed virtual bond covariance matrix for all k-points in the
-**per-site** ansatz.  Returns an `(Nk × n_virt × n_virt)` array where
-`n_virt = 8Λ Lx Ly`.
+Returns the Fourier transformed covariance matrix of the virtual bonds for all k-points in the Brillouin zone, using `G_in_single_k` for each k.
+It has dimensions `(Nk × d × d)` where Nk is the number of k-points and `d = 8Λ Lx Ly` is the number of virtual Majorana modes in the unit cell.
+
 """
-function G_in_Fourier_persite(Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+function G_in_Fourier(Λ::Int, lattice::AbstractInfiniteLattice)
     kvals  = lattice.kvals
     n_virt = 8Λ * lattice.Lx * lattice.Ly
 
     res = Array{ComplexF64, 3}(undef, size(kvals, 2), n_virt, n_virt)
     for (i, k) in enumerate(eachcol(kvals))
-        res[i, :, :] = G_in_single_k_persite(k, Λ, lattice)
+        res[i, :, :] = G_in_single_k(k, Λ, lattice)
     end
     return res
 end
+#= old single site implementation =#
+# function G_in_Fourier(Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
+#     kvals = lattice.kvals
+#     Λ_in_uc = get_Λ_in_uc(Λ, lattice)
+
+#     res = Array{ComplexF64,3}(undef, size(kvals,2), 2*Λ_in_uc, 2*Λ_in_uc)
+#     for (i, col) in enumerate(eachcol(kvals))
+#         res[i, :, :] = G_in_single_k(col, Λ, lattice)
+#     end
+#     return res
+# end
 
 """
     GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractArray)

@@ -119,8 +119,8 @@ function get_X_opt(
             shift_y=lattice.shift_y)
         has_dirac_points(training_lattice.kvals, H_bdg)
 
-        loss_fct = energy_loss_X_persite(training_lattice, Nf, Λ, H_bdg)
-        doping_fct = doping_loss_X_persite(training_lattice, Nf, Λ)
+        loss_fct = energy_loss_X(training_lattice, Nf, Λ, H_bdg)
+        doping_fct = doping_loss_X(training_lattice, Nf, Λ)
 
         # optimize the packed (block-diagonal) X on the product Stiefel manifold
         X_opt, stage_res, stage_doping = optimize_X(X_opt, loss_fct, doping_fct; doping_kwargs=doping_kwargs, optim_alg_options=optim_alg_options, optim_options=optim_options)

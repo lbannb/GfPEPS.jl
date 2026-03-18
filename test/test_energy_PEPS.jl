@@ -17,7 +17,7 @@ t = 1.0
 Δ1_y = -Δ1_x
 μ = 2.0
 
-# @testset "Energy after translation to fPEPS" begin
+@testset "Energy after translation to fPEPS" begin
     @testset "Trivial unit cell (1x1)" begin
         χenv_max = 32
         Random.seed!(12345) # for reproducibility
@@ -90,4 +90,4 @@ t = 1.0
 
         @test energy1 ≈ energy2 atol=1e-3; # depends on χenv_max
     end
-# end;
+end;
