@@ -6,8 +6,8 @@ using PEPSKit
 
 Random.seed!(1234) # for reproducibility
 
-χ_0 = 4
-χenv_max = 8
+χ_0 = 6
+χenv_max = 12
 boundary_alg = (; tol = 1e-8, maxiter=1000, alg = :simultaneous)
 
 # fluxfree sector: E_exact = -1.5746 per unit cell
@@ -27,16 +27,16 @@ boundary_alg = (; tol = 1e-8, maxiter=1000, alg = :simultaneous)
         # test energy from CM
         @test Ψ_trial.exact_energy ≈ Ψ_trial.optim_energy atol=1e-4
 
-        # # test energy from iPEPS
-        # env = GfPEPS.init_ctmrg_env(Ψ_trial.peps);
-        # env, _ = GfPEPS.grow_env(Ψ_trial.peps, env, χ_0, χenv_max; boundary_alg...);
-        # ham = GfPEPS.Kitaev_Hamiltonian(ComplexF64, InfiniteSquare(lattice.Lx, lattice.Ly); Jx=Jx, Jy=Jy, Jz=Jz)
-        # E_PEPS = real(expectation_value(Ψ_trial.peps, ham, env))
+        # test energy from iPEPS
+        env = GfPEPS.init_ctmrg_env(Ψ_trial.peps);
+        env, _ = GfPEPS.grow_env(Ψ_trial.peps, env, χ_0, χenv_max; boundary_alg...);
+        ham = GfPEPS.Kitaev_Hamiltonian(ComplexF64, InfiniteSquare(lattice.Lx, lattice.Ly); Jx=Jx, Jy=Jy, Jz=Jz)
+        E_PEPS = real(expectation_value(Ψ_trial.peps, ham, env))
         
-        # @show Ψ_trial.exact_energy
-        # @show Ψ_trial.optim_energy
-        # @show E_PEPS
+        @show Ψ_trial.exact_energy
+        @show Ψ_trial.optim_energy
+        @show E_PEPS
 
-        # @test E_PEPS ≈ Ψ_trial.optim_energy atol=2e-2 # depends on χenv_max
+        @test E_PEPS ≈ Ψ_trial.optim_energy atol=1e-2 # depends on χenv_max
     end
 end;

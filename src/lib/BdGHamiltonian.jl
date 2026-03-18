@@ -182,10 +182,10 @@ function kitaev_BCS_hamiltonian(
         if interaction_type == ["NN"]
             hopping = Dict(
                 1 => Dict(
-                    (1,0) => Jx, 
-                    (-1,0) => Jx, 
-                    (0,1) => Jy, 
-                    (0,-1) => Jy
+                    (1,0) => -Jx, 
+                    (-1,0) => -Jx, 
+                    (0,1) => -Jy, 
+                    (0,-1) => -Jy
                 )
             )
             pairing = Dict(
