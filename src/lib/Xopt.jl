@@ -15,7 +15,7 @@ Struct to hold settings for doping optimization in the augmented Lagrangian meth
 """
 mutable struct DopingSettings
     δ::Float64
-    doping_layout::Matrix{Float64}
+    doping_layout::Union{Nothing, Matrix{Float64}}
     density_tol::Float64
     penalty_growth::Float64
     enforce_density::Bool
