@@ -1,7 +1,6 @@
 using Revise
 using Test
 using GfPEPS
-using JSON: parsefile
 using Random
 
 Random.seed!(1234) # for reproducibility

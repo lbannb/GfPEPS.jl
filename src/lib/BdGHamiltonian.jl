@@ -176,7 +176,7 @@ function kitaev_BCS_hamiltonian(
         @assert get_number_of_distinct_sites_in_uc(lattice) == 1 "Currently only supports 1 site per unit cell for the Kitaev BCS Hamiltonian."
 
         μ = -2Jz
-        E_shift = (k, ξ_k, Δ_k, μ) -> -Jz # Z2 background gauge field
+        E_shift = (k, ξ_mat_k, Δ_mat_k, μ) -> -Jz # Z2 background gauge field
 
         # TODO: add more interaction types here if needed
         if interaction_type == ["NN"]
@@ -429,13 +429,6 @@ function exact_energy(lattice::AbstractInfiniteLattice, H_bdg::MomentumSpaceBdGH
 
         0.5 * (real(tr(H_bdg.ξ_mat_k(k; μ = H_bdg.μ))) - sum_E) / Nsites +
             H_bdg.E_shift(k, H_bdg.ξ_mat_k, H_bdg.Δ_mat_k, H_bdg.μ)
-        
-        # ξ_mat_k = H_bdg.ξ_k(k, H_bdg.μ)
-        # Δ_mat_k = H_bdg.Δ_k(k)
-        # H_BdG_k_mat = get_BdG_k_matrix(lattice, Nf, k, H_bdg)
-        # sum_E = sum(get_positive_quasiparticle_energies(H_BdG_k_mat))
-
-        # (0.5 * (Nf * real(tr(ξ_mat_k)) - sum_E) / Ns) + H_bdg.E_shift(k, ξ_mat_k, Δ_mat_k, H_bdg.μ)
     end)
 end
 
@@ -484,13 +477,21 @@ The average density per site for an arbitrary number of bands m is given by:
 - `Nf::Int`: Number of Abrikosov fermions
 - `H_bdg::MomentumSpaceBdGHamiltonian`: The BdG Hamiltonian object containing the parameters and functions to compute ξ(k) and Δ(k).
 
+# Optional Arguments
+- `j::Union{Nothing, Int} = nothing`: If specified, compute the average density at site index `j` instead of the average density over all sites.
+
 # Returns
 - `avg_density::Float64`: The average particle density per site for the BCS mean field Hamiltonian.
 
 """
-function avg_density(lattice::AbstractInfiniteLattice, H_bdg::MomentumSpaceBdGHamiltonian)
+function avg_density(lattice::AbstractInfiniteLattice, H_bdg::MomentumSpaceBdGHamiltonian; j::Union{Nothing, Vector{Int}} = nothing)
     Nsites = get_number_of_sites(lattice)
+    Np = size(H_bdg.ξ_mat_k([0.0, 0.0]; μ = H_bdg.μ), 1) # This is Nsites * Nf
+    Nf = Np ÷ Nsites
 
+    # If site index j is specified, compute the density at site j, otherwise compute the average density over all sites.
+    j = isnothing(j) ? UnitRange(1, Np) : reduce(vcat, [Nf*(s-1)+1 : Nf*s for s in j]) 
+    
     return mean(map(eachcol(lattice.kvals)) do k
         H_bdG_k = [H_bdg.ξ_mat_k(k; μ = H_bdg.μ)  H_bdg.Δ_mat_k(k); 
                H_bdg.Δ_mat_k(k)' -transpose(H_bdg.ξ_mat_k(-k; μ = H_bdg.μ))]
@@ -501,7 +502,7 @@ function avg_density(lattice::AbstractInfiniteLattice, H_bdg::MomentumSpaceBdGHa
         pos_inds = F.values .> 1e-10
         v_m_k = F.vectors[Np+1:end, pos_inds]
 
-        sum(abs2, v_m_k) / Nsites
+        sum(abs2, v_m_k[j, :]) / Nsites
     end)
 end
 

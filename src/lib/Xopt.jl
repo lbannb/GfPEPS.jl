@@ -5,6 +5,7 @@ const DEFAULT_PENALTY_FALLBACK = 1.0 # fallback value for penalty parameter in t
 Struct to hold settings for doping optimization in the augmented Lagrangian method.
 # Fields
 - `δ::Float64=0.0`: Target hole density to enforce.
+- `doping_layout::Matrix{Float64}`: Optional matrix specifying the target doping for each site in the unit cell. If not provided, a uniform doping of δ will be assumed for all sites.
 - `density_tol::Float64=1e-6`: Tolerance for how close the doping must be to the target δ to consider the constraint satisfied.
 - `penalty_growth::Float64=1e2`: Factor by which to increase the penalty parameter λ if the constraint is not satisfied.
 - `enforce_density::Bool=false`: Whether to enforce the density constraint or not.
@@ -12,8 +13,9 @@ Struct to hold settings for doping optimization in the augmented Lagrangian meth
 - `λ::Float64=1e2`: Initial penalty parameter for the augmented Lagrangian method. If not positive and finite, a default fallback value will be used.
 - `solve_μ_from_δ::Bool=true`: Whether to solve for the chemical potential μ from the target doping δ before optimization. If false, the provided μ in the Hamiltonian will be used and the doping constraint will be enforced around that.
 """
-struct DopingSettings
+mutable struct DopingSettings
     δ::Float64
+    doping_layout::Matrix{Float64}
     density_tol::Float64
     penalty_growth::Float64
     enforce_density::Bool
@@ -23,6 +25,7 @@ struct DopingSettings
 
     function DopingSettings(; 
         δ=0.0, 
+        doping_layout=nothing,
         density_tol=1e-6, 
         penalty_growth=5, 
         enforce_density=false, 
@@ -30,7 +33,11 @@ struct DopingSettings
         λ=1e2,
         solve_μ_from_δ=true)
 
-        new(δ, density_tol, penalty_growth, enforce_density, density_opt_iters, λ, solve_μ_from_δ)
+        if !isnothing(doping_layout)
+            @assert δ ≈ mean(doping_layout) "The target doping δ should match the average of the provided doping_layout."
+        end
+
+        new(δ, doping_layout, density_tol, penalty_growth, enforce_density, density_opt_iters, λ, solve_μ_from_δ)
     end
 end
 
@@ -87,6 +94,9 @@ function get_X_opt(
 
     # warn if dirac points are present -> then optimization of Γ can be harder, so user can adjust different kvals set
     has_dirac_points(lattice.kvals, H_bdg) 
+
+    # set doping layout to uniform if not provided
+    doping_kwargs.doping_layout = isnothing(doping_kwargs.doping_layout) ? fill(doping_kwargs.δ, size(lattice.uc_layout)) : doping_kwargs.doping_layout
 
     if doping_kwargs.enforce_density && doping_kwargs.solve_μ_from_δ
         H_bdg.μ = solve_for_mu(lattice, doping_kwargs.δ, H_bdg)
