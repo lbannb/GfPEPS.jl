@@ -61,28 +61,19 @@ t = 1.0
         env, _ = GfPEPS.grow_env(peps, env, 6, χenv_max; boundary_alg...)
 
         # different couplings on the two sublattices
-        hopping = Dict(
-            1 => Dict((1, 0) => t, (0, 1) => t, (-1, 0) => t, (0, -1) => t),
-            2 => Dict((1, 0) => t, (0, 1) => t, (-1, 0) => t, (0, -1) => t)
+        hopping = Dict( 
+            1 => Dict((2, 0) => t, (0, 2) => t, (-2, 0) => t, (0, -2) => t),
+            2 => Dict((2, 0) => 2t, (0, 2) => 2t, (-2, 0) => 2t, (0, -2) => 2t)
         )
         pairing = Dict(
-            1 => Dict((1, 0) => Δ1_x, (-1, 0) => Δ1_x, (0, 1) => Δ1_y, (0, -1) => Δ1_y),
-            2 => Dict((1, 0) => Δ1_x, (-1, 0) => Δ1_x, (0, 1) => Δ1_y, (0, -1) => Δ1_y)
+            1 => Dict((2, 0) => Δ1_x, (-2, 0) => Δ1_x, (0, 2) => Δ1_y, (0, -2) => Δ1_y),
+            2 => Dict((2, 0) => 2Δ1_x, (-2, 0) => 2Δ1_x, (0, 2) => 2Δ1_y, (0, -2) => 2Δ1_y)
         )
-        # hopping = Dict( 
-        #     1 => Dict((2, 0) => t, (0, 2) => t, (-2, 0) => t, (0, -2) => t),
-        #     2 => Dict((2, 0) => 2t, (0, 2) => 2t, (-2, 0) => 2t, (0, -2) => 2t)
-        # )
-        # pairing = Dict(
-        #     1 => Dict((2, 0) => Δ1_x, (-2, 0) => Δ1_x, (0, 2) => Δ1_y, (0, -2) => Δ1_y),
-        #     2 => Dict((2, 0) => 2Δ1_x, (-2, 0) => 2Δ1_x, (0, 2) => 2Δ1_y, (0, -2) => 2Δ1_y)
-        # )
 
         H_BdG = default_BCS_hamiltonian(hopping, pairing, μ, lattice)
 
         ham = GfPEPS.BCS_spin_hamiltonian(ComplexF64, InfiniteSquare(lattice.Ly, lattice.Lx), H_BdG, lattice.uc_layout)
         energy1 = real(expectation_value(peps, ham, env))
-
         energy2 = GfPEPS.energy_CM(X_vec, Nf, Λ, H_BdG, lattice)
 
         @show energy1
