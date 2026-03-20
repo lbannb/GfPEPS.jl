@@ -1,4 +1,6 @@
-"""get_bogoliubov_blocks(M::AbstractMatrix)
+"""
+    get_bogoliubov_blocks(M::AbstractMatrix)
+
 Extract the `U` and `V` blocks from the Bogoliubov transformation matrix `M = [U conj(V); V conj(U)]`.
 """
 function get_bogoliubov_blocks(M::AbstractMatrix)
@@ -8,7 +10,10 @@ function get_bogoliubov_blocks(M::AbstractMatrix)
     return U, V
 end
 
-"""Return the spectrum and canonical transform that diagonalize the fermionic quadratic Hamiltonian `H`.
+"""
+    bogoliubov(H::Hermitian)
+
+Return the spectrum and canonical transform that diagonalize the fermionic quadratic Hamiltonian `H`.
 
 The Bogoliubov matrix `M = [U conj(V); V conj(U)]` satisfies `M' * H * M == diagm(vcat(E, -E))`, and the
 returned vector `E` contains the positive eigenvalues in descending order.
@@ -35,7 +40,8 @@ function bogoliubov(H::Hermitian)
     return E, M
 end
 
-"""skew_canonical_form(P::AbstractMatrix)
+"""
+    skew_canonical_form(P::AbstractMatrix)
 
 Return a pair `(S, X)` where `X = transpose(S)*P*S` is the canonical form for `P` (See: https://doi.org/10.1007/BF02906230).
 """
@@ -95,7 +101,8 @@ function skew_canonical_form(P::AbstractMatrix)
     return S,X
 end
 
-"""absorb_phases(S::AbstractMatrix, X::AbstractMatrix)
+"""
+    absorb_phases(S::AbstractMatrix, X::AbstractMatrix)
 
 Adjust phases of the paired columns in `S` so that the corresponding canonical matrix `X` becomes real with
 positive entries in its upper-right elements. Returns the modified `(S2, X2)` pair.
@@ -132,7 +139,8 @@ function absorb_phases(S::AbstractMatrix, X::AbstractMatrix)
     return S2, real(X2)
 end
 
-"""canonical_skew_permutation(P::AbstractMatrix)
+"""
+    canonical_skew_permutation(P::AbstractMatrix)
 
 Return a permutation matrix that reorders 2×2 skew blocks so their upper-right elements have a nonnegative real part.
 """
