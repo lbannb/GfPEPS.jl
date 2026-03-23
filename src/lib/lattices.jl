@@ -208,3 +208,30 @@ end
 function get_number_of_sites(lattice::Union{AbstractInfiniteRectangularLattice, AbstractRectangularLattice})
     return lattice.Lx * lattice.Ly
 end
+
+"""
+        get_site_index(x::Number, y::Number, lattice::AbstractInfiniteLattice)
+
+Returns the site index corresponding to the coordinates (x, y) on the given lattice. 
+The indexing convention is column-major, meaning that sites are indexed first along the x-direction and then along the y-direction.
+
+Example: [(1,1)=>1 (2,1)=>2; (1,2)=>3 (2,2)=>4] for a 2x2 unit cell.
+
+# Keyword Arguments
+- `x::Union{Int, Float64}`: x-coordinate of the site
+- `y::Union{Int, Float64}`: y-coordinate of the site
+- `lattice::AbstractInfiniteLattice`: The lattice on which the site is located. The function currently supports `AbstractInfiniteRectangularLattice` and will throw an error for unsupported lattice types.
+
+# Returns
+- `site_index::Number`: The corresponding site index in column-major order.
+
+"""
+function get_site_index(x::Number, y::Number, lattice::AbstractInfiniteLattice)
+    @assert 1 <= x <= lattice.Lx && 1 <= y <= lattice.Ly "Site coordinates out of bounds for the given lattice dimensions."
+
+    if lattice isa AbstractInfiniteRectangularLattice
+        return Int(x + (y - 1) * lattice.Lx)
+    else
+        throw(ArgumentError("Unsupported lattice type."))
+    end
+end

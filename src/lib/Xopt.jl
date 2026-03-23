@@ -14,8 +14,7 @@ Struct to hold settings for doping optimization in the augmented Lagrangian meth
 - `solve_μ_from_δ::Bool=true`: Whether to solve for the chemical potential μ from the target doping δ before optimization. If false, the provided μ in the Hamiltonian will be used and the doping constraint will be enforced around that.
 """
 mutable struct DopingSettings
-    δ::Float64
-    doping_layout::Union{Nothing, Matrix{Float64}}
+    doping_layout::Matrix{Float64}
     density_tol::Float64
     penalty_growth::Float64
     enforce_density::Bool
@@ -24,8 +23,7 @@ mutable struct DopingSettings
     solve_μ_from_δ::Bool
 
     function DopingSettings(; 
-        δ=0.0, 
-        doping_layout=nothing,
+        doping_layout=fill(0.0, 1, 1),
         density_tol=1e-6, 
         penalty_growth=5, 
         enforce_density=false, 
@@ -33,11 +31,7 @@ mutable struct DopingSettings
         λ=1e2,
         solve_μ_from_δ=true)
 
-        if !isnothing(doping_layout)
-            @assert δ ≈ mean(doping_layout) "The target doping δ should match the average of the provided doping_layout."
-        end
-
-        new(δ, doping_layout, density_tol, penalty_growth, enforce_density, density_opt_iters, λ, solve_μ_from_δ)
+        new(doping_layout, density_tol, penalty_growth, enforce_density, density_opt_iters, λ, solve_μ_from_δ)
     end
 end
 
@@ -95,18 +89,16 @@ function get_X_opt(
     # warn if dirac points are present -> then optimization of Γ can be harder, so user can adjust different kvals set
     has_dirac_points(lattice.kvals, H_bdg) 
 
-    # set doping layout to uniform if not provided
-    doping_kwargs.doping_layout = isnothing(doping_kwargs.doping_layout) ? fill(doping_kwargs.δ, size(lattice.uc_layout)) : doping_kwargs.doping_layout
-
     if doping_kwargs.enforce_density && doping_kwargs.solve_μ_from_δ
-        H_bdg.μ = solve_for_mu(lattice, doping_kwargs.δ, H_bdg)
+        @assert length(unique(doping_kwargs.doping_layout)) == get_number_of_distinct_sites_in_uc(lattice) "Must use the same structure for doping_layout as the lattice unit cell layout."
+        H_bdg.μ = solve_for_mu(lattice, doping_kwargs.doping_layout, H_bdg)
     end
 
     # smaller set of momentum pairs for initial optimization for faster convergence
     N_kx_inits, N_ky_inits = isnothing(X_init) ? get_kgrids(lattice) : ([lattice.N_kx], [lattice.N_ky])
     
     if doping_kwargs.enforce_density
-        @info "Target hole density δ = $(doping_kwargs.δ) will be enforced with tolerance $(doping_kwargs.density_tol)."
+        @info "Target hole density δ layout = $(doping_kwargs.doping_layout) will be enforced with tolerance $(doping_kwargs.density_tol)."
     end
 
     if !isempty(N_kx_inits) && !isempty(N_ky_inits)
@@ -151,17 +143,29 @@ function get_X_opt(
     end
 
     # final results summary and check if density constraint is satisfied
-    constraint_final = doping_kwargs.enforce_density ? stage_doping - doping_kwargs.δ : nothing
     if doping_kwargs.enforce_density
-        @info "Final doping summary" target=doping_kwargs.δ achieved=stage_doping deviation=constraint_final
-    end
-    if doping_kwargs.enforce_density && abs(constraint_final) > doping_kwargs.density_tol
-        @warn "Final doping deviates from target by $(constraint_final). Consider increasing density_opt_iters or penalty_growth."
+        stage_doping_mat = [stage_doping[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
+        constraint_final = abs.(stage_doping_mat .- doping_kwargs.doping_layout)
+
+        # @info "Final doping summary" target=doping_kwargs.doping_layout achieved=stage_doping deviation=string(constraint_final)
+        @info """
+        Final doping summary
+            target    = $(doping_kwargs.doping_layout)
+            achieved  = $(stage_doping_mat)
+            deviation = $(constraint_final)
+        """
+
+        # Find indices of all constraints that exceed the tolerance
+        violations = findall(abs.(constraint_final) .> doping_kwargs.density_tol)
+        for idx in violations
+            @warn "Final doping for site $(get_site_index(idx[2], idx[1], lattice)) deviates from target $(doping_kwargs.doping_layout[idx]) by $(constraint_final[idx]). Consider increasing density_opt_iters or penalty_growth."
+        end
     end
 
     # compute final energy and compare to exact energy
     E_exact = exact_energy(lattice, H_bdg)
     optim_energy = Optim.minimum(stage_res)
+
     deviation = abs(optim_energy - E_exact)
     
     @info "Final energy summary" target=E_exact achieved=optim_energy deviation=deviation
@@ -207,9 +211,9 @@ function get_kgrids(lattice::AbstractInfiniteLattice)
 end
 
 """
-    optimize_X(Xs, loss_fct, doping_fct; kwargs...)
+    optimize_X(X_vec, loss_fct, doping_fct; kwargs...)
 
-Optimize a vector of per-site orthogonal matrices `Xs` on the product Stiefel
+Optimize a vector of per-site orthogonal matrices `X_vec` on the product Stiefel
 manifold to minimize `loss_fct`, optionally enforcing a density constraint via
 an augmented Lagrangian.
 
@@ -219,9 +223,9 @@ Loss closures that accept `AbstractVector{<:AbstractMatrix}` are wrapped
 automatically to slice the 3D array before evaluation.
 
 # Arguments
-- `Xs::AbstractVector{<:AbstractMatrix}`: Initial guess — one orthogonal matrix per distinct site in the unit cell.
-- `loss_fct::Function`: `Xs -> energy` loss (accepts a vector of per-site X matrices).
-- `doping_fct::Function`: `Xs -> doping` (can be `nothing` when density is not enforced).
+- `X_vec::AbstractVector{<:AbstractMatrix}`: Initial guess — one orthogonal matrix per distinct site in the unit cell.
+- `loss_fct::Function`: `X_vec -> energy` loss (accepts a vector of per-site X matrices).
+- `doping_fct::Function`: `X_vec -> doping` (can be `nothing` when density is not enforced).
 
 # Keyword Arguments
 - `doping_kwargs::DopingSettings`: Augmented Lagrangian settings.
@@ -234,17 +238,17 @@ automatically to slice the 3D array before evaluation.
 - `final_doping::Union{Float64, Nothing}`: Achieved doping, or `nothing`.
 
 """
-function optimize_X(Xs::AbstractVector{<:AbstractMatrix}, loss_fct::Function, doping_fct::Function;
+function optimize_X(X_vec::AbstractVector{<:AbstractMatrix}, loss_fct::Function, doping_fct::Function;
     doping_kwargs::DopingSettings=DopingSettings(),
     optim_alg_options::Union{Optim.LBFGS, Optim.BFGS},
     optim_options::Optim.Options)
 
     # ── Pack Vector{Matrix} → 3D Array (n × n × Nsites) for Optim ──────
-    Nsites = length(Xs)
-    n = size(Xs[1], 1)
+    Nsites = length(X_vec)
+    n = size(X_vec[1], 1)
     X3d = Array{Float64, 3}(undef, n, n, Nsites)
     for s in 1:Nsites
-        X3d[:, :, s] .= Xs[s]
+        X3d[:, :, s] .= X_vec[s]
     end
 
     # Wrap a Vector{Matrix}-accepting closure into one that accepts a 3D array.
@@ -269,15 +273,17 @@ function optimize_X(Xs::AbstractVector{<:AbstractMatrix}, loss_fct::Function, do
     end
 
     # Density constraint: use a penalty term to enforce the density constraint while minimizing the energy.
+    target_δs = unique(doping_kwargs.doping_layout) 
+    N_constraints = length(target_δs)
 
-    # Set up augmented-Lagrangian variables.
-    η = 0.0
-    λ = doping_kwargs.λ
+    # Set up augmented-Lagrangian variables as vectors 
+    η = zeros(Float64, N_constraints)
+    λ = fill(doping_kwargs.λ, N_constraints)
 
     # run density optimization loop, where in each iteration we minimize the augmented Lagrangian with the current penalty and multiplier, then update those based on the constraint violation.
     X_current = X3d
     last_res = nothing
-    last_doping = doping3d(X_current)
+    last_dopings = doping3d(X_current)
     total_iters = 0
     total_trace = []
     for _ in 1:max(doping_kwargs.density_opt_iters, 1) # usually only a few iterations are needed
@@ -287,8 +293,9 @@ function optimize_X(Xs::AbstractVector{<:AbstractMatrix}, loss_fct::Function, do
         # new loss function with penalty term for density constraint
         loss_augmented(x) = begin
             dens = doping3d(x)
-            constraint = dens - doping_kwargs.δ
-            return loss3d(x) + η_local * constraint + 0.5 * λ_local * constraint^2
+            constraints = dens .- target_δs
+
+            return loss3d(x) + sum(η_local .* constraints) + 0.5 * sum(λ_local .* (constraints.^2))
         end
 
         # Combined value-and-gradient via Zygote pullback (avoids redundant forward pass)
@@ -307,16 +314,18 @@ function optimize_X(Xs::AbstractVector{<:AbstractMatrix}, loss_fct::Function, do
         # update augmented Lagrangian parameters based on constraint violation
         last_res = res
         X_current = Optim.minimizer(res)
-        last_doping = doping3d(X_current)
-        constraint = last_doping - doping_kwargs.δ
+        last_dopings = doping3d(X_current)
+        constraints = last_dopings .- target_δs
 
-        if abs(constraint) <= doping_kwargs.density_tol
-            λ = λ_local
+        # Check if ALL constraints are satisfied
+        if maximum(abs.(constraints)) <= doping_kwargs.density_tol
+            λ .= λ_local
             break
         end
 
-        η = η_local + λ_local * constraint
-        λ = max(λ_local * doping_kwargs.penalty_growth, DEFAULT_PENALTY_FALLBACK)
+        # Update multipliers and penalties per site
+        η .= η_local .+ λ_local .* constraints
+        λ .= max.(λ_local .* doping_kwargs.penalty_growth, DEFAULT_PENALTY_FALLBACK)
     end
     last_res === nothing && error("Augmented Lagrangian did not run for stage $(stage_label).")
 
@@ -325,7 +334,7 @@ function optimize_X(Xs::AbstractVector{<:AbstractMatrix}, loss_fct::Function, do
     last_res.trace = total_trace
 
     X_opt = [X_current[:, :, s] for s in 1:Nsites]
-    return X_opt, last_res, last_doping
+    return X_opt, last_res, last_dopings
 end
 
 """
@@ -431,9 +440,9 @@ CholQR retraction applied slice-wise to a 3D array of per-site X matrices
 """
 function Optim.retract!(m::GaugeFixedStiefel, X3d::AbstractArray{<:Real, 3})
     for s in axes(X3d, 3)
-        Xs = @view X3d[:, :, s]
-        overlap = Xs'Xs + I * 1e-15
-        Xs .= Xs / cholesky(overlap).U
+        X_vec = @view X3d[:, :, s]
+        overlap = X_vec'X_vec + I * 1e-15
+        X_vec .= X_vec / cholesky(overlap).U
     end
     return X3d
 end

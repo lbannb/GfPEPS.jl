@@ -47,22 +47,51 @@ function doping_loss(Nf::Int, lattice::AbstractInfiniteLattice)
     Nk = size(lattice.kvals, 2)
     invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
 
+    Nsites = get_number_of_sites(lattice)
+    N_distinct = get_number_of_distinct_sites_in_uc(lattice)
+    
     # Construct the symplectic form (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
     # occupation in the majorana basis
     J0 = [0 1; -1 0]
-    J = kron(I(get_Nf_in_uc(Nf,lattice)), J0)
+    
+    # Precompute a separate batched symplectic form for each distinct site
+    J_batches = Vector{Array{Float64, 3}}(undef, N_distinct)
+    dim_J = 2 * Nf * Nsites
 
-    # repeat for all k-points
-    J_batched = Array{eltype(J)}(undef, size(J,1), size(J,2), Nk)
-    @inbounds for k in 1:Nk
-        J_batched[:, :, k] = J
+    for s in 1:N_distinct
+        J_s = zeros(Float64, dim_J, dim_J)
+
+        N_sitetype = length(findall(x -> x == s, vec(lattice.uc_layout)))
+        # Find all absolute site indices in the unit cell belonging to distinct site type `s`
+        for x in 1:lattice.Lx, y in 1:lattice.Ly
+            if lattice.uc_layout[y, x] == s
+                site_i = get_site_index(x, y, lattice)
+                
+                # Each spatial site has 2*Nf Majorana modes
+                idx_start = (site_i - 1) * 2 * Nf + 1
+                idx_end   = site_i * 2 * Nf
+                
+                # Set the corresponding block in J_s to J0
+                J_s[idx_start:idx_end, idx_start:idx_end] = kron(I(Nf), J0)
+            end
+        end
+        
+        # Divide by number of same sites in the unit cell to get the *average* for this site type
+        J_s ./= N_sitetype
+        
+        # Batch over all k-points
+        J_batched = Array{Float64, 3}(undef, dim_J, dim_J, Nk)
+        for k in 1:Nk
+            J_batched[:, :, k] = J_s
+        end
+        J_batches[s] = J_batched
     end
 
     function doping(CM_out::AbstractArray)
         # Fast Trace Formula: Tr(J * CM) = sum(J .* CM^T) = - sum(J .* CM) = - dot(J, CM)
         # Recall: δ = 1 - <n>, <n> = 0.25 * Tr(J * CM) + 0.5*Nf
         # Note: I am not sure about the last part + 0.5*Nf -> true for S=1/2 but check for general S.
-        return real(0.25 * dot(J_batched, CM_out) * invN)
+        return map(J -> real(0.25 * dot(J, CM_out) * invN), J_batches)
     end
 end
 
@@ -135,4 +164,43 @@ function doping_CM(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int, lat
     A, B, D = get_Γ_blocks(X_vec, Nf, Λ, lattice)
     
     return real(doping_loss(Nf, lattice)(GaussianMap(A, B, D, G_in)))
+end
+
+"""
+    doping_CM(Γ::AbstractMatrix, Nf::Int, lattice::AbstractInfiniteLattice)
+
+The average doping `δ = 1 - (1/N) ∑_k ⟨f†_{kσ} f_{kσ}⟩` for the whole unit cell
+evaluated from the fiducial state correlation matrix `Γ`.
+
+For trivial unit cell and Nf=2:     `⟨f†_{k↑} f_{k↑}⟩ = 1/2 * (1 - Gf[1,2])`
+                                    `⟨f†_{k↓} f_{k↓}⟩ = 1/2 * (1 - Gf[3,4])`
+
+"""
+function avg_doping_CM(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice)
+    # divide by number of k-points
+    Nk = size(lattice.kvals, 2)
+    invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
+    invN /= get_number_of_sites(lattice) # also divide by number of sites in the unit cell to get the average per site
+
+    # Construct the symplectic form (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
+    # occupation in the majorana basis
+    J0 = [0 1; -1 0]
+    J = kron(I(get_Nf_in_uc(Nf,lattice)), J0)
+
+    # repeat for all k-points
+    J_batched = Array{eltype(J)}(undef, size(J,1), size(J,2), Nk)
+    @inbounds for k in 1:Nk
+        J_batched[:, :, k] = J
+    end
+
+    function doping(CM_out::AbstractArray)
+        # Fast Trace Formula: Tr(J * CM) = sum(J .* CM^T) = - sum(J .* CM) = - dot(J, CM)
+        # Recall: δ = 1 - <n>, <n> = 0.25 * Tr(J * CM) + 0.5*Nf
+        # Note: I am not sure about the last part + 0.5*Nf -> true for S=1/2 but check for general S.
+        return real(0.25 * dot(J_batched, CM_out) * invN)
+    end
+
+    G_in = G_in_Fourier(Λ, lattice)
+    A, B, D = get_Γ_blocks(X_vec, Nf, Λ, lattice)
+    return real(doping((GaussianMap(A, B, D, G_in))))
 end

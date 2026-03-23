@@ -25,7 +25,7 @@ function BCS_spin_hamiltonian(T::Type{<:Number}, lattice::InfiniteSquare, H_BdG:
         site_label = uc_layout[y, x]
 
         # On-site chemical potential term
-        push!(ham_terms, (src_pos,) => - (H_BdG.μ) * num)
+        push!(ham_terms, (src_pos,) => - (H_BdG.μ[site_label]) * num)
 
         # Get the valid bonds for site_label
         site_hoppings = get(H_BdG.hopping, site_label, Dict())

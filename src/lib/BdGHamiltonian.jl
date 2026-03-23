@@ -71,7 +71,7 @@ H_BdG_k = [ξ_mat(k)  Δ_mat(k);
 - `pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: where the dict entries represent the pairing amplitude on the corresponding connection:
     * (x, y) => Δ_ij, where x and y follow the lattice geometry
     * (Example for square lattice x=±1, y=±1): (1,0) => Δ_(1,x), (-1,0) => Δ_(1,-x), (0,1) => Δ_(1,y), (0,-1) => Δ_(1,-y), (1,1) => Δ_(2,xy) etc.
-- `μ::Real`: Chemical potential (can be updated when solve_μ_from_δ = true in DopingSettings)
+- `μ::Vector{<:Real}`:   Side dependent chemical potentials [μ₁, μ₂, ...] (can be updated when solve_μ_from_δ = true in DopingSettings)
 - `ξ_mat_k::Function`: Function to compute hopping matrix ξ_mat(k) from the hopping dict for a given momentum k
 - `Δ_mat_k::Function`: Function to compute pairing matrix Δ_mat(k) from the pairing dict for a given momentum k
 - `E_shift::Function`: Function to implement arbitrary energy shifts.
@@ -80,7 +80,7 @@ H_BdG_k = [ξ_mat(k)  Δ_mat(k);
 mutable struct MomentumSpaceBdGHamiltonian <: AbstractBdGHamiltonian
     hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}
     pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}
-    μ::Real # chemical potential -> This can be changed when solve_μ_from_δ = true in DopingSettings
+    μ::Vector{<:Real}   # chemical potential -> This can be changed when solve_μ_from_δ = true in DopingSettings
     ξ_mat_k::Function # Function to compute hopping matrix ξ_mat(k)
     Δ_mat_k::Function # Function to compute pairing matrix Δ_mat(k)
     E_shift::Function # Function to implement arbitrary energy shifts
@@ -88,7 +88,7 @@ mutable struct MomentumSpaceBdGHamiltonian <: AbstractBdGHamiltonian
     function MomentumSpaceBdGHamiltonian(
         hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
         pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
-        μ::Real, 
+        μ::Vector{<:Real}, 
         ξ_mat_k::Function, 
         Δ_mat_k::Function,
         E_shift::Function = (k, ξ_k, Δ_k, μ) -> 0.0
@@ -104,7 +104,7 @@ end
     default_BCS_hamiltonian(
         hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
         pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
-        μ::Real, lattice::AbstractInfiniteLattice; 
+        μ::Vector{<:Real}, lattice::AbstractInfiniteLattice; 
         interaction_type::Vector{String} = ["NN"], 
         pairing_type::String = "d_wave")
 
@@ -116,7 +116,7 @@ Returns a `MomentumSpaceBdGHamiltonian` which follows the standard BCS form (Nf=
 # Keyword Arguments
 - `hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: where the dict entries represent the hopping amplitude on the corresponding connection.
 - `pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: where the dict entries represent the pairing amplitude on the corresponding connection.
-- `μ::Real`: Chemical potential
+- `μ::Vector{<:Real}`:   Side dependent chemical potentials [μ₁, μ₂, ...] (can be updated when solve_μ_from_δ = true in DopingSettings)
 - `lattice::AbstractInfiniteLattice`: The lattice on which the BCS model is defined
 - `h::Real = 0.0`: External field
 
@@ -127,7 +127,7 @@ Returns a `MomentumSpaceBdGHamiltonian` which follows the standard BCS form (Nf=
 function default_BCS_hamiltonian(
     hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}},
     pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}},
-    μ::Real,
+    μ::Vector{<:Real},
     lattice::AbstractInfiniteLattice;
     Nf::Int = 2,
     E_shift::Function = (k, ξ_mat_k, Δ_mat_k, μ) -> 0.0)
@@ -175,7 +175,7 @@ function kitaev_BCS_hamiltonian(
     if lattice isa AbstractInfiniteRectangularLattice
         @assert get_number_of_distinct_sites_in_uc(lattice) == 1 "Currently only supports 1 site per unit cell for the Kitaev BCS Hamiltonian."
 
-        μ = -2Jz
+        μ = [-2Jz]
         E_shift = (k, ξ_mat_k, Δ_mat_k, μ) -> -Jz # Z2 background gauge field
 
         # TODO: add more interaction types here if needed
@@ -207,33 +207,6 @@ end
 #= 
     Functions to create hopping and pairing matrices for different lattice geometries
 =#
-
-"""
-        get_site_index(x::Number, y::Number, lattice::AbstractInfiniteLattice)
-
-Returns the site index corresponding to the coordinates (x, y) on the given lattice. 
-The indexing convention is column-major, meaning that sites are indexed first along the x-direction and then along the y-direction.
-
-Example: [(1,1)=>1 (2,1)=>2; (1,2)=>3 (2,2)=>4] for a 2x2 unit cell.
-
-# Keyword Arguments
-- `x::Union{Int, Float64}`: x-coordinate of the site
-- `y::Union{Int, Float64}`: y-coordinate of the site
-- `lattice::AbstractInfiniteLattice`: The lattice on which the site is located. The function currently supports `AbstractInfiniteRectangularLattice` and will throw an error for unsupported lattice types.
-
-# Returns
-- `site_index::Number`: The corresponding site index in column-major order.
-
-"""
-function get_site_index(x::Number, y::Number, lattice::AbstractInfiniteLattice)
-    @assert 1 <= x <= lattice.Lx && 1 <= y <= lattice.Ly "Site coordinates out of bounds for the given lattice dimensions."
-
-    if lattice isa AbstractInfiniteRectangularLattice
-        return Int(x + (y - 1) * lattice.Lx)
-    else
-        throw(ArgumentError("Unsupported lattice type."))
-    end
-end
 
 """
     wrap_site_index(x::Number, y::Number, dx::Number, dy::Number, lattice::AbstractInfiniteLattice)
@@ -327,20 +300,20 @@ Returns the hopping matrix ξ(k) in momentum space for a given momentum `k`, lat
 - `lattice::AbstractInfiniteLattice`: The lattice geometry which determines how site indices are wrapped and how the kernel matrix is constructed.
 - `Nf::Int`: Number of Abrikosov fermions
 - `hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: Dictionary where keys are tuples representing displacements (dx, dy) and values are the corresponding hopping amplitudes
-- `μ_init::Real`: Initial chemical potential for H_BdG (Can be updated when solve_μ_from_δ = true in DopingSettings)
+- `μ_init::Vector{<:Real}`: Initial side dependent chemical potentials [μ₁, μ₂, ...] for H_BdG (Can be updated when solve_μ_from_δ = true in DopingSettings)
 
 # Returns
 - `ξ_mat_k::Function`: The function returning the hopping matrix ξ(k) in momentum space for the given momentum `k`.
 
 """
-function get_ξ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, μ_init::Real)
-    function ξ_mat_k(k::AbstractVector{<:Real}; μ::Real = μ_init)
+function get_ξ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, μ_init::Vector{<:Real})
+    function ξ_mat_k(k::AbstractVector{<:Real}; μ::Vector{<:Real} = μ_init)
         Nsites = get_number_of_sites(lattice)
         mat = get_k_matrix_kernel(k, hopping_dict, lattice)
 
         # add chemical potential on the diagonal
         for i in 1:Nsites
-            mat[i, i] -= μ
+            mat[i, i] -= μ[i]
         end
 
         # same forall fermion flavors
@@ -427,7 +400,7 @@ function exact_energy(lattice::AbstractInfiniteLattice, H_bdg::MomentumSpaceBdGH
         E_k = E(k, H_bdg)
         sum_E = sum(E_k)
 
-        0.5 * (real(tr(H_bdg.ξ_mat_k(k; μ = H_bdg.μ))) - sum_E) / Nsites +
+        0.5 * (real(tr(H_bdg.ξ_mat_k(k; μ = H_bdg.μ))) - sum_E) +
             H_bdg.E_shift(k, H_bdg.ξ_mat_k, H_bdg.Δ_mat_k, H_bdg.μ)
     end)
 end
@@ -519,18 +492,18 @@ Returns the exact doping level `δ = 1 - <n>` of a BCS mean field Hamiltonian.
 - `δ::Float64`: The exact doping level for the BCS mean field Hamiltonian, calculated as `δ = 1 - <n>`, where `<n>` is the average particle density per site.
 
 """
-function exact_doping(lattice::AbstractInfiniteLattice, H_bdg::MomentumSpaceBdGHamiltonian)
-    return 1.0 - avg_density(lattice, H_bdg)
+function exact_doping(lattice::AbstractInfiniteLattice, H_bdg::MomentumSpaceBdGHamiltonian; j::Union{Nothing, Vector{Int}} = nothing)
+    return 1.0 - avg_density(lattice, H_bdg; j=j)
 end
 
 """
-    solve_for_mu(lattice::AbstractInfiniteLattice, δ::Real, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
+    solve_for_mu(lattice::AbstractInfiniteLattice, doping_layout::Matrix{Float64}, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
 
 Finds the chemical potential `μ` that corresponds to a given doping level `δ` for a BCS mean field Hamiltonian by solving the number equation.
 
 # Keyword Arguments
 - `lattice::AbstractInfiniteLattice`: The lattice object containing the momentum vectors over which to compute the doping.
-- `δ::Real`: Target doping level to solve for.
+- `doping_layout::Matrix{Float64}`: Matrix specifying the target doping for each site in the unit cell.
 - `H_bdg::MomentumSpaceBdGHamiltonian`: The BdG Hamiltonian object containing the parameters and functions to compute ξ(k) and Δ(k).
 
 # Optional Arguments
@@ -540,14 +513,71 @@ Finds the chemical potential `μ` that corresponds to a given doping level `δ` 
 - `μ::Real`: The chemical potential that corresponds to the target doping level `δ`.
 
 """
-function solve_for_mu(lattice::AbstractInfiniteLattice, δ::Real, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
-    objective(x) = begin
-        H_bdg.μ = x
-        return δ - exact_doping(lattice, H_bdg)
-    end
-    μ = find_zero(objective, μ_range)
-    H_bdg.μ = μ
+function solve_for_mu(lattice::AbstractInfiniteLattice, doping_layout::Matrix{Float64}, H_bdg::MomentumSpaceBdGHamiltonian; μ_init::Real = 0.0)
+    # Identify distinct dopings δ from the doping_layout
+    unique_δs = unique(doping_layout)
 
-    return μ
+    # Precompute the linear site indices corresponding to each unique doping
+    # has the following structure: group_indices[group] = [site_index1, site_index2, ...] for all sites in the unit cell of the same type
+    group_indices = map(unique_δs) do val
+        map(findall(doping_layout .== val)) do idx
+            get_site_index(idx[2], idx[1], lattice)
+        end
+    end
+
+    # Resize H_bdg.μ if necessary to match total number of sites
+    Nsites = get_number_of_sites(lattice)
+    if length(H_bdg.μ) != Nsites
+        H_bdg.μ = fill(μ_init, Nsites)
+    end
+
+    # Define the residual function for NLsolve
+    # x is the vector of chemical potentials for each group
+    # F is the vector of errors (target_doping - current_doping)
+    function f!(F, x)
+        # Apply current guesses for μ to all equivalent sites
+        for (i, indices) in enumerate(group_indices)
+            for site_idx in indices
+                H_bdg.μ[site_idx] = x[i]
+            end
+        end
+
+        # Calculate exact doping with these new coupled μ values
+        for (i, indices) in enumerate(group_indices)
+            F[i] = unique_δs[i] - exact_doping(lattice, H_bdg; j=indices)
+        end
+    end
+
+    # Generate initial guess using the current values on the first site of each group
+    x0 = [H_bdg.μ[indices[1]] for indices in group_indices]
+
+    # Run the multi-dimensional solver
+    result = nlsolve(f!, x0)
+
+    # Apply final converged values back to the Hamiltonian
+    if result.x_converged || result.f_converged
+        x_opt = result.zero
+        for (i, indices) in enumerate(group_indices)
+            for site_idx in indices
+                H_bdg.μ[site_idx] = x_opt[i]
+            end
+        end
+    else
+        @warn "solve_for_mu did not converge! Max residual: $(maximum(abs.(result.residual)))"
+    end
+
+    return H_bdg.μ
 end
+# function solve_for_mu(lattice::AbstractInfiniteLattice, δ::Real, doping_layout::Matrix{Float64}, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
+#     # solve site dependent chemical potentials for the given doping layout
+#     for j in 1:get_number_of_distinct_sites_in_uc(lattice)
+#         objective(x) = begin
+#             H_bdg.μ[j] = x
+#             return δ - exact_doping(lattice, H_bdg; j=map(findall(doping_layout .== doping_layout[j])) do idx get_site_index(idx[2], idx[1], lattice) end)
+#         end
+#         H_bdg.μ[j] = find_zero(objective, μ_range)
+#     end
+
+#     return H_bdg.μ
+# end
 

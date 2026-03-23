@@ -12,6 +12,7 @@ using TensorOperations
 using SkewLinearAlgebra
 using MatrixFactorizations
 using Roots
+using NLsolve
 using LineSearches
 
 # For custom adjoints during optimization with Zygote

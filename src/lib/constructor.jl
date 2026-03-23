@@ -61,14 +61,9 @@ mutable struct Gaussian_fPEPS
         doping_kwargs::DopingSettings=DopingSettings(),
         optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=15, manifold = Optim.Stiefel(:CholQR)),
         # optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.BFGS(; manifold = Optim.Stiefel(:CholQR)),
-        optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
+        optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=true, extended_trace=false, store_trace=true))
 
         X_opt, optim_energy, E_exact, info_obj = get_X_opt(lattice, Nf, Λ, H_bdg; doping_kwargs=doping_kwargs, optim_alg_options=optim_alg_options, optim_options=optim_options)
-        
-        # update chemical potential if we optimized for doping
-        if doping_kwargs.solve_μ_from_δ && doping_kwargs.enforce_density
-            H_bdg.μ = solve_for_mu(lattice, doping_kwargs.δ, H_bdg)
-        end
 
         # Build block-diagonal Γ from per-site X matrices (X_opt is Lx×Ly matrix of matrices)
         X_vec = vec(X_opt)  # flatten to vector for get_Γ_blocks

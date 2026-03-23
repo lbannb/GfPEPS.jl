@@ -115,9 +115,7 @@ end
 
 function X_matrix_form(X_vec::AbstractVector{<:AbstractMatrix}, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
     # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
-    X_vec = [X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
-
-    return reshape(X_vec, lattice.Lx, lattice.Ly)
+    return [X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
 end
 
 # """
