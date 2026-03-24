@@ -513,71 +513,71 @@ Finds the chemical potential `μ` that corresponds to a given doping level `δ` 
 - `μ::Real`: The chemical potential that corresponds to the target doping level `δ`.
 
 """
-function solve_for_mu(lattice::AbstractInfiniteLattice, doping_layout::Matrix{Float64}, H_bdg::MomentumSpaceBdGHamiltonian; μ_init::Real = 0.0)
-    # Identify distinct dopings δ from the doping_layout
-    unique_δs = unique(doping_layout)
+# function solve_for_mu(lattice::AbstractInfiniteLattice, doping_layout::Matrix{Float64}, H_bdg::MomentumSpaceBdGHamiltonian; μ_init::Real = 0.0)
+#     # Identify distinct dopings δ from the doping_layout
+#     unique_δs = unique(doping_layout)
 
-    # Precompute the linear site indices corresponding to each unique doping
-    # has the following structure: group_indices[group] = [site_index1, site_index2, ...] for all sites in the unit cell of the same type
-    group_indices = map(unique_δs) do val
-        map(findall(doping_layout .== val)) do idx
-            get_site_index(idx[2], idx[1], lattice)
-        end
-    end
-
-    # Resize H_bdg.μ if necessary to match total number of sites
-    Nsites = get_number_of_sites(lattice)
-    if length(H_bdg.μ) != Nsites
-        H_bdg.μ = fill(μ_init, Nsites)
-    end
-
-    # Define the residual function for NLsolve
-    # x is the vector of chemical potentials for each group
-    # F is the vector of errors (target_doping - current_doping)
-    function f!(F, x)
-        # Apply current guesses for μ to all equivalent sites
-        for (i, indices) in enumerate(group_indices)
-            for site_idx in indices
-                H_bdg.μ[site_idx] = x[i]
-            end
-        end
-
-        # Calculate exact doping with these new coupled μ values
-        for (i, indices) in enumerate(group_indices)
-            F[i] = unique_δs[i] - exact_doping(lattice, H_bdg; j=indices)
-        end
-    end
-
-    # Generate initial guess using the current values on the first site of each group
-    x0 = [H_bdg.μ[indices[1]] for indices in group_indices]
-
-    # Run the multi-dimensional solver
-    result = nlsolve(f!, x0)
-
-    # Apply final converged values back to the Hamiltonian
-    if result.x_converged || result.f_converged
-        x_opt = result.zero
-        for (i, indices) in enumerate(group_indices)
-            for site_idx in indices
-                H_bdg.μ[site_idx] = x_opt[i]
-            end
-        end
-    else
-        @warn "solve_for_mu did not converge! Max residual: $(maximum(abs.(result.residual)))"
-    end
-
-    return H_bdg.μ
-end
-# function solve_for_mu(lattice::AbstractInfiniteLattice, δ::Real, doping_layout::Matrix{Float64}, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
-#     # solve site dependent chemical potentials for the given doping layout
-#     for j in 1:get_number_of_distinct_sites_in_uc(lattice)
-#         objective(x) = begin
-#             H_bdg.μ[j] = x
-#             return δ - exact_doping(lattice, H_bdg; j=map(findall(doping_layout .== doping_layout[j])) do idx get_site_index(idx[2], idx[1], lattice) end)
+#     # Precompute the linear site indices corresponding to each unique doping
+#     # has the following structure: group_indices[group] = [site_index1, site_index2, ...] for all sites in the unit cell of the same type
+#     group_indices = map(unique_δs) do val
+#         map(findall(doping_layout .== val)) do idx
+#             get_site_index(idx[2], idx[1], lattice)
 #         end
-#         H_bdg.μ[j] = find_zero(objective, μ_range)
+#     end
+
+#     # Resize H_bdg.μ if necessary to match total number of sites
+#     Nsites = get_number_of_sites(lattice)
+#     if length(H_bdg.μ) != Nsites
+#         H_bdg.μ = fill(μ_init, Nsites)
+#     end
+
+#     # Define the residual function for NLsolve
+#     # x is the vector of chemical potentials for each group
+#     # F is the vector of errors (target_doping - current_doping)
+#     function f!(F, x)
+#         # Apply current guesses for μ to all equivalent sites
+#         for (i, indices) in enumerate(group_indices)
+#             for site_idx in indices
+#                 H_bdg.μ[site_idx] = x[i]
+#             end
+#         end
+
+#         # Calculate exact doping with these new coupled μ values
+#         for (i, indices) in enumerate(group_indices)
+#             F[i] = unique_δs[i] - exact_doping(lattice, H_bdg; j=indices)
+#         end
+#     end
+
+#     # Generate initial guess using the current values on the first site of each group
+#     x0 = [H_bdg.μ[indices[1]] for indices in group_indices]
+
+#     # Run the multi-dimensional solver
+#     result = nlsolve(f!, x0)
+
+#     # Apply final converged values back to the Hamiltonian
+#     if result.x_converged || result.f_converged
+#         x_opt = result.zero
+#         for (i, indices) in enumerate(group_indices)
+#             for site_idx in indices
+#                 H_bdg.μ[site_idx] = x_opt[i]
+#             end
+#         end
+#     else
+#         @warn "solve_for_mu did not converge! Max residual: $(maximum(abs.(result.residual)))"
 #     end
 
 #     return H_bdg.μ
 # end
+function solve_for_mu(lattice::AbstractInfiniteLattice, δ::Real, doping_layout::Matrix{Float64}, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
+    # solve site dependent chemical potentials for the given doping layout
+    for j in 1:get_number_of_distinct_sites_in_uc(lattice)
+        objective(x) = begin
+            H_bdg.μ[j] = x
+            return δ - exact_doping(lattice, H_bdg; j=map(findall(doping_layout .== doping_layout[j])) do idx get_site_index(idx[2], idx[1], lattice) end)
+        end
+        H_bdg.μ[j] = find_zero(objective, μ_range)
+    end
+
+    return H_bdg.μ
+end
 

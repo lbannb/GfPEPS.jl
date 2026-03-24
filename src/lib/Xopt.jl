@@ -14,7 +14,7 @@ Struct to hold settings for doping optimization in the augmented Lagrangian meth
 - `solve_μ_from_δ::Bool=true`: Whether to solve for the chemical potential μ from the target doping δ before optimization. If false, the provided μ in the Hamiltonian will be used and the doping constraint will be enforced around that.
 """
 mutable struct DopingSettings
-    doping_layout::Matrix{Float64}
+    δ::Float64
     density_tol::Float64
     penalty_growth::Float64
     enforce_density::Bool
@@ -23,7 +23,7 @@ mutable struct DopingSettings
     solve_μ_from_δ::Bool
 
     function DopingSettings(; 
-        doping_layout=fill(0.0, 1, 1),
+        δ=0.0,
         density_tol=1e-6, 
         penalty_growth=5, 
         enforce_density=false, 
@@ -31,7 +31,7 @@ mutable struct DopingSettings
         λ=1e2,
         solve_μ_from_δ=true)
 
-        new(doping_layout, density_tol, penalty_growth, enforce_density, density_opt_iters, λ, solve_μ_from_δ)
+        new(δ, density_tol, penalty_growth, enforce_density, density_opt_iters, λ, solve_μ_from_δ)
     end
 end
 
@@ -90,15 +90,14 @@ function get_X_opt(
     has_dirac_points(lattice.kvals, H_bdg) 
 
     if doping_kwargs.enforce_density && doping_kwargs.solve_μ_from_δ
-        @assert length(unique(doping_kwargs.doping_layout)) == get_number_of_distinct_sites_in_uc(lattice) "Must use the same structure for doping_layout as the lattice unit cell layout."
-        H_bdg.μ = solve_for_mu(lattice, doping_kwargs.doping_layout, H_bdg)
+        H_bdg.μ = solve_for_mu(lattice, doping_kwargs.δ, H_bdg)
     end
 
     # smaller set of momentum pairs for initial optimization for faster convergence
     N_kx_inits, N_ky_inits = isnothing(X_init) ? get_kgrids(lattice) : ([lattice.N_kx], [lattice.N_ky])
     
     if doping_kwargs.enforce_density
-        @info "Target hole density δ layout = $(doping_kwargs.doping_layout) will be enforced with tolerance $(doping_kwargs.density_tol)."
+        @info "Target hole density δ = $(doping_kwargs.δ) will be enforced with tolerance $(doping_kwargs.density_tol)."
     end
 
     if !isempty(N_kx_inits) && !isempty(N_ky_inits)
@@ -143,23 +142,12 @@ function get_X_opt(
     end
 
     # final results summary and check if density constraint is satisfied
+    constraint_final = doping_kwargs.enforce_density ? stage_doping - doping_kwargs.δ : nothing
     if doping_kwargs.enforce_density
-        stage_doping_mat = [stage_doping[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
-        constraint_final = abs.(stage_doping_mat .- doping_kwargs.doping_layout)
-
-        # @info "Final doping summary" target=doping_kwargs.doping_layout achieved=stage_doping deviation=string(constraint_final)
-        @info """
-        Final doping summary
-            target    = $(doping_kwargs.doping_layout)
-            achieved  = $(stage_doping_mat)
-            deviation = $(constraint_final)
-        """
-
-        # Find indices of all constraints that exceed the tolerance
-        violations = findall(abs.(constraint_final) .> doping_kwargs.density_tol)
-        for idx in violations
-            @warn "Final doping for site $(get_site_index(idx[2], idx[1], lattice)) deviates from target $(doping_kwargs.doping_layout[idx]) by $(constraint_final[idx]). Consider increasing density_opt_iters or penalty_growth."
-        end
+        @info "Final doping summary" target=doping_kwargs.δ achieved=stage_doping deviation=constraint_final
+    end
+    if doping_kwargs.enforce_density && abs(constraint_final) > doping_kwargs.density_tol
+        @warn "Final doping deviates from target by $(constraint_final). Consider increasing density_opt_iters or penalty_growth."
     end
 
     # compute final energy and compare to exact energy
@@ -293,9 +281,8 @@ function optimize_X(X_vec::AbstractVector{<:AbstractMatrix}, loss_fct::Function,
         # new loss function with penalty term for density constraint
         loss_augmented(x) = begin
             dens = doping3d(x)
-            constraints = dens .- target_δs
-
-            return loss3d(x) + sum(η_local .* constraints) + 0.5 * sum(λ_local .* (constraints.^2))
+            constraint = dens - doping_kwargs.δ
+            return loss3d(x) + η_local * constraint + 0.5 * λ_local * constraint^2
         end
 
         # Combined value-and-gradient via Zygote pullback (avoids redundant forward pass)

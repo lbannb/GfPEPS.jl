@@ -9,7 +9,7 @@ Random.seed!(1234) # for reproducibility
 Nf = 2
 Λ = 4
 lattice = InfiniteRectLattice(1,1;N_kx=6, N_ky=6, bc=(:PBC, :APBC))
-doping_kwargs = DopingSettings(; doping_layout=[0.16;;], enforce_density=true)
+doping_kwargs = DopingSettings(; δ=0.16, enforce_density=true)
 
 @testset "BCS (trivial unit cell)" begin
     t1 = 1.0
@@ -35,7 +35,7 @@ doping_kwargs = DopingSettings(; doping_layout=[0.16;;], enforce_density=true)
             δ_opt = GfPEPS.doping_CM(Ψ_trial.X_opt, Nf, Λ, lattice)
 
             # test doping from CM
-            @test δ_opt ≈ doping_kwargs.doping_layout atol=doping_kwargs.density_tol
+            @test δ_opt ≈ doping_kwargs.δ atol=doping_kwargs.density_tol
 
             # test energy from CM
             @test Ψ_trial.exact_energy ≈ Ψ_trial.optim_energy atol=1e-5
