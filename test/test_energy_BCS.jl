@@ -14,7 +14,7 @@ doping_kwargs = DopingSettings(; δ=0.16, enforce_density=true)
 @testset "BCS (trivial unit cell)" begin
     t1 = 1.0
     hopping = Dict(1 => Dict((1, 0) => t1, (0, 1) => t1, (-1, 0) => t1, (0, -1) => t1))
-    μ = [1.0]
+    μ = 1.0
 
     @testset "d-wave pairing" begin
         # dwave pairing: Δ_y = -Δ_x 

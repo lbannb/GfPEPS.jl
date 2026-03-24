@@ -24,7 +24,7 @@ using GfPEPS
 
         t = 1.0
         Δ = 2.0
-        μ = [3.0, 3.0, 3.0, 3.0]
+        μ = 3.0
 
         hopping_1x1 = Dict(1 => Dict((1, 0) => t, (0, 1) => t, (-1, 0) => t, (0, -1) => t))
         pairing_1x1 = Dict(1 => Dict((1, 0) => Δ, (-1, 0) => Δ, (0, 1) => Δ, (0, -1) => Δ))
@@ -61,7 +61,7 @@ using GfPEPS
         t_2 = -1.0
         Δ_1 = 2.0
         Δ_2 = -2.0
-        μ = [3.0, 3.0, 3.0, 3.0]
+        μ = 3.0
 
         hopping_1x1 = Dict(1 => Dict((1, 0) => t_1, (0, 1) => t_1, (-1, 0) => t_1, (0, -1) => t_1))
         pairing_1x1 = Dict(1 => Dict((1, 0) => Δ_1, (-1, 0) => Δ_1, (0, 1) => Δ_1, (0, -1) => Δ_1))
@@ -83,5 +83,9 @@ using GfPEPS
         E_2x2 = GfPEPS.exact_energy(lattice_2x2, H_BdG_2x2)
 
         @test E_1x1 != E_2x2 / GfPEPS.get_number_of_sites(lattice_2x2)
+
+        lattice_2x2_small_k = InfiniteRectLattice(2,2;N_kx=6, N_ky=6, bc=(:PBC, :APBC), uc_layout=[1 2; 2 1])
+        Ψ_trial = Gaussian_fPEPS(2, 4, lattice_2x2_small_k, H_BdG_2x2);
+        @test Ψ_trial.optim_energy ≈ Ψ_trial.exact_energy atol=1e-8
     end;
 end;

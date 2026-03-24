@@ -71,7 +71,7 @@ H_BdG_k = [ξ_mat(k)  Δ_mat(k);
 - `pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: where the dict entries represent the pairing amplitude on the corresponding connection:
     * (x, y) => Δ_ij, where x and y follow the lattice geometry
     * (Example for square lattice x=±1, y=±1): (1,0) => Δ_(1,x), (-1,0) => Δ_(1,-x), (0,1) => Δ_(1,y), (0,-1) => Δ_(1,-y), (1,1) => Δ_(2,xy) etc.
-- `μ::Vector{<:Real}`:   Side dependent chemical potentials [μ₁, μ₂, ...] (can be updated when solve_μ_from_δ = true in DopingSettings)
+- `μ::Real`:   Side dependent chemical potentials [μ₁, μ₂, ...] (can be updated when solve_μ_from_δ = true in DopingSettings)
 - `ξ_mat_k::Function`: Function to compute hopping matrix ξ_mat(k) from the hopping dict for a given momentum k
 - `Δ_mat_k::Function`: Function to compute pairing matrix Δ_mat(k) from the pairing dict for a given momentum k
 - `E_shift::Function`: Function to implement arbitrary energy shifts.
@@ -80,7 +80,7 @@ H_BdG_k = [ξ_mat(k)  Δ_mat(k);
 mutable struct MomentumSpaceBdGHamiltonian <: AbstractBdGHamiltonian
     hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}
     pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}
-    μ::Vector{<:Real}   # chemical potential -> This can be changed when solve_μ_from_δ = true in DopingSettings
+    μ::Real   # chemical potential -> This can be changed when solve_μ_from_δ = true in DopingSettings
     ξ_mat_k::Function # Function to compute hopping matrix ξ_mat(k)
     Δ_mat_k::Function # Function to compute pairing matrix Δ_mat(k)
     E_shift::Function # Function to implement arbitrary energy shifts
@@ -88,7 +88,7 @@ mutable struct MomentumSpaceBdGHamiltonian <: AbstractBdGHamiltonian
     function MomentumSpaceBdGHamiltonian(
         hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
         pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
-        μ::Vector{<:Real}, 
+        μ::Real, 
         ξ_mat_k::Function, 
         Δ_mat_k::Function,
         E_shift::Function = (k, ξ_k, Δ_k, μ) -> 0.0
@@ -104,7 +104,7 @@ end
     default_BCS_hamiltonian(
         hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
         pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, 
-        μ::Vector{<:Real}, lattice::AbstractInfiniteLattice; 
+        μ::Real, lattice::AbstractInfiniteLattice; 
         interaction_type::Vector{String} = ["NN"], 
         pairing_type::String = "d_wave")
 
@@ -116,7 +116,7 @@ Returns a `MomentumSpaceBdGHamiltonian` which follows the standard BCS form (Nf=
 # Keyword Arguments
 - `hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: where the dict entries represent the hopping amplitude on the corresponding connection.
 - `pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: where the dict entries represent the pairing amplitude on the corresponding connection.
-- `μ::Vector{<:Real}`:   Side dependent chemical potentials [μ₁, μ₂, ...] (can be updated when solve_μ_from_δ = true in DopingSettings)
+- `μ::Real`:   Side dependent chemical potentials [μ₁, μ₂, ...] (can be updated when solve_μ_from_δ = true in DopingSettings)
 - `lattice::AbstractInfiniteLattice`: The lattice on which the BCS model is defined
 - `h::Real = 0.0`: External field
 
@@ -127,7 +127,7 @@ Returns a `MomentumSpaceBdGHamiltonian` which follows the standard BCS form (Nf=
 function default_BCS_hamiltonian(
     hopping::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}},
     pairing::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}},
-    μ::Vector{<:Real},
+    μ::Real,
     lattice::AbstractInfiniteLattice;
     Nf::Int = 2,
     E_shift::Function = (k, ξ_mat_k, Δ_mat_k, μ) -> 0.0)
@@ -175,7 +175,7 @@ function kitaev_BCS_hamiltonian(
     if lattice isa AbstractInfiniteRectangularLattice
         @assert get_number_of_distinct_sites_in_uc(lattice) == 1 "Currently only supports 1 site per unit cell for the Kitaev BCS Hamiltonian."
 
-        μ = [-2Jz]
+        μ = -2Jz
         E_shift = (k, ξ_mat_k, Δ_mat_k, μ) -> -Jz # Z2 background gauge field
 
         # TODO: add more interaction types here if needed
@@ -300,20 +300,20 @@ Returns the hopping matrix ξ(k) in momentum space for a given momentum `k`, lat
 - `lattice::AbstractInfiniteLattice`: The lattice geometry which determines how site indices are wrapped and how the kernel matrix is constructed.
 - `Nf::Int`: Number of Abrikosov fermions
 - `hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}`: Dictionary where keys are tuples representing displacements (dx, dy) and values are the corresponding hopping amplitudes
-- `μ_init::Vector{<:Real}`: Initial side dependent chemical potentials [μ₁, μ₂, ...] for H_BdG (Can be updated when solve_μ_from_δ = true in DopingSettings)
+- `μ_init::Real`: Initial side dependent chemical potentials [μ₁, μ₂, ...] for H_BdG (Can be updated when solve_μ_from_δ = true in DopingSettings)
 
 # Returns
 - `ξ_mat_k::Function`: The function returning the hopping matrix ξ(k) in momentum space for the given momentum `k`.
 
 """
-function get_ξ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, μ_init::Vector{<:Real})
-    function ξ_mat_k(k::AbstractVector{<:Real}; μ::Vector{<:Real} = μ_init)
+function get_ξ_mat_k(lattice::AbstractInfiniteLattice, Nf::Int, hopping_dict::Dict{Int, <:Dict{<:Tuple{<:Number, <:Number}, <:Number}}, μ_init::Real)
+    function ξ_mat_k(k::AbstractVector{<:Real}; μ::Real = μ_init)
         Nsites = get_number_of_sites(lattice)
         mat = get_k_matrix_kernel(k, hopping_dict, lattice)
 
         # add chemical potential on the diagonal
         for i in 1:Nsites
-            mat[i, i] -= μ[i]
+            mat[i, i] -= μ
         end
 
         # same forall fermion flavors
@@ -568,16 +568,71 @@ Finds the chemical potential `μ` that corresponds to a given doping level `δ` 
 
 #     return H_bdg.μ
 # end
-function solve_for_mu(lattice::AbstractInfiniteLattice, δ::Real, doping_layout::Matrix{Float64}, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
-    # solve site dependent chemical potentials for the given doping layout
-    for j in 1:get_number_of_distinct_sites_in_uc(lattice)
-        objective(x) = begin
-            H_bdg.μ[j] = x
-            return δ - exact_doping(lattice, H_bdg; j=map(findall(doping_layout .== doping_layout[j])) do idx get_site_index(idx[2], idx[1], lattice) end)
+function solve_for_mu(lattice::AbstractInfiniteLattice, δ::Real, H_bdg::MomentumSpaceBdGHamiltonian; μ_range::NTuple{2, Float64} = (-5.0, 5.0))
+    objective(x) = begin
+        H_bdg.μ = x
+        return δ - exact_doping(lattice, H_bdg)
+    end
+    μ = find_zero(objective, μ_range)
+    H_bdg.μ = μ
+
+    return μ
+end
+
+function get_doping_layout(Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice, X_vec::AbstractArray)
+    # divide by number of k-points
+    Nk = size(lattice.kvals, 2)
+    invN = 1.0 / Nk # actually faster when precomputed, because multiplication is faster than division
+
+    Nsites = get_number_of_sites(lattice)
+    N_distinct = get_number_of_distinct_sites_in_uc(lattice)
+    
+    # Construct the symplectic form (2Nf × 2Nf × Nk) (column-major order for all k values, to avoid allocations in the inner loop)
+    # occupation in the majorana basis
+    J0 = [0 1; -1 0]
+    
+    # Precompute a separate batched symplectic form for each distinct site
+    J_batches = Vector{Array{Float64, 3}}(undef, N_distinct)
+    dim_J = 2 * Nf * Nsites
+
+    for s in 1:N_distinct
+        J_s = zeros(Float64, dim_J, dim_J)
+
+        N_sitetype = length(findall(x -> x == s, vec(lattice.uc_layout)))
+        # Find all absolute site indices in the unit cell belonging to distinct site type `s`
+        for x in 1:lattice.Lx, y in 1:lattice.Ly
+            if lattice.uc_layout[y, x] == s
+                site_i = get_site_index(x, y, lattice)
+                
+                # Each spatial site has 2*Nf Majorana modes
+                idx_start = (site_i - 1) * 2 * Nf + 1
+                idx_end   = site_i * 2 * Nf
+                
+                # Set the corresponding block in J_s to J0
+                J_s[idx_start:idx_end, idx_start:idx_end] = kron(I(Nf), J0)
+            end
         end
-        H_bdg.μ[j] = find_zero(objective, μ_range)
+        
+        # Divide by number of same sites in the unit cell to get the *average* for this site type
+        J_s ./= N_sitetype
+        
+        # Batch over all k-points
+        J_batched = Array{Float64, 3}(undef, dim_J, dim_J, Nk)
+        for k in 1:Nk
+            J_batched[:, :, k] = J_s
+        end
+        J_batches[s] = J_batched
     end
 
-    return H_bdg.μ
+    G_in = G_in_Fourier(Λ, lattice)
+    A, B, D = get_Γ_blocks(X_vec, Nf, Λ, lattice)
+    CM_out = GaussianMap(A, B, D, G_in)
+
+    # Fast Trace Formula: Tr(J * CM) = sum(J .* CM^T) = - sum(J .* CM) = - dot(J, CM)
+    # Recall: δ = 1 - <n>, <n> = 0.25 * Tr(J * CM) + 0.5*Nf
+    # Note: I am not sure about the last part + 0.5*Nf -> true for S=1/2 but check for general S.
+    δ_arr = map(J -> real(0.25 * dot(J, CM_out) * invN), J_batches)
+
+    return [δ_arr[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
 end
 

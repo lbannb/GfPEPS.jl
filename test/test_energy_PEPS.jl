@@ -15,7 +15,7 @@ t = 1.0
 # dwave pairing: Δ_y = -Δ_x 
 Δ1_x = 1.0
 Δ1_y = -Δ1_x
-μ0 = 2.0
+μ = 2.0
 
 @testset "Energy after translation to fPEPS" begin
     @testset "Trivial unit cell (1x1)" begin
@@ -24,7 +24,6 @@ t = 1.0
         Nf = 2
         Λ = 2
         lattice = InfiniteRectLattice(1,1;N_kx=256, N_ky=256, bc=(:APBC, :PBC))
-        μ = fill(μ0, GfPEPS.get_number_of_sites(lattice))
 
         N = GfPEPS.get_number_of_modes(Nf, Λ, lattice)
 
@@ -53,8 +52,7 @@ t = 1.0
         Random.seed!(123) # for reproducibility
         Nf = 2
         Λ = 2
-        lattice = InfiniteRectLattice(2,1;N_kx=256, N_ky=256, bc=(:APBC, :PBC), uc_layout=[1 2])
-        μ = fill(μ0, GfPEPS.get_number_of_sites(lattice))
+        lattice = InfiniteRectLattice(2,2;N_kx=256, N_ky=256, bc=(:APBC, :PBC), uc_layout=[1 2;2 1])
         N = GfPEPS.get_number_of_modes(Nf, Λ, lattice)
 
         X_vec = [GfPEPS.rand_CM(Nf, Λ)[1] for i in 1:GfPEPS.get_number_of_distinct_sites_in_uc(lattice)]

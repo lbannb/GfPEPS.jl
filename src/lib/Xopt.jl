@@ -261,17 +261,15 @@ function optimize_X(X_vec::AbstractVector{<:AbstractMatrix}, loss_fct::Function,
     end
 
     # Density constraint: use a penalty term to enforce the density constraint while minimizing the energy.
-    target_δs = unique(doping_kwargs.doping_layout) 
-    N_constraints = length(target_δs)
 
-    # Set up augmented-Lagrangian variables as vectors 
-    η = zeros(Float64, N_constraints)
-    λ = fill(doping_kwargs.λ, N_constraints)
+    # Set up augmented-Lagrangian variables.
+    η = 0.0
+    λ = doping_kwargs.λ
 
     # run density optimization loop, where in each iteration we minimize the augmented Lagrangian with the current penalty and multiplier, then update those based on the constraint violation.
     X_current = X3d
     last_res = nothing
-    last_dopings = doping3d(X_current)
+    last_doping = doping3d(X_current)
     total_iters = 0
     total_trace = []
     for _ in 1:max(doping_kwargs.density_opt_iters, 1) # usually only a few iterations are needed
@@ -301,18 +299,16 @@ function optimize_X(X_vec::AbstractVector{<:AbstractMatrix}, loss_fct::Function,
         # update augmented Lagrangian parameters based on constraint violation
         last_res = res
         X_current = Optim.minimizer(res)
-        last_dopings = doping3d(X_current)
-        constraints = last_dopings .- target_δs
+        last_doping = doping3d(X_current)
+        constraint = last_doping - doping_kwargs.δ
 
-        # Check if ALL constraints are satisfied
-        if maximum(abs.(constraints)) <= doping_kwargs.density_tol
-            λ .= λ_local
+        if abs(constraint) <= doping_kwargs.density_tol
+            λ = λ_local
             break
         end
 
-        # Update multipliers and penalties per site
-        η .= η_local .+ λ_local .* constraints
-        λ .= max.(λ_local .* doping_kwargs.penalty_growth, DEFAULT_PENALTY_FALLBACK)
+        η = η_local + λ_local * constraint
+        λ = max(λ_local * doping_kwargs.penalty_growth, DEFAULT_PENALTY_FALLBACK)
     end
     last_res === nothing && error("Augmented Lagrangian did not run for stage $(stage_label).")
 
@@ -321,7 +317,7 @@ function optimize_X(X_vec::AbstractVector{<:AbstractMatrix}, loss_fct::Function,
     last_res.trace = total_trace
 
     X_opt = [X_current[:, :, s] for s in 1:Nsites]
-    return X_opt, last_res, last_dopings
+    return X_opt, last_res, last_doping
 end
 
 """

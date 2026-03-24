@@ -25,7 +25,7 @@ function BCS_spin_hamiltonian(T::Type{<:Number}, lattice::InfiniteSquare, H_BdG:
         site_label = uc_layout[y, x]
 
         # On-site chemical potential term
-        push!(ham_terms, (src_pos,) => - (H_BdG.μ[site_label]) * num)
+        push!(ham_terms, (src_pos,) => - H_BdG.μ * num)
 
         # Get the valid bonds for site_label
         site_hoppings = get(H_BdG.hopping, site_label, Dict())
@@ -89,13 +89,13 @@ function doping_peps(peps::InfinitePEPS, env::CTMRGEnv)
     total_density = 0.0
     
     # Loop over every site in the unit cell
-    density_distribution = zeros(Float64, Nx, Ny)
+    doping_layout = zeros(Float64, Nx, Ny)
     for r in 1:Nx, c in 1:Ny
         # Construct the operator specifically for site (r, c)
         O = LocalOperator(space.(peps.A, 1), ((r, c),) => hub.e_num(Trivial, Trivial))
         exp_val = real(expectation_value(peps, O, env))
 
-        density_distribution[r, c] = 1 - exp_val
+        doping_layout[r, c] = 1 - exp_val
         # Accumulate the expectation value
         total_density += exp_val
     end
@@ -103,7 +103,7 @@ function doping_peps(peps::InfinitePEPS, env::CTMRGEnv)
     # Average density = Sum / Number of sites
     avg_density = total_density / (Nx * Ny)
 
-    return 1 - avg_density, density_distribution
+    return 1 - avg_density, doping_layout
 end
 
 """
@@ -131,14 +131,14 @@ function doping_pepsGW(peps::InfinitePEPS, env::CTMRGEnv)
     total_density = 0.0
     
     # Loop over every site in the unit cell
-    density_distribution = zeros(Float64, Nx, Ny)
+    doping_layout = zeros(Float64, Nx, Ny)
     for r in 1:Nx, c in 1:Ny
         # Construct the operator specifically for site (r, c)
         lattice_site_space = space(peps.A[r, c], 1) 
         O = LocalOperator(space.(peps.A, 1), ((r, c),) => e_num_GW(lattice_site_space))
         exp_val = real(expectation_value(peps, O, env))
 
-        density_distribution[r, c] = 1 - exp_val
+        doping_layout[r, c] = 1 - exp_val
         # Accumulate the expectation value
         total_density += exp_val
     end
@@ -146,7 +146,7 @@ function doping_pepsGW(peps::InfinitePEPS, env::CTMRGEnv)
     # Average density = Sum / Number of sites
     avg_density = total_density / (Nx * Ny)
 
-    return 1 - avg_density, density_distribution
+    return 1 - avg_density, doping_layout
 end
 
 
