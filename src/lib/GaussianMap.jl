@@ -1,3 +1,5 @@
+const USE_DENS_DIM = 64 # heuristic cutoff for when to use dense vs sparse matrices in GaussianMap
+
 """
     helper(k::Real, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
 
@@ -91,8 +93,7 @@ function get_Γ_blocks(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int,
     Nsites = get_number_of_sites(lattice)
 
     # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
-    X_vec = [X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
-    
+    X_vec = vec([X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly])
     # Compute per-site Γ matrices, then extract A/B/D blocks separately.
     # Using separate map calls avoids Zygote's Tangent-vs-Tuple issue that
     # arises when map returns tuples.
@@ -101,14 +102,11 @@ function get_Γ_blocks(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int,
     Bs = map(Γ -> Γ[1:2Nf, 2Nf+1:end], Γs)
     Ds = map(Γ -> Γ[2Nf+1:end, 2Nf+1:end], Γs)
 
-    # Build block-diagonal matrices
-    Z_pp = zeros(2Nf, 2Nf)
-    Z_pv = zeros(2Nf, 8Λ)
-    Z_vv = zeros(8Λ, 8Λ)
-
-    A_total = vcat([hcat([(i == j ? As[i] : Z_pp) for j in 1:Nsites]...) for i in 1:Nsites]...)
-    B_total = vcat([hcat([(i == j ? Bs[i] : Z_pv) for j in 1:Nsites]...) for i in 1:Nsites]...)
-    D_total = vcat([hcat([(i == j ? Ds[i] : Z_vv) for j in 1:Nsites]...) for i in 1:Nsites]...)
+    # Build block-diagonal matrices with fewer intermediate arrays than nested
+    # hcat/vcat constructions.
+    A_total = Matrix(BlockDiagonal(As))
+    B_total = Matrix(BlockDiagonal(Bs))
+    D_total = Matrix(BlockDiagonal(Ds))
 
     return A_total, B_total, D_total
 end
@@ -275,27 +273,29 @@ function GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM
 
     # Per-thread scratch buffers (reused across k iterations within each thread)
     nt = Threads.nthreads()
-    M_bufs = [Matrix{T}(undef, d, d) for _ in 1:nt]
     S_bufs = [Matrix{T}(undef, d, n) for _ in 1:nt]
+
+    # Choose dense route for small unit cells (e.g. 1x1) to avoid sparse overhead;
+    # otherwise use sparse matrices for larger d.
+    use_dense = d < USE_DENS_DIM
+
+    Dmat = use_dense ? convert(Matrix{T}, D) : sparse(convert(Matrix{T}, D))
 
     Threads.@threads for k in 1:Nk
         @inbounds begin
             tid = Threads.threadid()
             G_k = @view CM_in[k, :, :]
 
-            # M = D + G_k  (fused broadcast into thread-local buffer)
-            M = M_bufs[tid]
-            @. M = D + G_k
+            M = use_dense ? Dmat + Matrix(G_k) : Dmat + sparse(G_k)
+            F = lu(M)
 
-            # In-place LU factorization (no copy)
-            F = lu!(M)
+            # ldiv! API is not consistently in-place across factor types,
+            # so assign into thread-local dense buffer.
+            S = S_bufs[tid]
+            S .= F \ Bt_T
 
-            # S = F \ Bᵀ  (in-place solve into thread-local buffer)
-            ldiv!(S_bufs[tid], F, Bt_T)
-
-            # Γ_out[:,:,k] = B * S + A  (in-place multiply + add)
             out_k = @view Γ_out[:, :, k]
-            mul!(out_k, B_T, S_bufs[tid])
+            mul!(out_k, B_T, S)
             out_k .+= A
         end
     end
@@ -323,23 +323,29 @@ function rrule(::typeof(GaussianMap), A::AbstractMatrix, B::AbstractMatrix, D::A
 
     # Forward pass: compute output and store LU factorizations + solutions for reuse in backward pass
     Γ_out = Array{T}(undef, n, n, Nk)
-    factors = Vector{LU{T, Matrix{T}, Vector{Int}}}(undef, Nk)
+
+    # Choose dense route for small unit cells (e.g. 1x1) to avoid sparse overhead;
+    # otherwise use sparse matrices for larger d.
+    use_dense = d < USE_DENS_DIM
+
+    Dmat = use_dense ? convert(Matrix{T}, D) : sparse(convert(Matrix{T}, D))
+
+    factors = Vector{Any}(undef, Nk)
     S_all = Array{T}(undef, d, n, Nk)
 
     Threads.@threads for k in 1:Nk
         @inbounds begin
+            tid = Threads.threadid()
             G_k = @view CM_in[k, :, :]
 
-            # Fresh alloc needed per k: lu! stores reference and we keep factors[k]
-            M_k = D .+ G_k
-            F_k = lu!(M_k)              # in-place LU (saves copy vs lu())
+            M_k = use_dense ? Dmat + Matrix(G_k) : Dmat + sparse(G_k)
+
+            F_k = lu(M_k)
             factors[k] = F_k
 
-            # S_k = F_k \ Bᵀ  (in-place solve directly into S_all view)
             S_k = @view S_all[:, :, k]
-            ldiv!(S_k, F_k, Bt_T)
+            S_k .= F_k \ Bt_T
 
-            # Γ_out[:,:,k] = B * S_k + A  (in-place multiply + add)
             out_k = @view Γ_out[:, :, k]
             mul!(out_k, B_T, S_k)
             out_k .+= A
@@ -380,7 +386,7 @@ function rrule(::typeof(GaussianMap), A::AbstractMatrix, B::AbstractMatrix, D::A
 
                 # W_k = M_kᴴ \ (Bᵀ * Δ_k)  (adjoint solve, reusing stored LU)
                 mul!(W_bufs[tid], Bt_T, Δ_k)
-                ldiv!(adjoint(factors[k]), W_bufs[tid])
+                W_bufs[tid] .= adjoint(factors[k]) \ W_bufs[tid]
 
                 # ∂L/∂B (contribution 2): W_kᵀ  →  (d,n)ᵀ = (n,d)
                 dB_local[tid] .+= transpose(W_bufs[tid])

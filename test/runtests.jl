@@ -5,12 +5,17 @@ using Test
         "test_Bogoliubov.jl",
         "test_energy_BCS.jl",
         "test_energy_kitaev.jl",
-        "test_energy_PEPS.jl",
-        # "test_hole_density_BCS.jl",
+        # "test_energy_PEPS.jl",
+        "test_energy_larger_unit_cell.jl"
         # "test_hole_density_BCS_GW.jl",
     ]
     for t in tests
         println("\nRunning test file: $(t)")
         @time include(t)
+    end
+
+    if get(ENV, "GFPEPS_RUN_PERF_TESTS", "false") == "true"
+        println("\nRunning test file: test_benchmark_larger_unit_cell_perf.jl")
+        @time include("test_benchmark_larger_unit_cell_perf.jl")
     end
 end;

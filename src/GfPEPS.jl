@@ -14,12 +14,12 @@ using MatrixFactorizations
 using Roots
 using NLsolve
 using LineSearches
+import SparseArrays: sparse
 
 # For custom adjoints during optimization with Zygote
 using ChainRulesCore: NoTangent, unthunk, ProjectTo
 import ChainRulesCore: rrule
 
-# using SparseArrays: sparse, blockdiag, spdiagm
 using TensorKit
 using MPSKit
 using PEPSKit

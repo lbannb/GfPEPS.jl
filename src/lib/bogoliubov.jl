@@ -204,17 +204,17 @@ function bloch_messiah_decomposition(M::AbstractMatrix)
     R = Matrix(F.R)
     Q = Matrix(F.Q)
 
-    # Fix phases so diagonal of R becomes positive real.
-    d = diag(R)
-    ph = similar(d)
-    for i in eachindex(d)
-        ph[i] = (abs(d[i]) > 0) ? d[i]/abs(d[i]) : one(d[i])   # unit-modulus (or 1 if zero)
-    end
-    Φ  = Diagonal(conj.(ph))            # multiply R on right by Φ to remove phases
-    Rpos = R * Φ                        # now diagonal(Rpos) = abs.(d) ≥ 0 (real)
-    Qnew = Φ' * Q                       # keep A invariant: (R Φ)(Φ' Q) = R Q
-    Ubar = Rpos                         # Ū with positive diagonal
-    C    = Qnew
+    # # Fix phases so diagonal of R becomes positive real.
+    # d = diag(R)
+    # ph = similar(d)
+    # for i in eachindex(d)
+    #     ph[i] = (abs(d[i]) > 0) ? d[i]/abs(d[i]) : one(d[i])   # unit-modulus (or 1 if zero)
+    # end
+    # Φ  = Diagonal(conj.(ph))            # multiply R on right by Φ to remove phases
+    # Rpos = R * Φ                        # now diagonal(Rpos) = abs.(d) ≥ 0 (real)
+    # Qnew = Φ' * Q                       # keep A invariant: (R Φ)(Φ' Q) = R Q
+    # Ubar = Rpos                         # Ū with positive diagonal
+    # C    = Qnew
 
     Ubar = R
     C = Q

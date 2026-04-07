@@ -84,7 +84,7 @@ function get_X_opt(
     optim_alg_options = with_manifold(optim_alg_options, gauge_manifold)
 
     # each distinct site in the unit cell has its own X matrix
-    X_opt = isnothing(X_init) ? [rand_CM(Nf, Λ; parity=1)[2] for i in 1:get_number_of_distinct_sites_in_uc(lattice)] : X_init
+    X_opt = isnothing(X_init) ? [rand_CM(Nf, Λ; parity=1)[2] for _ in 1:get_number_of_distinct_sites_in_uc(lattice)] : X_init
 
     # warn if dirac points are present -> then optimization of Γ can be harder, so user can adjust different kvals set
     has_dirac_points(lattice.kvals, H_bdg) 
