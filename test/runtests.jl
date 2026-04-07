@@ -13,9 +13,4 @@ using Test
         println("\nRunning test file: $(t)")
         @time include(t)
     end
-
-    if get(ENV, "GFPEPS_RUN_PERF_TESTS", "false") == "true"
-        println("\nRunning test file: test_benchmark_larger_unit_cell_perf.jl")
-        @time include("test_benchmark_larger_unit_cell_perf.jl")
-    end
 end;
