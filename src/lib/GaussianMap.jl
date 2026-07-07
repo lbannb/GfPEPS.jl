@@ -1,5 +1,3 @@
-const USE_DENS_DIM = 64 # heuristic cutoff for when to use dense vs sparse matrices in GaussianMap
-
 """
     helper(k::Real, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
 
@@ -109,11 +107,6 @@ function get_Γ_blocks(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int,
     D_total = Matrix(BlockDiagonal(Ds))
 
     return A_total, B_total, D_total
-end
-
-function X_matrix_form(X_vec::AbstractVector{<:AbstractMatrix}, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-    # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
-    return [X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
 end
 
 # """
@@ -234,17 +227,111 @@ function G_in_Fourier(Λ::Int, lattice::AbstractInfiniteLattice)
     end
     return res
 end
-#= old single site implementation =#
-# function G_in_Fourier(Λ::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-#     kvals = lattice.kvals
-#     Λ_in_uc = get_Λ_in_uc(Λ, lattice)
+#=
+    Blocked Gaussian map: smart mode ordering (inner / boundary) for larger unit cells.
 
-#     res = Array{ComplexF64,3}(undef, size(kvals,2), 2*Λ_in_uc, 2*Λ_in_uc)
-#     for (i, col) in enumerate(eachcol(kvals))
-#         res[i, :, :] = G_in_single_k(col, Λ, lattice)
-#     end
-#     return res
-# end
+    The virtual modes of the unit cell are split into
+    - *inner* modes: modes on intra-unit-cell bonds. Their bond CM entries carry no
+      k-dependent phase (the phase only appears on bonds wrapping around the unit cell).
+    - *boundary* modes: l-modes of the first column, r-modes of the last column,
+      u-modes of the first row and d-modes of the last row. All wrap bonds (and hence
+      all k-dependence) live entirely inside this block.
+
+    Contracting the inner modes is therefore a k-INDEPENDENT Schur complement that is
+    computed once per loss evaluation and yields effective (A_eff, B_eff, D_eff) blocks
+    of the unit-cell fiducial state Γ_uc (cf. Hackenbroich et al., PRB 101, 115134).
+    The per-k inversion in `GaussianMap` then only runs over the 4Λ(Lx+Ly) boundary
+    modes instead of all 8Λ·Lx·Ly virtual modes.
+=#
+
+"""
+    virtual_mode_partition(Λ::Int, lattice::AbstractInfiniteLattice)
+
+Return `(inner, bdry)`: the global Majorana indices of the inner (intra-cell bond) and
+boundary (wrap bond) virtual modes, in the same global ordering as `G_in_single_k`.
+For a 1x1 unit cell every mode is a boundary mode and `inner` is empty.
+"""
+function virtual_mode_partition(Λ::Int, lattice::AbstractInfiniteLattice)
+    Lx, Ly = lattice.Lx, lattice.Ly
+    Λ_per_site = 8Λ
+    bdry = Int[]
+    for iy in 1:Ly, ix in 1:Lx
+        base = Λ_per_site * (get_site_index(ix, iy, lattice) - 1)
+        for α in 1:Λ
+            ix == 1  && append!(bdry, base .+ (4(α-1)+1 : 4(α-1)+2))       # l modes
+            ix == Lx && append!(bdry, base .+ (4(α-1)+3 : 4(α-1)+4))       # r modes
+            iy == 1  && append!(bdry, base .+ 4Λ .+ (4(α-1)+1 : 4(α-1)+2)) # u modes
+            iy == Ly && append!(bdry, base .+ 4Λ .+ (4(α-1)+3 : 4(α-1)+4)) # d modes
+        end
+    end
+    sort!(bdry)
+    inner = setdiff(1:Λ_per_site*Lx*Ly, bdry)
+    return inner, bdry
+end
+Zygote.@nograd virtual_mode_partition
+
+"""
+    gaussian_map_inputs(Λ::Int, lattice::AbstractInfiniteLattice)
+
+Precompute all k-independent inputs of the blocked Gaussian map:
+
+- `inner`, `bdry`: virtual mode partition (see `virtual_mode_partition`),
+- `G_intra`: real CM of the intra-cell bonds (k-independent, zero on the boundary block),
+- `G_wrap`: batched CM of the wrap bonds, `(Nk × d_b × d_b)` with `d_b = length(bdry)`.
+
+For a 1x1 unit cell `inner` is empty, `G_intra` is zero and `G_wrap` equals the full
+`G_in_Fourier`, so the blocked map reduces exactly to the previous implementation.
+"""
+function gaussian_map_inputs(Λ::Int, lattice::AbstractInfiniteLattice)
+    inner, bdry = virtual_mode_partition(Λ, lattice)
+
+    # intra-cell bonds carry phase 1 (they never wrap), so G at any k restricted to
+    # non-boundary couplings is the k-independent intra-cell CM
+    G_intra = real(G_in_single_k(zeros(2), Λ, lattice))
+    G_intra[bdry, bdry] .= 0.0 # remove wrap couplings (they live entirely in the boundary block)
+
+    # batched wrap-bond CM: all k-dependence of G_in lives in the boundary block
+    # ponytail: allocates Nk × d_b² complex; build per-k inside GaussianMap if memory ever matters
+    kvals = lattice.kvals
+    d_b = length(bdry)
+    G_wrap = Array{ComplexF64, 3}(undef, size(kvals, 2), d_b, d_b)
+    for (i, k) in enumerate(eachcol(kvals))
+        G_wrap[i, :, :] = G_in_single_k(k, Λ, lattice)[bdry, bdry]
+    end
+
+    return (; inner, bdry, G_intra, G_wrap)
+end
+Zygote.@nograd gaussian_map_inputs
+
+"""
+    contract_inner_modes(A, B, D, G_intra, inner, bdry)
+
+Contract the intra-unit-cell virtual bonds via the (k-independent) Schur complement over
+the inner modes, returning the effective blocks `(A_eff, B_eff, D_eff)` of the unit-cell
+fiducial state Γ_uc restricted to physical + boundary modes:
+
+    A_eff = A + B_I M⁻¹ B_Iᵀ,   B_eff = B_∂ - B_I M⁻¹ D_I∂,   D_eff = D_∂∂ + D_I∂ᵀ M⁻¹ D_I∂,
+
+with `M = D_II + G_intra[inner, inner]` (using `D[bdry, inner] = -D[inner, bdry]ᵀ`).
+All operations are Zygote-differentiable; this runs once per loss evaluation.
+"""
+function contract_inner_modes(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix,
+                              G_intra::AbstractMatrix, inner::Vector{Int}, bdry::Vector{Int})
+    isempty(inner) && return A, B, D
+
+    M_II = D[inner, inner] + G_intra[inner, inner]
+    B_I  = B[:, inner]
+    D_Ib = D[inner, bdry]
+
+    Y = M_II \ transpose(B_I)   # d_i × n
+    W = M_II \ D_Ib             # d_i × d_b
+
+    A_eff = A + B_I * Y
+    B_eff = B[:, bdry] - B_I * W
+    D_eff = D[bdry, bdry] + transpose(D_Ib) * W
+
+    return A_eff, B_eff, D_eff
+end
 
 """
     GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM_in::AbstractArray)
@@ -275,19 +362,16 @@ function GaussianMap(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix, CM
     nt = Threads.nthreads()
     S_bufs = [Matrix{T}(undef, d, n) for _ in 1:nt]
 
-    # Choose dense route for small unit cells (e.g. 1x1) to avoid sparse overhead;
-    # otherwise use sparse matrices for larger d.
-    use_dense = d < USE_DENS_DIM
-
-    Dmat = use_dense ? convert(Matrix{T}, D) : sparse(convert(Matrix{T}, D))
+    # Always dense: with the blocked map (contract_inner_modes) D is a dense Schur
+    # complement over the boundary modes only, so sparse factorization never pays off.
+    Dmat = convert(Matrix{T}, D)
 
     Threads.@threads for k in 1:Nk
         @inbounds begin
             tid = Threads.threadid()
             G_k = @view CM_in[k, :, :]
 
-            M = use_dense ? Dmat + Matrix(G_k) : Dmat + sparse(G_k)
-            F = lu(M)
+            F = lu(Dmat + Matrix(G_k))
 
             # ldiv! API is not consistently in-place across factor types,
             # so assign into thread-local dense buffer.
@@ -324,23 +408,17 @@ function rrule(::typeof(GaussianMap), A::AbstractMatrix, B::AbstractMatrix, D::A
     # Forward pass: compute output and store LU factorizations + solutions for reuse in backward pass
     Γ_out = Array{T}(undef, n, n, Nk)
 
-    # Choose dense route for small unit cells (e.g. 1x1) to avoid sparse overhead;
-    # otherwise use sparse matrices for larger d.
-    use_dense = d < USE_DENS_DIM
+    # Always dense (see GaussianMap)
+    Dmat = convert(Matrix{T}, D)
 
-    Dmat = use_dense ? convert(Matrix{T}, D) : sparse(convert(Matrix{T}, D))
-
-    factors = Vector{Any}(undef, Nk)
+    factors = Vector{LU{T, Matrix{T}, Vector{Int}}}(undef, Nk)
     S_all = Array{T}(undef, d, n, Nk)
 
     Threads.@threads for k in 1:Nk
         @inbounds begin
-            tid = Threads.threadid()
             G_k = @view CM_in[k, :, :]
 
-            M_k = use_dense ? Dmat + Matrix(G_k) : Dmat + sparse(G_k)
-
-            F_k = lu(M_k)
+            F_k = lu(Dmat + Matrix(G_k))
             factors[k] = F_k
 
             S_k = @view S_all[:, :, k]

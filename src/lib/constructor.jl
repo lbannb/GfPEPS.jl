@@ -65,14 +65,14 @@ mutable struct Gaussian_fPEPS
 
         X_opt, optim_energy, E_exact, info_obj = get_X_opt(lattice, Nf, Λ, H_bdg; doping_kwargs=doping_kwargs, optim_alg_options=optim_alg_options, optim_options=optim_options)
 
-        # Build block-diagonal Γ from per-site X matrices (X_opt is Lx×Ly matrix of matrices)
-        X_vec = vec(X_opt)  # flatten to vector for get_Γ_blocks
-        A_bd, B_bd, D_bd = get_Γ_blocks(X_vec, Nf, Λ, lattice)
+        # Build block-diagonal Γ of the whole unit cell from the per-distinct-site X matrices
+        # (get_Γ_blocks expands X_opt over the unit cell via lattice.uc_layout)
+        A_bd, B_bd, D_bd = get_Γ_blocks(X_opt, Nf, Λ, lattice)
         Γ = [A_bd B_bd; -B_bd' D_bd]
 
-        # translate to PEPS
-        peps = translate(X_vec, Nf, Λ, lattice);
+        # translate to PEPS (translate expands X_opt via lattice.uc_layout as well)
+        peps = translate(X_opt, Nf, Λ, lattice);
 
-        new(Nf, Λ, lattice, H_bdg, doping_kwargs, optim_alg_options, optim_options, X_vec, Γ, peps, E_exact, optim_energy, info_obj)
+        new(Nf, Λ, lattice, H_bdg, doping_kwargs, optim_alg_options, optim_options, X_opt, Γ, peps, E_exact, optim_energy, info_obj)
     end
 end

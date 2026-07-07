@@ -172,36 +172,21 @@ function kitaev_BCS_hamiltonian(
     lattice::AbstractInfiniteLattice;
     interaction_type::Vector{String} = ["NN"])
 
-    if lattice isa AbstractInfiniteRectangularLattice
-        @assert get_number_of_distinct_sites_in_uc(lattice) == 1 "Currently only supports 1 site per unit cell for the Kitaev BCS Hamiltonian."
-
-        μ = -2Jz
-        E_shift = (k, ξ_mat_k, Δ_mat_k, μ) -> -Jz # Z2 background gauge field
-
-        # TODO: add more interaction types here if needed
-        if interaction_type == ["NN"]
-            hopping = Dict(
-                1 => Dict(
-                    (1,0) => -Jx, 
-                    (-1,0) => -Jx, 
-                    (0,1) => -Jy, 
-                    (0,-1) => -Jy
-                )
-            )
-            pairing = Dict(
-                1 => Dict(
-                    (1,0) => Jx, 
-                    (-1,0) => -Jx, 
-                    (0,1) => Jy, 
-                    (0,-1) => -Jy
-                )
-            )
-
-             return default_BCS_hamiltonian(hopping, pairing, μ, lattice; E_shift=E_shift,  Nf=1)
-        end
-    else
+    lattice isa AbstractInfiniteRectangularLattice ||
         throw(ArgumentError("Unsupported lattice type for Kitaev BCS Hamiltonian."))
-    end
+    interaction_type == ["NN"] ||
+        throw(ArgumentError("Only NN interactions are implemented for the Kitaev BCS Hamiltonian."))
+
+    μ = -2Jz
+    # Z2 background gauge field (vortex-free sector): constant shift of -Jz per site in the unit cell
+    E_shift = (k, ξ_mat_k, Δ_mat_k, μ) -> -Jz * get_number_of_sites(lattice)
+
+    # vortex-free sector: uniform gauge, so every (distinct) site in the unit cell carries the same couplings
+    site_labels = unique(vec(lattice.uc_layout))
+    hopping = Dict(s => Dict((1,0) => -Jx, (-1,0) => -Jx, (0,1) => -Jy, (0,-1) => -Jy) for s in site_labels)
+    pairing = Dict(s => Dict((1,0) => Jx, (-1,0) => -Jx, (0,1) => Jy, (0,-1) => -Jy) for s in site_labels)
+
+    return default_BCS_hamiltonian(hopping, pairing, μ, lattice; E_shift=E_shift, Nf=1)
 end
 
 #= 
@@ -624,9 +609,7 @@ function get_doping_layout(Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice, X
         J_batches[s] = J_batched
     end
 
-    G_in = G_in_Fourier(Λ, lattice)
-    A, B, D = get_Γ_blocks(X_vec, Nf, Λ, lattice)
-    CM_out = GaussianMap(A, B, D, G_in)
+    CM_out = CM_out_X(X_vec, Nf, Λ, lattice)
 
     # Fast Trace Formula: Tr(J * CM) = sum(J .* CM^T) = - sum(J .* CM) = - dot(J, CM)
     # Recall: δ = 1 - <n>, <n> = 0.25 * Tr(J * CM) + 0.5*Nf

@@ -57,7 +57,7 @@ Get the optimal orthogonal X matrix for the GfPEPS approximation of the ground s
 - `optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true)`: Options for the Optim optimizer.
 
 # Returns
-- `X_opt::AbstractMatrix`: The optimal orthogonal X matrix found by the optimization.
+- `X_opt::Vector{Matrix{Float64}}`: The optimal orthogonal X matrices (one per distinct site in the unit cell).
 - `optim_energy::Float64`: The energy corresponding to the optimal orthogonal X matrix.
 - `E_exact::Float64`: The exact energy for the given parameters of the quadratic Hamiltonian from analytic formula.
 - `info_obj::NamedTuple`: A named tuple containing additional information about the optimization where the returned values are from Optim.
@@ -159,16 +159,15 @@ function get_X_opt(
     @info "Final energy summary" target=E_exact achieved=optim_energy deviation=deviation
     println()
 
-    # unpack the optimised block-diagonal matrix back into per-site X matrices
-    X_mat = X_matrix_form(X_opt, lattice)
-
     # return final results and optimization info
     info_obj = (
         converged = Optim.converged(stage_res),
         trace = stage_res.trace
     )
 
-    return X_mat, optim_energy, E_exact, info_obj
+    # X_opt holds one matrix per *distinct* site in the unit cell; expansion to the full
+    # unit cell happens via lattice.uc_layout inside get_Γ_blocks / translate.
+    return X_opt, optim_energy, E_exact, info_obj
 end
 
 
@@ -190,10 +189,16 @@ function get_kgrids(lattice::AbstractInfiniteLattice)
 
     N_kx_inits = grow_sizes(lattice.N_kx, isodd(lattice.N_kx) ? 5 : 6)
     N_ky_inits = grow_sizes(lattice.N_ky, isodd(lattice.N_ky) ? 5 : 6)
-    
+
     # add final sizes
     push!(N_kx_inits, lattice.N_kx)
     push!(N_ky_inits, lattice.N_ky)
+
+    # pad the shorter list at the front (repeat its first stage) so both lists have equal
+    # length and the final stage always runs at the requested (N_kx, N_ky) grid
+    len = max(length(N_kx_inits), length(N_ky_inits))
+    N_kx_inits = vcat(fill(N_kx_inits[1], len - length(N_kx_inits)), N_kx_inits)
+    N_ky_inits = vcat(fill(N_ky_inits[1], len - length(N_ky_inits)), N_ky_inits)
 
     return N_kx_inits, N_ky_inits
 end

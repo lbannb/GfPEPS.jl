@@ -310,11 +310,9 @@ Then returns the iPEPS in the PEPSKit.jl format.
 
 """
 function translate(X_vec::AbstractVector{<:AbstractMatrix}, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice; tol=1e-10)
+    # translate each distinct site once, then fill the (Ly × Lx) unit-cell layout
     A_vec = [translate_to_PEPS_tensor(X, Nf, Λ; tol=tol) for X in X_vec]
-    
-    # fill peps tensors to match lattice unit cell layout
-    peps_vec = [A_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly]
-    peps_layout = reshape(peps_vec, size(lattice.uc_layout))
+    peps_layout = map(label -> A_vec[label], lattice.uc_layout)
 
     return PEPSKit.peps_normalize(InfinitePEPS(peps_layout))
 end

@@ -58,7 +58,7 @@ Random.seed!(895651256)
         Ψ_trial_1x1 = Gaussian_fPEPS(2, 2, lattice_1x1_small_k, H_BdG_1x1);
         Ψ_trial_2x2 = Gaussian_fPEPS(2, 2, lattice_2x2_small_k, H_BdG_2x2);
 
-        @test Ψ_trial_1x1.optim_energy ≈ Ψ_trial_2x2.optim_energy / GfPEPS.get_number_of_sites(lattice_2x2) atol=1e-2
+        @test Ψ_trial_1x1.optim_energy ≈ Ψ_trial_2x2.optim_energy / GfPEPS.get_number_of_sites(lattice_2x2) atol=1e-3
     end;
 
     @testset "BCS different sublattice coupling (2x2 unit cell)" begin
@@ -94,7 +94,11 @@ Random.seed!(895651256)
         @test E_1x1 != E_2x2 / GfPEPS.get_number_of_sites(lattice_2x2)
 
         lattice_2x2_small_k = InfiniteRectLattice(2,2;N_kx=6, N_ky=6, bc=(:PBC, :APBC), uc_layout=[1 2; 2 1])
-        Ψ_trial = Gaussian_fPEPS(2, 2, lattice_2x2_small_k, H_BdG_2x2);
-        @test Ψ_trial.optim_energy ≈ Ψ_trial.exact_energy atol=1e-1 # depends on Λ but its very costly for test
+        Ψ_trial = Gaussian_fPEPS(2, 3, lattice_2x2_small_k, H_BdG_2x2);
+
+        @show Ψ_trial.optim_energy
+        @show Ψ_trial.exact_energy
+
+        @test Ψ_trial.optim_energy ≈ Ψ_trial.exact_energy atol=5e-3 # depends on Λ but its very costly for test
     end;
 end;
