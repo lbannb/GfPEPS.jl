@@ -94,68 +94,6 @@ function get_parent_hamiltonian(Γ::AbstractMatrix, Nf::Int, Λ::Int)
 
     return Hermitian(-2im .* Γ_fiducial_dirac)
 end
-# function get_parent_hamiltonian(Γ::AbstractMatrix, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice)
-#     Nf_in_uc = get_Nf_in_uc(Nf, lattice)
-#     Λ_in_uc = get_Λ_in_uc(Λ, lattice)
-#     N = div(size(Γ, 1), 2)
-
-#     # Transform to Dirac fermions (qq-ordering)
-#     Ω0 = [1  1; im  -im]
-#     Ω = kron(I(N), Ω0)
-#     Γ_fiducial_dirac = 1/4 .* Ω' * Γ * Ω
-#     #= Now has the following ordering (qq)
-#         (f_1,f_1†, ..., f_Nf, f_Nf†, l_1, l_1†, r_1, r_1†, ..., l_Λ, l_Λ†, r_Λ, r_Λ†, d_1, d_1†, u_1, u_1†, ..., d_Λ, d_Λ†, u_Λ, u_Λ†)
-#     =#
-
-#     # bring to qp-ordering
-#     perm = vcat(1:2:(2N), 2:2:(2N))
-#     Γ_fiducial_dirac = Γ_fiducial_dirac[perm, perm]
-#     #= Now has the following ordering (qp)
-#         (f_1, ..., f_Nf, l_1, r_1, ..., l_Λ, r_Λ, d_1, u_1, ..., d_Λ, u_Λ, f_1†, ..., f_Nf†, l_1†, r_1†, ..., l_Λ†, r_Λ†, d_1†, u_1†, ..., d_Λ†, u_Λ†)
-#     =#
-
-#     # group virtual fermions as (l1,...,lΛ,r1,...,rΛ,d1,...,dΛ,u1,...,uΛ)
-#     Λ_x_dir = get_Λ_in_uc_x_dir(Λ, lattice)
-#     Λ_y_dir = get_Λ_in_uc_y_dir(Λ, lattice)
-#     L = collect(1:2:Λ_x_dir)            # l1, l2, ...
-#     R = collect(2:2:Λ_x_dir)            # r1, r2, ...
-#     D = collect(Λ_x_dir+1:2:Λ_in_uc)    # d1, d2, ...
-#     U = collect(Λ_x_dir+2:2:Λ_in_uc)    # u1, u2, ...
-#     perm_virtual = vcat(L, R, D, U)
-    
-#     perm_total = vcat(
-#         1:Nf_in_uc,                             # physical (already fine)
-#         Nf_in_uc .+ perm_virtual,               # reorder virtuals
-#         (Nf_in_uc + Λ_in_uc) .+ (1:Nf_in_uc),   # f†
-#         (2Nf_in_uc + Λ_in_uc) .+ perm_virtual   # reordered virtual†
-#     )
-
-#     Γ_fiducial_dirac = Γ_fiducial_dirac[perm_total, perm_total]
-
-#     # now reorder to (f,u,r,d,l)
-#     nL = div(Λ_x_dir, 2)
-#     nR = div(Λ_x_dir, 2)
-#     nD = div(Λ_y_dir, 2)
-#     nU = div(Λ_y_dir, 2)
-
-#     L = collect(Nf_in_uc + 1 : Nf_in_uc + nL)                                  # l1, l2, ...
-#     R = collect(Nf_in_uc + nL + 1 : Nf_in_uc + nL + nR)                        # r1, r2, ...
-#     D = collect(Nf_in_uc + nL + nR + 1 : Nf_in_uc + nL + nR + nD)              # d1, d2, ...
-#     U = collect(Nf_in_uc + nL + nR + nD + 1 : Nf_in_uc + nL + nR + nD + nU)    # u1, u2, ...
-#     perm_virtual = vcat(U, R, D, L)
-
-#     perm_reorder = vcat(1:Nf_in_uc, 
-#         perm_virtual,
-#         (Nf_in_uc+Λ_in_uc) .+ (1:Nf_in_uc), # f†
-#         (Nf_in_uc+Λ_in_uc) .+ perm_virtual # virtual†
-#     )
-#     Γ_fiducial_dirac = Γ_fiducial_dirac[perm_reorder, perm_reorder]
-
-#     @assert Γ_fiducial_dirac' ≈ -Γ_fiducial_dirac "Fiducial state CM in Dirac representation must be anti-hermitian"
-#     @assert Γ_fiducial_dirac*Γ_fiducial_dirac' ≈ I / 4 "Fiducial state CM in Dirac representation must be pure"
-
-#     return Hermitian(-2im .* Γ_fiducial_dirac)
-# end
 
 """ 
     get_empty_peps_tensor(Nf::Int, Λ::Int)
@@ -175,24 +113,6 @@ function get_empty_fpeps_tensor(Nf::Int, Λ::Int)
 
     return T, codomain_spaces, domain_space
 end
-# function get_empty_fpeps_tensor(Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice)
-#     Nf_in_uc = get_Nf_in_uc(Nf, lattice)
-#     Λ_x_dir = div(get_Λ_in_uc_x_dir(Λ, lattice), 2)
-#     Λ_y_dir = div(get_Λ_in_uc_y_dir(Λ, lattice), 2)
-
-#     physical_spaces = Vect[fℤ₂](0 => 2^Nf_in_uc / 2, 1 => 2^Nf_in_uc / 2)
-#     V_bonds_x_dir = Vect[fℤ₂](0 => 2^Λ_x_dir / 2, 1 => 2^Λ_x_dir / 2)
-#     V_bonds_y_dir = Vect[fℤ₂](0 => 2^Λ_y_dir / 2, 1 => 2^Λ_y_dir / 2)
-#     virtual_spaces = V_bonds_y_dir ⊗ V_bonds_x_dir ⊗ V_bonds_y_dir ⊗ V_bonds_x_dir
-
-#     codomain_spaces = reduce(⊗, [physical_spaces, virtual_spaces])
-#     domain_space = ProductSpace{GradedSpace{FermionParity, Tuple{Int64, Int64}}, 0}()
-
-#     T = zeros(ComplexF64, dim(physical_spaces), dim(virtual_spaces))
-#     T = reshape(T, (2^Nf_in_uc, 2^Λ_y_dir, 2^Λ_x_dir, 2^Λ_y_dir, 2^Λ_x_dir))
-
-#     return T, codomain_spaces, domain_space
-# end
 
 """
     translate_to_PEPS_tensor(X::AbstractMatrix, Nf::Int, Λ::Int; tol=1e-10)

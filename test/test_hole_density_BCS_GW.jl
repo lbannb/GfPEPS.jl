@@ -19,10 +19,10 @@ using JSON: parsefile
     GfPEPS.doping_bcs(X_opt, bz, config["params"]["N_physical_fermions_on_site"], config["params"]["N_virtual_fermions_on_bond"])
 
     χ_env_max = config["PEPSKit"]["χ_env_max"]
-    boundary_alg = (; tol = config["PEPSKit"]["tol"], maxiter = config["PEPSKit"]["maxiter"], alg = :simultaneous)
+    boundary_alg = (; tol = config["PEPSKit"]["tol"], maxiter = config["PEPSKit"]["maxiter"], alg = :SimultaneousCTMRG, trunc = truncrank(χ_env_max))
 
-    env = GfPEPS.init_ctmrg_env(peps);
-    env, _ = GfPEPS.grow_env(peps, env, 6, χ_env_max; boundary_alg...);
+    env0 = initialize_ctmrg_environment(peps, IdentityInitialization())
+    env, _ = leading_boundary(env0, peps; boundary_alg...)
     δ_PEPS, _ = GfPEPS.doping_peps(peps,env)
 
     # find fugacity z such that doping after projection matches target doping
@@ -47,10 +47,10 @@ end;
     GfPEPS.doping_bcs(X_opt, bz, config["params"]["N_physical_fermions_on_site"], config["params"]["N_virtual_fermions_on_bond"])
 
     χ_env_max = config["PEPSKit"]["χ_env_max"]
-    boundary_alg = (; tol = config["PEPSKit"]["tol"], maxiter = config["PEPSKit"]["maxiter"], alg = :simultaneous)
+    boundary_alg = (; tol = config["PEPSKit"]["tol"], maxiter = config["PEPSKit"]["maxiter"], alg = :SimultaneousCTMRG, trunc = truncrank(χ_env_max))
 
-    env = GfPEPS.init_ctmrg_env(peps);
-    env, _ = GfPEPS.grow_env(peps, env, 6, χ_env_max; boundary_alg...);
+    env0 = initialize_ctmrg_environment(peps, IdentityInitialization())
+    env, _ = leading_boundary(env0, peps; boundary_alg...)
     δ_PEPS, _ = GfPEPS.doping_peps(peps,env)
 
     # find fugacity z such that doping after projection matches target doping

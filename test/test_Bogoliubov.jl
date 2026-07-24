@@ -2,6 +2,9 @@ using Revise
 using Test
 using GfPEPS
 using LinearAlgebra
+using Random
+
+Random.seed!(8424841861) # for reproducibility
 
 # Create a parent Hamiltonian for a random CM state and test the properties of the Bogoliubov transformation that diagonalizes it. 
 # Also test the Bloch-Messiah decomposition of the Bogoliubov transformation.

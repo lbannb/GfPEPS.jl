@@ -8,7 +8,7 @@ using Random
 # CTMRG settings
 # χenv_max = 64
 χenv_max = 32
-boundary_alg = (; tol = 1e-8, maxiter=500, alg = :simultaneous)
+boundary_alg = (; tol = 1e-8, maxiter=200, alg = :SimultaneousCTMRG, trunc = truncrank(χenv_max))
 
 # BCS parameters
 t = 1.0
@@ -30,8 +30,8 @@ t = 1.0
         X_vec = [GfPEPS.rand_CM(Nf, Λ)[1] for i in 1:GfPEPS.get_number_of_distinct_sites_in_uc(lattice)]
         peps = GfPEPS.translate(X_vec, Nf, Λ, lattice);
 
-        env = GfPEPS.init_ctmrg_env(peps);
-        env, _ = GfPEPS.grow_env(peps, env, 6, χenv_max; boundary_alg...)
+        env0 = initialize_ctmrg_environment(peps, IdentityInitialization())
+        env, _ = leading_boundary(env0, peps; boundary_alg...)
 
         hopping = Dict(1 => Dict((1, 0) => t, (0, 1) => t, (-1, 0) => t, (0, -1) => t))
         pairing = Dict(1 => Dict((1, 0) => Δ1_x, (-1, 0) => Δ1_x, (0, 1) => Δ1_y, (0, -1) => Δ1_y))
@@ -58,8 +58,8 @@ t = 1.0
         X_vec = [GfPEPS.rand_CM(Nf, Λ)[1] for i in 1:GfPEPS.get_number_of_distinct_sites_in_uc(lattice)]
         peps = GfPEPS.translate(X_vec, Nf, Λ, lattice);
 
-        env = GfPEPS.init_ctmrg_env(peps);
-        env, _ = GfPEPS.grow_env(peps, env, 6, χenv_max; boundary_alg...)
+        env0 = initialize_ctmrg_environment(peps, IdentityInitialization())
+        env, _ = leading_boundary(env0, peps; boundary_alg...)
 
         # different couplings on the two sublattices
         hopping = Dict( 

@@ -48,3 +48,13 @@ function rand_CM(Nf::Int, Λ::Int; parity::Int = 1)
         end
     end
 end
+
+#=
+    PEPSKit helper functions
+
+    Environment initialization lives upstream now:
+        env0 = initialize_ctmrg_environment(peps, IdentityInitialization())
+    `IdentityInitialization` is the identity between the ket and bra virtual spaces, i.e.
+    exactly what `init_ctmrg_env` used to build, and CTMRG grows the environment spaces from
+    trivial up to `trunc`, which is what `grow_env` used to do by hand.
+=#

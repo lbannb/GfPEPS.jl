@@ -26,16 +26,6 @@ Example: For a trivial unit cell: N = Nf + 4Λ
 function build_J(Λ::Int, Nf::Int)
     return ⊕([0.0 1.0; -1.0 0.0], Nf + 4Λ)
 end
-
-"""
-    build_J(Λ::Int, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-
-Overload that accepts a lattice argument.  For the per-site ansatz every site
-carries the *same* single-site symplectic matrix `J` of size `2(Nf + 4Λ)`.
-"""
-function build_J(Λ::Int, Nf::Int, ::Union{AbstractLattice, AbstractInfiniteLattice})
-    return build_J(Λ, Nf)
-end
 Zygote.@nograd build_J # constructing J is not something we need gradients through
 
 """
@@ -64,16 +54,6 @@ function Γ_fiducial(X::AbstractMatrix, Nf::Int, Λ::Int)
 end
 
 """
-    Γ_fiducial(X::AbstractMatrix, Nf::Int, Λ::Int, lattice)
-
-Backward-compatible overload that ignores the lattice argument for a single
-(coarse-grained) X matrix.
-"""
-function Γ_fiducial(X::AbstractMatrix, Nf::Int, Λ::Int, ::Union{AbstractLattice, AbstractInfiniteLattice})
-    return Γ_fiducial(X, Nf, Λ)
-end
-
-"""
     get_Γ_blocks(X_vec, Nf, Λ)
 
 Assemble the block-diagonal `A`, `B`, `D` blocks from a collection of per-site
@@ -88,8 +68,6 @@ modes of all sites (same ordering convention as `G_in_single_k_persite`).
 - `D_total  ::Matrix{Float64}`    (8Λ Nsites)   x (8Λ Nsites),    block-diagonal
 """
 function get_Γ_blocks(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice)
-    Nsites = get_number_of_sites(lattice)
-
     # Extend X_vec to size: lattice.Lx * lattice.Ly, by repeating the X_vec entries according to lattice.uc_layout
     X_vec = vec([X_vec[lattice.uc_layout[r, c]] for c in 1:lattice.Lx, r in 1:lattice.Ly])
     # Compute per-site Γ matrices, then extract A/B/D blocks separately.
@@ -108,32 +86,6 @@ function get_Γ_blocks(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int,
 
     return A_total, B_total, D_total
 end
-
-# """
-#     get_Γ_blocks(Γ::AbstractMatrix, Nf::Int)
-
-# Helper function to extract the A, B, D blocks from the covariance matrix Γ of the fiducial state.
-# """
-# function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int)
-#     A = @view Γ[1:2*Nf, 1:2*Nf]
-#     B = @view Γ[1:2*Nf, 2*Nf+1:end]
-#     D = @view Γ[2*Nf+1:end, 2*Nf+1:end]
-#     return A,B,D
-# end
-
-# """
-#     get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice)
-
-# Extract A, B, D blocks from the covariance matrix of a coarse-grained fiducial
-# state with `Nf_in_uc = Nf * Lx * Ly` physical fermions.
-# """
-# function get_Γ_blocks(Γ::AbstractMatrix, Nf::Int, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-#     Nf_in_uc = get_Nf_in_uc(Nf, lattice)
-#     A = @view Γ[1:2*Nf_in_uc, 1:2*Nf_in_uc]
-#     B = @view Γ[1:2*Nf_in_uc, 2*Nf_in_uc+1:end]
-#     D = @view Γ[2*Nf_in_uc+1:end, 2*Nf_in_uc+1:end]
-#     return A, B, D
-# end
 
 """
     G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::AbstractInfiniteLattice)
@@ -204,11 +156,6 @@ function G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::Abstract
 
     return G
 end
-#= old single site implementation =#
-# function G_in_single_k(k::AbstractVector{<:Real}, Λ::Integer, lattice::Union{AbstractLattice, AbstractInfiniteLattice})
-#     return Matrix(BlockDiagonal([⊕(helper(k[1], lattice.Lx), Λ),⊕(helper(k[2], lattice.Ly), Λ)]))
-# end
-
 
 """
     G_in_Fourier(Λ::Int, lattice::AbstractInfiniteLattice)
@@ -237,7 +184,7 @@ end
       u-modes of the first row and d-modes of the last row. All wrap bonds (and hence
       all k-dependence) live entirely inside this block.
 
-    Contracting the inner modes is therefore a k-INDEPENDENT Schur complement that is
+    Contracting the inner modes is therefore a k-independent Schur complement that is
     computed once per loss evaluation and yields effective (A_eff, B_eff, D_eff) blocks
     of the unit-cell fiducial state Γ_uc (cf. Hackenbroich et al., PRB 101, 115134).
     The per-k inversion in `GaussianMap` then only runs over the 4Λ(Lx+Ly) boundary

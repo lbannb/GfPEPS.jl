@@ -88,7 +88,7 @@ Find the fugacity `z` in the Gutzwiller projector such that the doping after pro
 # Keyword Arguments
 - `peps::InfinitePEPS`: The input PEPS to which the Gutzwiller projection will be applied.
 - `δ_target::Real`: The target doping level that we want to achieve after applying the Gutzwiller projection.
-- `χ_env_max`: The maximum bond dimension of the environment tensors.
+- `χ_env_max`: The bond dimension of the environment tensors.
 - `atol::Float64`: The absolute tolerance for the root-finding algorithm when matching the doping level.
 - `z_initial::Union{Nothing, Float64}`: An optional initial guess for the fugacity `z` to speed up convergence. If `nothing`, the Gutzwiller approximation `z=2δ/(1+δ)`.
 - `env_init::Union{Nothing, CTMRGEnv}`: An optional initial environment to speed up convergence. If `nothing`, a new environment will be built from the projected PEPS.
@@ -107,20 +107,14 @@ function solve_for_fugacity(
     )
 
     function get_env(peps::InfinitePEPS; env_init::Union{Nothing, CTMRGEnv}=nothing)
-        boundary_alg = (; tol = 1e-8, maxiter = 500, alg = :simultaneous)
-        Espace = Vect[FermionParity](0 => χ_env_max / 2, 1 => χ_env_max / 2)
-
-        if env_init === nothing
-            χ0 = min(6, χ_env_max)
-            env = init_ctmrg_env(peps);
-            env, _ = grow_env(peps, env, χ0, χ_env_max; boundary_alg...);
-
-            return env;
-        else
-            Espace = Vect[FermionParity](0 => χ_env_max ÷ 2, 1 => χ_env_max ÷ 2) 
-            env, = leading_boundary(env_init, peps; boundary_alg..., trunc = truncspace(Espace));
-            return env;
-        end
+        # identity init is deterministic and lets CTMRG grow the environment spaces itself
+        env0 = isnothing(env_init) ?
+            initialize_ctmrg_environment(peps, IdentityInitialization()) : env_init
+        env, = leading_boundary(
+            env0, peps;
+            tol = 1e-8, maxiter = 200, trunc = truncrank(χ_env_max)
+        )
+        return env
     end
 
     # build initial environment

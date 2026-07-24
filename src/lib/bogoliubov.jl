@@ -183,7 +183,7 @@ function skew_canonical_form(P::AbstractMatrix)
     @assert isapprox(transpose(P), -P; atol=1e-10) "P should be skew-symmetric"
 
     W = P'P
-    @assert ishermitian(W)
+    @assert LinearAlgebra.ishermitian(W)
 
     E, Φ = eigen(Hermitian(W); sortby = (x -> -real(x)))
     alphas = sqrt.(abs.(E))

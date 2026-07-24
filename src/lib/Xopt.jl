@@ -73,11 +73,12 @@ function get_X_opt(
     optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=15, manifold = Optim.Stiefel(:CholQR)),
     optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
 
-    #= 
+    #=
     build gauge-projected manifold for better L-BFGS convergence.
-    For per-site ansatz the optimisation variable is a block-diagonal
-    matrix X_total = diag(X_1, …, X_N) living on the product Stiefel manifold.
-    The block-diagonal J_total preserves block-diagonality. 
+    For the per-site ansatz the optimisation variable is the 3D stack of the
+    per-distinct-site matrices (X_1, …, X_N) living on the product Stiefel
+    manifold; retraction and tangent projection act on each slice separately,
+    so the same single-site J is used for every site.
     =#
     J_single = build_J(Λ, Nf) # 2(Nf+4Λ) × 2(Nf+4Λ)
     gauge_manifold = GaugeFixedStiefel(J_single)
@@ -368,68 +369,18 @@ function GaugeFixedStiefel(J::Matrix{Float64})
 end
 
 """
-    Optim.retract!(m::GaugeFixedStiefel, X)
-
-CholQR retraction: project X back to the Stiefel manifold via Cholesky-based
-orthogonalization. Faster than SVD retraction (~18× for 20×20 matrices) and
-numerically stable for the small steps typical of L-BFGS line searches.
-"""
-function Optim.retract!(m::GaugeFixedStiefel, X)
-    overlap = X'X + I * 1e-15 # add small regularization for numerical stability
-    X .= X / cholesky(overlap).U
-end
-
-"""
-    Optim.project_tangent!(m::GaugeFixedStiefel, G, X)
-
-Project the ambient gradient/direction `G` onto the tangent space of the Stiefel
-manifold at `X`, then further project out gauge (centralizer) directions.
-
-Steps:
-1. Stiefel projection: G ← G - X · sym(XᵀG)
-2. Extract Lie-algebra element: A = XᵀG (guaranteed skew-symmetric)
-3. Compute covariance matrix: Γ = XᵀJX
-4. Gauge projection: A_phys = (A + ΓAΓ)/2
-5. Reconstruct: G ← X · A_phys
-"""
-function Optim.project_tangent!(m::GaugeFixedStiefel, G, X)
-    # Step 1: Stiefel tangent projection
-    # G_tangent = G - X · sym(X'G), where sym(M) = (M + M')/2
-    mul!(m._XG, transpose(X), G)                      # _XG = X'G
-    @inbounds for j in axes(m._Γ, 2), i in axes(m._Γ, 1)
-        m._Γ[i,j] = (m._XG[i,j] + m._XG[j,i]) / 2   # _Γ = sym(X'G)
-    end
-    mul!(G, X, m._Γ, -1.0, 1.0)                       # G -= X · sym(X'G)
-
-    # Step 2: Extract Lie-algebra element A = X'G (skew-symmetric after step 1)
-    mul!(m._XG, transpose(X), G)                       # _XG = A
-
-    # Step 3: Compute covariance matrix Γ = X'JX
-    mul!(m._ΓA, m.J, X)                                # _ΓA = J·X (temp)
-    mul!(m._Γ, transpose(X), m._ΓA)                    # _Γ = X'JX = Γ
-
-    # Step 4: Gauge projection — keep only the physical component
-    # A_phys = (A + Γ·A·Γ) / 2
-    mul!(m._ΓA, m._Γ, m._XG)                           # _ΓA = Γ·A
-    mul!(m._ΓAΓ, m._ΓA, m._Γ)                          # _ΓAΓ = Γ·A·Γ
-    @. m._XG = (m._XG + m._ΓAΓ) / 2                   # _XG = A_phys
-
-    # Step 5: Reconstruct gradient in ambient space
-    mul!(G, X, m._XG)                                   # G = X · A_phys
-
-    return G
-end
-
-"""
     Optim.retract!(m::GaugeFixedStiefel, X3d::AbstractArray{<:Real, 3})
 
-CholQR retraction applied slice-wise to a 3D array of per-site X matrices
-(product Stiefel manifold).  Each `X3d[:,:,s]` is retracted independently.
+CholQR retraction applied slice-wise to the 3D array of per-site X matrices
+(product Stiefel manifold): each `X3d[:,:,s]` is projected back onto the Stiefel
+manifold independently via Cholesky-based orthogonalization. Faster than SVD
+retraction (~18× for 20×20 matrices) and numerically stable for the small steps
+typical of L-BFGS line searches.
 """
 function Optim.retract!(m::GaugeFixedStiefel, X3d::AbstractArray{<:Real, 3})
     for s in axes(X3d, 3)
         X_vec = @view X3d[:, :, s]
-        overlap = X_vec'X_vec + I * 1e-15
+        overlap = X_vec'X_vec + I * 1e-15 # add small regularization for numerical stability
         X_vec .= X_vec / cholesky(overlap).U
     end
     return X3d
@@ -438,9 +389,19 @@ end
 """
     Optim.project_tangent!(m::GaugeFixedStiefel, G3d::AbstractArray{<:Real, 3}, X3d::AbstractArray{<:Real, 3})
 
-Gauge-fixed Stiefel tangent projection applied slice-wise to 3D arrays of
-per-site gradient / direction and position matrices.  Scratch buffers are
-reused across sites (sequential loop).
+Project the ambient gradient/direction onto the tangent space of the Stiefel
+manifold, then further project out gauge (centralizer) directions — applied
+slice-wise to the 3D arrays of per-site gradient/direction and position matrices.
+
+Steps (per site):
+1. Stiefel projection: G ← G - X · sym(XᵀG)
+2. Extract Lie-algebra element: A = XᵀG (guaranteed skew-symmetric)
+3. Compute covariance matrix: Γ = XᵀJX
+4. Gauge projection: A_phys = (A + ΓAΓ)/2
+5. Reconstruct: G ← X · A_phys
+
+Note: the scratch buffers of `m` are reused across sites, so the loop must stay
+sequential (Optim calls this single-threaded).
 """
 function Optim.project_tangent!(m::GaugeFixedStiefel, G3d::AbstractArray{<:Real, 3}, X3d::AbstractArray{<:Real, 3})
     for s in axes(X3d, 3)
@@ -448,26 +409,28 @@ function Optim.project_tangent!(m::GaugeFixedStiefel, G3d::AbstractArray{<:Real,
         X = @view X3d[:, :, s]
 
         # Step 1: Stiefel tangent projection
-        mul!(m._XG, transpose(X), G)
+        # G_tangent = G - X · sym(X'G), where sym(M) = (M + M')/2
+        mul!(m._XG, transpose(X), G)                    # _XG = X'G
         @inbounds for j in axes(m._Γ, 2), i in axes(m._Γ, 1)
-            m._Γ[i,j] = (m._XG[i,j] + m._XG[j,i]) / 2
+            m._Γ[i,j] = (m._XG[i,j] + m._XG[j,i]) / 2   # _Γ = sym(X'G)
         end
-        mul!(G, X, m._Γ, -1.0, 1.0)
+        mul!(G, X, m._Γ, -1.0, 1.0)                     # G -= X · sym(X'G)
 
-        # Step 2: Extract Lie-algebra element A = X'G
-        mul!(m._XG, transpose(X), G)
+        # Step 2: Extract Lie-algebra element A = X'G (skew-symmetric after step 1)
+        mul!(m._XG, transpose(X), G)                    # _XG = A
 
         # Step 3: Compute covariance matrix Γ = X'JX
-        mul!(m._ΓA, m.J, X)
-        mul!(m._Γ, transpose(X), m._ΓA)
+        mul!(m._ΓA, m.J, X)                             # _ΓA = J·X (temp)
+        mul!(m._Γ, transpose(X), m._ΓA)                 # _Γ = X'JX = Γ
 
         # Step 4: Gauge projection — keep only the physical component
-        mul!(m._ΓA, m._Γ, m._XG)
-        mul!(m._ΓAΓ, m._ΓA, m._Γ)
-        @. m._XG = (m._XG + m._ΓAΓ) / 2
+        # A_phys = (A + Γ·A·Γ) / 2
+        mul!(m._ΓA, m._Γ, m._XG)                        # _ΓA = Γ·A
+        mul!(m._ΓAΓ, m._ΓA, m._Γ)                       # _ΓAΓ = Γ·A·Γ
+        @. m._XG = (m._XG + m._ΓAΓ) / 2                 # _XG = A_phys
 
         # Step 5: Reconstruct gradient in ambient space
-        mul!(G, X, m._XG)
+        mul!(G, X, m._XG)                               # G = X · A_phys
     end
     return G3d
 end
