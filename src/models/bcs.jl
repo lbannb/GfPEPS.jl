@@ -1,4 +1,31 @@
 """
+    _peps_displacement(dx, dy)
+
+Map a coupling-dict displacement to a PEPS unit-cell displacement `(drow, dcol)`.
+
+`InfiniteRectLattice` has x pointing right and **y pointing down** (see its docstring), while
+`CartesianIndex(row, col)` counts rows downward — so the y axis flips: `(dx, dy) ↦ (-dy, dx)`.
+
+Getting this wrong is invisible for even-parity pairing (the bond operator is symmetric under
+site exchange) and for hermitian hopping (`⟨A⟩` and `⟨A†⟩` share their real part), but it
+swaps `+d ↔ -d` on vertical bonds for odd-parity pairing.
+"""
+_peps_displacement(dx, dy) = (-Int(dy), Int(dx))
+
+"""
+    _canonical_bond(dx, dy)
+
+The representative of the undirected bond `(dx, dy)` whose PEPS image points forward (down,
+or right within a row). Bonds are emitted once, with both orientations carried by separate
+amplitudes.
+"""
+function _canonical_bond(dx, dy)
+    drow, dcol = _peps_displacement(dx, dy)
+    forward = drow > 0 || (drow == 0 && dcol > 0)
+    return forward ? (Int(dx), Int(dy)) : (-Int(dx), -Int(dy))
+end
+
+"""
     BCS_spin_hamiltonian(T::Type{<:Number}, lattice::InfiniteSquare, H_BdG::MomentumSpaceBdGHamiltonian)
 
 Returns a BCS spin-1/2 (Nf=2) Hamiltonian as a TensorMap object on the infinite square lattice.
@@ -19,6 +46,19 @@ function BCS_spin_hamiltonian(T::Type{<:Number}, lattice::InfiniteSquare, H_BdG:
 
     ham_terms = []
 
+    #= Directed bond operators. The `+d` and `-d` dict entries carry independent amplitudes,
+       so each orientation needs its own operator:
+
+         e⁺e⁻  = ∑_σ e†_{1σ} e_{2σ}            hopping  i → i+d
+         u⁺d⁺  = e†_{1↑} e†_{2↓}               pairing  (i↑, i+d↓)
+         d⁺u⁺  = e†_{1↓} e†_{2↑}               pairing  (i↓, i+d↑)
+
+       For `Δ_{-d} = Δ_{+d}` and real `t` this reduces to the previous even-parity form,
+       since `√2 singlet⁺ = u⁺d⁺ - d⁺u⁺` and `e_hopping = e⁺e⁻ + (e⁺e⁻)†`. =#
+    hop_fwd = hub.e_plus_e_min(T, Trivial, Trivial)
+    ud = hub.u_plus_d_plus(T, Trivial, Trivial)
+    du = hub.d_plus_u_plus(T, Trivial, Trivial)
+
     # Map each site in the unit cell
     for y in 1:lattice.Nrows, x in 1:lattice.Ncols
         src_pos = CartesianIndex(y, x)
@@ -27,34 +67,36 @@ function BCS_spin_hamiltonian(T::Type{<:Number}, lattice::InfiniteSquare, H_BdG:
         # On-site chemical potential term
         push!(ham_terms, (src_pos,) => - H_BdG.μ * num)
 
-        # Get the valid bonds for site_label
+        # Get the valid bonds for site_label. Every dict entry contributes, whether it is
+        # given as +d or -d; the bond is emitted once, under its +d representative.
         site_hoppings = get(H_BdG.hopping, site_label, Dict())
         site_pairings = get(H_BdG.pairing, site_label, Dict())
 
         unique_bonds = Set{Tuple{Int, Int}}() # set only contains unique elements
-        for (dx, dy) in keys(site_hoppings)
-            if dx > 0 || (dx == 0 && dy > 0)
-                push!(unique_bonds, (Int(dx), Int(dy)))
-            end
-        end
-        for (dx, dy) in keys(site_pairings)
-            if dx > 0 || (dx == 0 && dy > 0)
-                push!(unique_bonds, (Int(dx), Int(dy)))
-            end
+        for (dx, dy) in Iterators.flatten((keys(site_hoppings), keys(site_pairings)))
+            (dx == 0 && dy == 0) && continue # on-site terms are the μ term above
+            push!(unique_bonds, _canonical_bond(dx, dy))
         end
 
         for bond in unique_bonds
             dx, dy = bond
-            hopping_amplitude = get(site_hoppings, bond, 0.0)
-            pairing_amplitude = get(site_pairings, bond, 0.0)
+            rev = (-dx, -dy)
+            drow, dcol = _peps_displacement(dx, dy)
+            dst_pos = CartesianIndex(y + drow, x + dcol)
 
-            dst_pos = CartesianIndex(y + dy, x + dx)
-            # hopping
-            bond_term = hopping_amplitude * hub.e_hopping(T, Trivial, Trivial)
-            # pairing
-            pairing_term = pairing_amplitude * sqrt(2) * hub.singlet_plus(T, Trivial, Trivial)
-            pairing_term += pairing_term' # add hermitian conjugate
-            bond_term += pairing_term
+            t_fwd = get(site_hoppings, bond, 0.0)   # i → i+d
+            t_rev = get(site_hoppings, rev, 0.0)    # i → i-d, shifted onto this bond
+            Δ_fwd = get(site_pairings, bond, 0.0)
+            Δ_rev = get(site_pairings, rev, 0.0)
+
+            # hopping: ∑_d t_d e†_i e_{i+d}. Both orientations are present explicitly, so
+            # this is already complete (hermitian iff t_{-d} = conj(t_{+d})).
+            bond_term = t_fwd * hop_fwd + t_rev * hop_fwd'
+
+            # pairing: ∑_d Δ_d e†_{i↑} e†_{i+d,↓} + h.c. The -d term relabelled onto this
+            # bond is Δ_{-d} e†_{i+d,↑} e†_{i,↓} = -Δ_{-d} d⁺u⁺.
+            pairing_term = Δ_fwd * ud - Δ_rev * du
+            bond_term += pairing_term + pairing_term'
 
             push!(ham_terms, (src_pos, dst_pos) => bond_term)
         end

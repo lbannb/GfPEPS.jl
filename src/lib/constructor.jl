@@ -31,6 +31,15 @@ This structure holds all the relevant information about the fermionic Gaussian s
         optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true)
     )
 
+# Lattice convention:
+
+```
+ ---- Lx            
+|
+|
+Ly
+```
+
 Constructs a `Gaussian_fPEPS` object by optimizing the fiducial state parameters `X` to minimize the energy
 of the target BdG Hamiltonian or satisfy doping constraints.
 """
