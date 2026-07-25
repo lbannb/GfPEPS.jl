@@ -27,12 +27,10 @@ t2 = -2.0
 μ = 1.0
 
 # CTMRG settings
-# χ_env = 8 stalls around err ~ 1e-2 for this D=4 state, 16 converges to ~1e-9 in a few seconds
-χ_env_max = 10
-boundary_alg = (; tol = 1e-8, maxiter=200, trunc = truncrank(χ_env_max))
+χ_env_max = 32
+boundary_alg = (; tol = 1e-8, alg=:SimultaneousCTMRG, maxiter=100, trunc = trunctol(; rtol=1e-4) & truncrank(χ_env_max))
 
-# @testset "Optimization with doping test" begin
-
+@testset "Optimization with doping test (2x2 unit cell)" begin
     # different couplings on the two sublattices to have a non uniform doping layout
     hopping = Dict( 
         1 => Dict((2, 0) => t1, (0, 2) => t1, (-2, 0) => t1, (0, -2) => t1),
@@ -46,19 +44,7 @@ boundary_alg = (; tol = 1e-8, maxiter=200, trunc = truncrank(χ_env_max))
     _ = GfPEPS.solve_for_mu(lattice, δ_target, H_BdG)
     Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, H_BdG; doping_kwargs=doping_kwargs);
 
-    # hopping = Dict( 
-    #     1 => Dict((1, 0) => t1, (0, 2) => t1, (-1, 0) => t1, (0, -1) => t1),
-    #     2 => Dict((1, 0) => t1, (0, 2) => t1, (-1, 0) => t1, (0, -1) => t1)
-    # )
-    # pairing = Dict(
-    #     1 => Dict((1, 0) => Δ1_x, (-1, 0) => Δ1_x, (0, 1) => Δ1_y, (0, -1) => Δ1_y),
-    #     2 => Dict((1, 0) => Δ1_x, (-1, 0) => Δ1_x, (0, 1) => Δ1_y, (0, -1) => Δ1_y)
-    # )
-    # H_BdG = default_BCS_hamiltonian(hopping, pairing, μ, lattice)
-    # _ = GfPEPS.solve_for_mu(lattice, δ_target, H_BdG)
-    # Ψ_trial = Gaussian_fPEPS(Nf, Λ, lattice, H_BdG; doping_kwargs=doping_kwargs);
-
-    # @testset "Average doping in unit cell" begin
+    @testset "Average doping in unit cell" begin
         # test if mean doping in unit cell is correct
         @test doping_kwargs.δ ≈ δ_target atol=doping_kwargs.density_tol
         # test if we can extract the correct doping values from the unit cell and that the mean matches δ_target
@@ -67,9 +53,9 @@ boundary_alg = (; tol = 1e-8, maxiter=200, trunc = truncrank(χ_env_max))
         @show mean(doping_layout)
 
         @test mean(doping_layout) ≈ δ_target atol=doping_kwargs.density_tol
-    # end;
+    end;
 
-    # @testset "Doping after Gutzwiller projection" begin
+    @testset "Doping after Gutzwiller projection" begin
 
         env0 = initialize_ctmrg_environment(Ψ_trial.peps, IdentityInitialization())
         env, info = leading_boundary(env0, Ψ_trial.peps; boundary_alg...)
@@ -77,13 +63,17 @@ boundary_alg = (; tol = 1e-8, maxiter=200, trunc = truncrank(χ_env_max))
         δ_PEPS, doping_layout = GfPEPS.doping_peps(Ψ_trial.peps,env)
         @test δ_PEPS ≈ δ_target atol=1e-3 # depends on the CTMRG convergence and χ_env_max
 
-        # find fugacity z such that doping after projection matches target doping
-        z, env_projected = GfPEPS.solve_for_fugacity(Ψ_trial.peps, δ_PEPS; χ_env_max=12, atol=doping_kwargs.density_tol)
-        PG = GfPEPS.gutzwiller_projector(z)
-        peps_projected = GfPEPS.gutzwiller_project(z,Ψ_trial.peps)
+        # Find a fugacity *layout* z such that the doping after projection matches the
+        # unprojected doping site by site. 
+        z, env_projected = GfPEPS.solve_for_fugacity(
+            Ψ_trial.peps, doping_layout; χ_env_max=12, atol=doping_kwargs.density_tol
+        )
+        peps_projected = GfPEPS.gutzwiller_project(z, Ψ_trial.peps)
 
         δ_PEPS_projected, doping_layout_projected = GfPEPS.doping_pepsGW(peps_projected,env_projected)
-        @test doping_layout_projected ≈ doping_layout atol=1e-3 # depends on the CTMRG convergence and χ_env_max
-
-    # end
-# end;
+        # mean doping is preserved by the projection ...
+        @test δ_PEPS_projected ≈ δ_PEPS atol=1e-3
+        # and so is the site-resolved layout, to the tolerance the fugacity solve was run at
+        @test doping_layout_projected ≈ doping_layout atol=1e-3
+    end
+end;

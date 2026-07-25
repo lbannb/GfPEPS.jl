@@ -194,26 +194,26 @@ end
 """
     virtual_mode_partition(Λ::Int, lattice::AbstractInfiniteLattice)
 
-Return `(inner, bdry)`: the global Majorana indices of the inner (intra-cell bond) and
+Return `(inner, boundary)`: the global Majorana indices of the inner (intra-cell bond) and
 boundary (wrap bond) virtual modes, in the same global ordering as `G_in_single_k`.
 For a 1x1 unit cell every mode is a boundary mode and `inner` is empty.
 """
 function virtual_mode_partition(Λ::Int, lattice::AbstractInfiniteLattice)
     Lx, Ly = lattice.Lx, lattice.Ly
     Λ_per_site = 8Λ
-    bdry = Int[]
+    boundary = Int[]
     for iy in 1:Ly, ix in 1:Lx
         base = Λ_per_site * (get_site_index(ix, iy, lattice) - 1)
         for α in 1:Λ
-            ix == 1  && append!(bdry, base .+ (4(α-1)+1 : 4(α-1)+2))       # l modes
-            ix == Lx && append!(bdry, base .+ (4(α-1)+3 : 4(α-1)+4))       # r modes
-            iy == 1  && append!(bdry, base .+ 4Λ .+ (4(α-1)+1 : 4(α-1)+2)) # u modes
-            iy == Ly && append!(bdry, base .+ 4Λ .+ (4(α-1)+3 : 4(α-1)+4)) # d modes
+            ix == 1  && append!(boundary, base .+ (4(α-1)+1 : 4(α-1)+2))       # l modes
+            ix == Lx && append!(boundary, base .+ (4(α-1)+3 : 4(α-1)+4))       # r modes
+            iy == 1  && append!(boundary, base .+ 4Λ .+ (4(α-1)+1 : 4(α-1)+2)) # u modes
+            iy == Ly && append!(boundary, base .+ 4Λ .+ (4(α-1)+3 : 4(α-1)+4)) # d modes
         end
     end
-    sort!(bdry)
-    inner = setdiff(1:Λ_per_site*Lx*Ly, bdry)
-    return inner, bdry
+    sort!(boundary)
+    inner = setdiff(1:Λ_per_site*Lx*Ly, boundary)
+    return inner, boundary
 end
 Zygote.@nograd virtual_mode_partition
 
@@ -222,36 +222,36 @@ Zygote.@nograd virtual_mode_partition
 
 Precompute all k-independent inputs of the blocked Gaussian map:
 
-- `inner`, `bdry`: virtual mode partition (see `virtual_mode_partition`),
+- `inner`, `boundary`: virtual mode partition (see `virtual_mode_partition`),
 - `G_intra`: real CM of the intra-cell bonds (k-independent, zero on the boundary block),
-- `G_wrap`: batched CM of the wrap bonds, `(Nk × d_b × d_b)` with `d_b = length(bdry)`.
+- `G_wrap`: batched CM of the wrap bonds, `(Nk × d_b × d_b)` with `d_b = length(boundary)`.
 
 For a 1x1 unit cell `inner` is empty, `G_intra` is zero and `G_wrap` equals the full
 `G_in_Fourier`, so the blocked map reduces exactly to the previous implementation.
 """
 function gaussian_map_inputs(Λ::Int, lattice::AbstractInfiniteLattice)
-    inner, bdry = virtual_mode_partition(Λ, lattice)
+    inner, boundary = virtual_mode_partition(Λ, lattice)
 
     # intra-cell bonds carry phase 1 (they never wrap), so G at any k restricted to
     # non-boundary couplings is the k-independent intra-cell CM
     G_intra = real(G_in_single_k(zeros(2), Λ, lattice))
-    G_intra[bdry, bdry] .= 0.0 # remove wrap couplings (they live entirely in the boundary block)
+    G_intra[boundary, boundary] .= 0.0 # remove wrap couplings (they live entirely in the boundary block)
 
     # batched wrap-bond CM: all k-dependence of G_in lives in the boundary block
     # ponytail: allocates Nk × d_b² complex; build per-k inside GaussianMap if memory ever matters
     kvals = lattice.kvals
-    d_b = length(bdry)
+    d_b = length(boundary)
     G_wrap = Array{ComplexF64, 3}(undef, size(kvals, 2), d_b, d_b)
     for (i, k) in enumerate(eachcol(kvals))
-        G_wrap[i, :, :] = G_in_single_k(k, Λ, lattice)[bdry, bdry]
+        G_wrap[i, :, :] = G_in_single_k(k, Λ, lattice)[boundary, boundary]
     end
 
-    return (; inner, bdry, G_intra, G_wrap)
+    return (; inner, boundary, G_intra, G_wrap)
 end
 Zygote.@nograd gaussian_map_inputs
 
 """
-    contract_inner_modes(A, B, D, G_intra, inner, bdry)
+    contract_inner_modes(A, B, D, G_intra, inner, boundary)
 
 Contract the intra-unit-cell virtual bonds via the (k-independent) Schur complement over
 the inner modes, returning the effective blocks `(A_eff, B_eff, D_eff)` of the unit-cell
@@ -259,23 +259,23 @@ fiducial state Γ_uc restricted to physical + boundary modes:
 
     A_eff = A + B_I M⁻¹ B_Iᵀ,   B_eff = B_∂ - B_I M⁻¹ D_I∂,   D_eff = D_∂∂ + D_I∂ᵀ M⁻¹ D_I∂,
 
-with `M = D_II + G_intra[inner, inner]` (using `D[bdry, inner] = -D[inner, bdry]ᵀ`).
+with `M = D_II + G_intra[inner, inner]` (using `D[boundary, inner] = -D[inner, boundary]ᵀ`).
 All operations are Zygote-differentiable; this runs once per loss evaluation.
 """
 function contract_inner_modes(A::AbstractMatrix, B::AbstractMatrix, D::AbstractMatrix,
-                              G_intra::AbstractMatrix, inner::Vector{Int}, bdry::Vector{Int})
+                              G_intra::AbstractMatrix, inner::Vector{Int}, boundary::Vector{Int})
     isempty(inner) && return A, B, D
 
     M_II = D[inner, inner] + G_intra[inner, inner]
     B_I  = B[:, inner]
-    D_Ib = D[inner, bdry]
+    D_Ib = D[inner, boundary]
 
     Y = M_II \ transpose(B_I)   # d_i × n
     W = M_II \ D_Ib             # d_i × d_b
 
     A_eff = A + B_I * Y
-    B_eff = B[:, bdry] - B_I * W
-    D_eff = D[bdry, bdry] + transpose(D_Ib) * W
+    B_eff = B[:, boundary] - B_I * W
+    D_eff = D[boundary, boundary] + transpose(D_Ib) * W
 
     return A_eff, B_eff, D_eff
 end

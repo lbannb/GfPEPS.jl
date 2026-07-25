@@ -75,7 +75,7 @@ wrap bonds are contracted per k-point (`GaussianMap`). Pass a precomputed
 function CM_out_X(X_vec::AbstractArray{<:AbstractMatrix}, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice,
                   gm_inputs=gaussian_map_inputs(Λ, lattice))
     A, B, D = get_Γ_blocks(X_vec, Nf, Λ, lattice)
-    A_eff, B_eff, D_eff = contract_inner_modes(A, B, D, gm_inputs.G_intra, gm_inputs.inner, gm_inputs.bdry)
+    A_eff, B_eff, D_eff = contract_inner_modes(A, B, D, gm_inputs.G_intra, gm_inputs.inner, gm_inputs.boundary)
     return GaussianMap(A_eff, B_eff, D_eff, gm_inputs.G_wrap)
 end
 

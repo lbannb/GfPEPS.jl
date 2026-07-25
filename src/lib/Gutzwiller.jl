@@ -69,15 +69,14 @@ Apply different Gutzwiller projection to a (spin-1/2 / Nf=2) PEPS to the corresp
 - `peps::InfinitePEPS`: The input PEPS to which the Gutzwiller projection will be applied.
 
 """
-function gutzwiller_project(z::Matrix{Float64}, peps::InfinitePEPS)
+function gutzwiller_project(z::AbstractMatrix{<:Real}, peps::InfinitePEPS; type="Hubbard")
     @assert size(z) == size(peps.A) "Size of fugacity matrix z must match the unit cell size of peps."
 
-    for r in 1:size(peps.A, 1), c in 1:size(peps.A, 2)
-        P = gutzwiller_projector(z[r, c]; type="Hubbard")
-        peps.A[r, c] = P * peps.A[r, c]
-    end
-
-    return PEPSKit.peps_normalize(peps)
+    # build a new PEPS rather than writing into peps.A: the projector maps the Hubbard
+    # physical space to the tJ one, so the result does not fit back into the input array,
+    # and mutating would compound the projection when called repeatedly from a solver.
+    pepsGW = InfinitePEPS(map((zi, A) -> gutzwiller_projector(Float64(zi); type=type) * A, z, peps.A))
+    return PEPSKit.peps_normalize(pepsGW)
 end
 
 """
@@ -106,28 +105,96 @@ function solve_for_fugacity(
         env_init::Union{Nothing, CTMRGEnv}=nothing
     )
 
-    function get_env(peps::InfinitePEPS; env_init::Union{Nothing, CTMRGEnv}=nothing)
-        # identity init is deterministic and lets CTMRG grow the environment spaces itself
-        env0 = isnothing(env_init) ?
-            initialize_ctmrg_environment(peps, IdentityInitialization()) : env_init
-        env, = leading_boundary(
-            env0, peps;
-            tol = 1e-8, maxiter = 200, trunc = truncrank(χ_env_max)
-        )
-        return env
-    end
-
     # build initial environment
     z_init = isnothing(z_initial) ? 2δ_target/(1+δ_target) : z_initial
     peps_projected = gutzwiller_project(z_init, peps)
-    env_init = get_env(peps_projected; env_init=env_init)
+    env_init = _fugacity_env(peps_projected, χ_env_max; env_init=env_init)
 
     function mismatch(z)
         peps_projected = gutzwiller_project(z, peps)
-        env_init = get_env(peps_projected; env_init=env_init)
+        env_init = _fugacity_env(peps_projected, χ_env_max; env_init=env_init)
         δ_projected, _ = doping_pepsGW(peps_projected, env_init)
         return δ_target - δ_projected
     end
 
     return find_zero(mismatch, z_init; atol=atol), env_init
+end
+
+"""
+    _fugacity_env(peps, χ_env_max; env_init=nothing)
+
+CTMRG environment used by the fugacity solvers. Identity initialization is deterministic,
+and `truncrank` lets CTMRG pick the environment spaces itself, which matters here because
+the projected PEPS changes on every solver step and a fixed space would pin the sector
+split found for the first `z` onto all later ones.
+
+`tol=1e-6` rather than `1e-8`: this environment is rebuilt on every solver step, and the
+looser inner tolerance cuts the scalar solve from ~250 s to ~80 s while moving the
+resulting `z` by only ~4e-6. Warm-starting from the previous step helps on top of that.
+"""
+function _fugacity_env(
+        peps::InfinitePEPS, χ_env_max::Int;
+        env_init::Union{Nothing, CTMRGEnv}=nothing
+    )
+    env0 = isnothing(env_init) ?
+        initialize_ctmrg_environment(peps, IdentityInitialization()) : env_init
+    # Plain rank cut here, deliberately. A value cut (`trunctol`) is the more robust choice
+    # for the *unprojected* PEPS, but the Gutzwiller-projected spectrum is flat enough that
+    # a relative cut keeps states up to the cap: measured ~50 s per environment and no
+    # convergence, against ~2-7 s and err ~1e-6 with truncrank at the same χ.
+    env, = leading_boundary(
+        env0, peps; tol = 1e-6, maxiter = 100, trunc = truncrank(χ_env_max)
+    )
+    return env
+end
+
+"""
+    solve_for_fugacity(peps::InfinitePEPS, δ_target::AbstractMatrix; kwargs...)
+
+Site-resolved version of [`solve_for_fugacity`](@ref): find a fugacity *layout* `z` such
+that the doping of the Gutzwiller-projected `peps` matches `δ_target` site by site, rather
+than only on average.
+
+Sites that share a target doping share a fugacity, so a target layout `[δ1 δ2; δ2 δ1]`
+is solved with two unknowns and yields `[z1 z2; z2 z1]`. This keeps the number of CTMRG
+environments per solver step down to the number of *distinct* target values.
+
+# Returns
+- `z::Matrix{Float64}`: fugacity layout, same shape as the unit cell
+- `env::CTMRGEnv`: converged environment of the projected PEPS at the solution
+"""
+function solve_for_fugacity(
+        peps::InfinitePEPS,
+        δ_target::AbstractMatrix{<:Real};
+        χ_env_max::Int = 20,
+        atol::Float64=1e-5,
+        z_initial::Union{Nothing, AbstractMatrix{<:Real}}=nothing,
+        env_init::Union{Nothing, CTMRGEnv}=nothing
+    )
+    @assert size(δ_target) == size(peps.A) "Size of target doping layout must match the unit cell size of peps."
+
+    # one unknown per distinct target doping; `group[r, c]` indexes into that unknown vector
+    δ_distinct = unique(vec(δ_target))
+    group = map(δ -> findfirst(==(δ), δ_distinct), δ_target)
+    expand(zs) = map(g -> zs[g], group)
+
+    z0 = isnothing(z_initial) ? [2δ/(1+δ) for δ in δ_distinct] :
+        [z_initial[findfirst(==(k), group)] for k in eachindex(δ_distinct)]
+
+    env = env_init
+    function residual!(F, zs)
+        peps_projected = gutzwiller_project(expand(zs), peps)
+        env = _fugacity_env(peps_projected, χ_env_max; env_init=env)
+        _, layout = doping_pepsGW(peps_projected, env)
+        for k in eachindex(δ_distinct)
+            F[k] = mean(layout[group .== k]) - δ_distinct[k]
+        end
+        return F
+    end
+
+    sol = nlsolve(residual!, z0; ftol=atol)
+    sol.f_converged || sol.x_converged ||
+        @warn "solve_for_fugacity did not converge" residual_norm=sol.residual_norm
+
+    return expand(sol.zero), env
 end
