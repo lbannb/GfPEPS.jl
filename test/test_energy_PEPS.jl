@@ -1,3 +1,10 @@
+#= 
+    This file tests the energy of a fermionic Gaussian PEPS after translation from a CM state.
+    It compares the energy computed from the PEPS with the energy computed from the CM state.
+
+    It tests if the translation routine from a CM to a GfPEPS works correctly.
+=#
+
 using Revise
 using Test
 using GfPEPS
@@ -5,43 +12,84 @@ using TensorKit
 using PEPSKit
 using Random 
 
+Random.seed!(12345) # for reproducibility
+
+# BCS parameters
+t = 1.0
+# dwave pairing: Δ_y = -Δ_x 
+Δ1_x = 1.0
+Δ1_y = -Δ1_x
+μ = 2.0
+
 @testset "Energy after translation to fPEPS" begin
-    Random.seed!(1234)
+    @testset "Trivial unit cell (1x1)" begin
+        # CTMRG settings
+        χenv_max = 32
+        boundary_alg = (; tol = 1e-8, maxiter=100, alg = :SimultaneousCTMRG, trunc = truncrank(χenv_max))
 
-    Nf = 2
-    Nv = 2
-    N = (Nf + 4*Nv)
+        Nf = 2
+        Λ = 2
+        lattice = InfiniteRectLattice(1,1;N_kx=256, N_ky=256, bc=(:APBC, :PBC))
 
-    Γ_fiducial, X = GfPEPS.rand_CM(Nf,Nv)
+        N = GfPEPS.get_number_of_modes(Nf, Λ, lattice)
 
-    # peps = GfPEPS.translate_naive(X, Nf, Nv)
-    peps = GfPEPS.translate(X, Nf, Nv);
+        X_vec = [GfPEPS.rand_CM(Nf, Λ)[1] for i in 1:GfPEPS.get_number_of_distinct_sites_in_uc(lattice)]
+        peps = GfPEPS.translate(X_vec, Nf, Λ, lattice);
 
-    χenv_max = 8
-    boundary_alg = (; tol = 1e-8, maxiter=100, alg = :simultaneous)
-    
-    env = GfPEPS.init_ctmrg_env(peps);
-    env, _ = GfPEPS.grow_env(peps, env, 4, χenv_max; boundary_alg...)
+        env0 = initialize_ctmrg_environment(peps, IdentityInitialization())
+        env, _ = leading_boundary(env0, peps; boundary_alg...)
 
-    t = 1.0
-    pairing_type = "d_wave"
-    Δ_0 = 1.0
-    μ = 1.0
-    params = GfPEPS.BCS(
-        t,
-        μ,
-        pairing_type,
-        Δ_0,
-    )
+        hopping = Dict(1 => Dict((1, 0) => t, (0, 1) => t, (-1, 0) => t, (0, -1) => t))
+        pairing = Dict(1 => Dict((1, 0) => Δ1_x, (-1, 0) => Δ1_x, (0, 1) => Δ1_y, (0, -1) => Δ1_y))
 
-    Lx = 128
-    Ly = 128
+        H_BdG = default_BCS_hamiltonian(hopping, pairing, μ, lattice)
 
-    ham = GfPEPS.BCS_spin_hamiltonian(ComplexF64, InfiniteSquare(1, 1); t=t, Δ_0 = Δ_0, μ = μ)
-    energy1 = real(expectation_value(peps, ham, env))
+        ham = GfPEPS.BCS_spin_hamiltonian(ComplexF64, InfiniteSquare(lattice.Lx, lattice.Ly), H_BdG, lattice.uc_layout)
+        energyPEPS = real(expectation_value(peps, ham, env))
+        energyCM = GfPEPS.energy_CM(X_vec, Nf, Λ, H_BdG, lattice)
 
-    bz = BrillouinZone2D(Lx, Ly, (:APBC, :PBC))
-    energy2 = GfPEPS.energy_CM(Γ_fiducial, bz, Nf, params)
+        @show energyPEPS
+        @show energyCM
 
-    @test energy1 ≈ energy2 atol=1e-2 # depends on Nv
-end
+        # Test that the energy computed from the PEPS matches the energy computed from the CM state within a tolerance
+        @test energyPEPS ≈ energyCM atol=1e-3 # depends on χenv_max
+    end
+    @testset "1x2 unit cell" begin
+        # CTMRG settings
+        χenv_max = 22
+        boundary_alg = (; tol = 1e-8, maxiter=100, alg = :SimultaneousCTMRG, trunc = truncrank(χenv_max))
+
+        Nf = 2
+        Λ = 2
+        lattice = InfiniteRectLattice(2,1;N_kx=256, N_ky=256, bc=(:APBC, :PBC), uc_layout=[1 2])
+        N = GfPEPS.get_number_of_modes(Nf, Λ, lattice)
+
+        X_vec = [GfPEPS.rand_CM(Nf, Λ)[1] for i in 1:GfPEPS.get_number_of_distinct_sites_in_uc(lattice)]
+        peps = GfPEPS.translate(X_vec, Nf, Λ, lattice);
+
+        env0 = initialize_ctmrg_environment(peps, IdentityInitialization())
+        env, _ = leading_boundary(env0, peps; boundary_alg...)
+
+        # different couplings on the two sublattices
+        hopping = Dict( 
+            1 => Dict((2, 0) => t, (0, 2) => t, (-2, 0) => t, (0, -2) => t),
+            2 => Dict((2, 0) => 2t, (0, 2) => 2t, (-2, 0) => 2t, (0, -2) => 2t)
+        )
+        pairing = Dict(
+            1 => Dict((2, 0) => Δ1_x, (-2, 0) => Δ1_x, (0, 2) => Δ1_y, (0, -2) => Δ1_y),
+            2 => Dict((2, 0) => 2Δ1_x, (-2, 0) => 2Δ1_x, (0, 2) => 2Δ1_y, (0, -2) => 2Δ1_y)
+        )
+
+        H_BdG = default_BCS_hamiltonian(hopping, pairing, μ, lattice)
+
+        ham = GfPEPS.BCS_spin_hamiltonian(ComplexF64, InfiniteSquare(lattice.Ly, lattice.Lx), H_BdG, lattice.uc_layout)
+        energyPEPS = real(expectation_value(peps, ham, env))
+        energyCM = GfPEPS.energy_CM(X_vec, Nf, Λ, H_BdG, lattice)
+
+        @show energyPEPS
+        @show energyCM
+
+        # Test that the energy computed from the PEPS matches the energy computed from the CM state within a tolerance
+        @test energyPEPS ≈ energyCM atol=1e-3; # depends on χenv_max
+    end
+end;

@@ -1,20 +1,24 @@
 module GfPEPS
 
 #= load external modules =#
-using MKL
 using LinearAlgebra
 using Statistics
 using BlockDiagonals
 using Optim
 using Zygote
-using JSON: parsefile
-using Random
+# using JSON: parsefile
+# using Random
 using TensorOperations
 using SkewLinearAlgebra
 using MatrixFactorizations
 using Roots
+using NLsolve
+using LineSearches
 
-using SparseArrays: sparse, blockdiag, spdiagm
+# For custom adjoints during optimization with Zygote
+using ChainRulesCore: NoTangent, unthunk, ProjectTo
+import ChainRulesCore: rrule
+
 using TensorKit
 using MPSKit
 using PEPSKit
@@ -26,23 +30,24 @@ import TensorKitTensors.TJOperators as tJ
 const V = FO.fermion_space()
 const unit = TensorKit.id(V)
 
-# MKL.set_num_threads(Sys.CPU_THREADS) 
-
 #= include local files =#
-include("lib/utils.jl")
 include("lib/brillouinZone.jl")
-include("lib/modelParameters.jl")
+include("lib/lattices.jl")
+include("lib/utils.jl")
+include("lib/BdGHamiltonian.jl")
 include("lib/GaussianMap.jl")
-include("lib/constructor.jl")
 include("lib/loss.jl")
 include("lib/states.jl")
-include("lib/translate.jl")
 include("lib/bogoliubov.jl")
 include("lib/Xopt.jl")
+include("lib/Gutzwiller.jl")
+include("lib/translate.jl")
 
-include("models/bcs_spin.jl")
+include("models/bcs.jl")
 include("models/kitaev.jl")
-include("models/tj_model.jl")
+# include("models/tj_model.jl")
+
+include("lib/constructor.jl")
 
 include("exports.jl") # export functions
 

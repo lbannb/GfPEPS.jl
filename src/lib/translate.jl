@@ -1,9 +1,48 @@
 """
-    get_parent_hamiltonian(Γ::AbstractMatrix)
+    H_BdG_majorana_k(Nf::Int, k::AbstractVector{<:Real}, H_BdG::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
+
+Constructs the Hamiltonian matrix `H_BdG_k` in the Majorana basis (qq-ordered) for momentum `k`.
+
+Bogoliubov-de-Gennes Hamiltonian in Nambu basis (Dirac fermions aᵢ) is given by:
+
+    hat{H} =  1/2 α† H_BdG α, with α = (a₁, a₂, ..., a_Nf, a₁†, a₂†, ..., a_Nf†)ᵀ being the Nambu spinor and H_BdG being the Bogoliubov-de-Gennes matrix.
+
+In Majorana basis (Majorana fermions cᵢ), the Hamiltonian becomes:
+
+    hat{H} = i/4 rᵀ Ω H_BdG Ω† r, with r = (c₁, c₃, ..., c_2Nf-1, c₂, c₄, ...,  c_Nf)ᵀ being the vector of Majorana operators (qp-ordered).
+
+
+Returns i/2 * (Ω H_BdG_k Ω†) for momentum `k` in qq-ordering.
+"""
+function H_BdG_majorana_k(Nf::Int, k::AbstractVector{<:Real}, H_BdG::MomentumSpaceBdGHamiltonian, lattice::AbstractInfiniteLattice)
+    Nf_in_uc = get_Nf_in_uc(Nf, lattice)
+
+    # 1. Construct H_BdG in Nambu basis (Dirac fermions qp-ordered)
+    H_BdG_k_mat = [H_BdG.ξ_mat_k(k; μ = H_BdG.μ)  H_BdG.Δ_mat_k(k); 
+               H_BdG.Δ_mat_k(k)' -transpose(H_BdG.ξ_mat_k(-k; μ = H_BdG.μ))]
+
+    # 2. Permute to qq-ordering: (a₁, a₂, ..., a_Nf, a†₁, a†₂, ..., a†_Nf) -> (a₁, a†₁, a₂, a†₂, ...)
+    p = zeros(Int, 2*Nf_in_uc)
+    for i in 1:Nf_in_uc
+        p[2*i - 1] = i                # aᵢ
+        p[2*i]     = Nf_in_uc + i     # a†ᵢ
+    end
+    H_BdG_k_mat = H_BdG_k_mat[p, p]
+
+    # 3. Transform to Majorana basis (qq-ordered) with unitary Ω
+    Ω0 = [1  1; im  -im]
+    Ω = kron(I(Nf_in_uc), Ω0)
+    
+    h = im * 0.5 .* Ω * H_BdG_k_mat * Ω'
+    return (h - h') / 2 # enforce exact skew-hermiticity
+end
+
+"""
+    get_parent_hamiltonian(Γ::AbstractMatrix, Nf::Int, Λ::Int)
 
 Return the parent Hamiltonian in Dirac representation (qp-ordering) of the fiducial state correlation matrix `Γ` in Majorana representation (qq-ordering).
 """
-function get_parent_hamiltonian(Γ::AbstractMatrix, Nf::Int, Nv::Int)
+function get_parent_hamiltonian(Γ::AbstractMatrix, Nf::Int, Λ::Int)
     N = div(size(Γ, 1), 2)
 
     # Transform to Dirac fermions (qq-ordering)
@@ -11,42 +50,42 @@ function get_parent_hamiltonian(Γ::AbstractMatrix, Nf::Int, Nv::Int)
     Ω = kron(I(N), Ω0)
     Γ_fiducial_dirac = 1/4 .* Ω' * Γ * Ω
     #= Now has the following ordering (qq)
-        (f_1,f_1†, ..., f_Nf, f_Nf†, l_1, l_1†, r_1, r_1†, ..., l_Nv, l_Nv†, r_Nv, r_Nv†, d_1, d_1†, u_1, u_1†, ..., d_Nv, d_Nv†, u_Nv, u_Nv†)
+        (f_1,f_1†, ..., f_Nf, f_Nf†, l_1, l_1†, r_1, r_1†, ..., l_Λ, l_Λ†, r_Λ, r_Λ†, d_1, d_1†, u_1, u_1†, ..., d_Λ, d_Λ†, u_Λ, u_Λ†)
     =#
 
     # bring to qp-ordering
     perm = vcat(1:2:(2N), 2:2:(2N))
     Γ_fiducial_dirac = Γ_fiducial_dirac[perm, perm]
     #= Now has the following ordering (qp)
-        (f_1, ..., f_Nf, l_1, r_1, ..., l_Nv, r_Nv, d_1, u_1, ..., d_Nv, u_Nv, f_1†, ..., f_Nf†, l_1†, r_1†, ..., l_Nv†, r_Nv†, d_1†, u_1†, ..., d_Nv†, u_Nv†)
+        (f_1, ..., f_Nf, l_1, r_1, ..., l_Λ, r_Λ, d_1, u_1, ..., d_Λ, u_Λ, f_1†, ..., f_Nf†, l_1†, r_1†, ..., l_Λ†, r_Λ†, d_1†, u_1†, ..., d_Λ†, u_Λ†)
     =#
 
-    # group virtual fermions as (l1,...,lNv,r1,...,rNv,d1,...,dNv,u1,...,uNv)
-    L = collect(1:2:2Nv)    # l1, l2, ...
-    R = collect(2:2:2Nv)    # r1, r2, ...
-    D = collect(2Nv+1:2:4Nv)  # d1, d2, ...
-    U = collect(2Nv+2:2:4Nv)  # u1, u2, ...
+    # group virtual fermions as (l1,...,lΛ,r1,...,rΛ,d1,...,dΛ,u1,...,uΛ)
+    L = collect(1:2:2Λ)    # l1, l2, ...
+    R = collect(2:2:2Λ)    # r1, r2, ...
+    D = collect(2Λ+1:2:4Λ)  # d1, d2, ...
+    U = collect(2Λ+2:2:4Λ)  # u1, u2, ...
     perm_virtual = vcat(L, R, D, U)
     
     perm_total = vcat(
         1:Nf,                       # physical (already fine)
         Nf .+ perm_virtual,         # reorder virtuals
-        (Nf+4Nv) .+ (1:Nf),         # f†
-        (2Nf+4Nv) .+ perm_virtual    # reordered virtual†
+        (Nf+4Λ) .+ (1:Nf),         # f†
+        (2Nf+4Λ) .+ perm_virtual    # reordered virtual†
     )
     Γ_fiducial_dirac = Γ_fiducial_dirac[perm_total, perm_total]
 
     # now reorder to (f,u,r,d,l)
-    L = collect(Nf+1:Nf+Nv)    # l1, l2, ...
-    R = collect(Nf+Nv+1:Nf+2Nv)   # r1, r2, ...
-    D = collect(Nf+2Nv+1:Nf+3Nv)  # d1, d2, ...
-    U = collect(Nf+3Nv+1:Nf+4Nv)  # u1, u2, ...
+    L = collect(Nf+1:Nf+Λ)    # l1, l2, ...
+    R = collect(Nf+Λ+1:Nf+2Λ)   # r1, r2, ...
+    D = collect(Nf+2Λ+1:Nf+3Λ)  # d1, d2, ...
+    U = collect(Nf+3Λ+1:Nf+4Λ)  # u1, u2, ...
     perm_virtual = vcat(U, R, D, L)
 
     perm_reorder = vcat(1:Nf, 
         perm_virtual,
-        (Nf+4Nv) .+ (1:Nf), # f†
-        (Nf+4Nv) .+ perm_virtual # virtual†
+        (Nf+4Λ) .+ (1:Nf), # f†
+        (Nf+4Λ) .+ perm_virtual # virtual†
     )
     Γ_fiducial_dirac = Γ_fiducial_dirac[perm_reorder, perm_reorder]
 
@@ -57,29 +96,29 @@ function get_parent_hamiltonian(Γ::AbstractMatrix, Nf::Int, Nv::Int)
 end
 
 """ 
-    get_empty_peps_tensor(Nf::Int, Nv::Int)
+    get_empty_peps_tensor(Nf::Int, Λ::Int)
 
-Create an empty fPEPS tensor with the correct dimensions and spaces for given number of physical (Nf) and virtual (Nv) fermions.
+Create an empty fPEPS tensor with the correct dimensions and spaces for given number of physical (Nf) and virtual (Λ) fermions.
 """
-function get_empty_fpeps_tensor(Nf::Int, Nv::Int)
+function get_empty_fpeps_tensor(Nf::Int, Λ::Int)
     physical_spaces = Vect[fℤ₂](0 => 2^Nf / 2, 1 => 2^Nf / 2)
-    V_bonds = Vect[fℤ₂](0 => 2^Nv / 2, 1 => 2^Nv / 2)
+    V_bonds = Vect[fℤ₂](0 => 2^Λ / 2, 1 => 2^Λ / 2)
     virtual_spaces = V_bonds ⊗ V_bonds ⊗ V_bonds ⊗ V_bonds
 
     codomain_spaces = reduce(⊗, [physical_spaces, virtual_spaces])
     domain_space = ProductSpace{GradedSpace{FermionParity, Tuple{Int64, Int64}}, 0}()
 
     T = zeros(ComplexF64, dim(physical_spaces), dim(virtual_spaces))
-    T = reshape(T, (2^Nf, 2^Nv, 2^Nv, 2^Nv, 2^Nv))
+    T = reshape(T, (2^Nf, 2^Λ, 2^Λ, 2^Λ, 2^Λ))
 
     return T, codomain_spaces, domain_space
 end
 
 """
-    translate(X::AbstractMatrix, Nf::Int, Nv::Int; tol=1e-10)
+    translate_to_PEPS_tensor(X::AbstractMatrix, Nf::Int, Λ::Int; tol=1e-10)
 
-Get PEPS tensor by contracting virtual axes of ⟨ω|F⟩,
-where |ω⟩, |F⟩ are the virtual and the fiducial states.
+Get PEPS tensor A by using the overlap formula of Yang et al. (https://link.aps.org/doi/10.1103/PhysRevB.107.125128).
+Then project the virtual links to the maximally entangled states as:
 ```
             -2
             ↓
@@ -87,7 +126,7 @@ where |ω⟩, |F⟩ are the virtual and the fiducial states.
             ↑
             1  -1
             ↑ ↗
-    -5  --←-F-→- 2 -→-ω-←- -3
+    -5  --←-A-→- 2 -→-ω-←- -3
             ↓
             -4
 ```
@@ -95,15 +134,15 @@ Input axis order
 ```
         5  1                2
         ↑ ↗                 ↑
-    2-←-F-→-3   1-←-ω-→-2   ω
+    2-←-A-→-3   1-←-ω-→-2   ω
         ↓                   ↓
         4                   1
 ```
 """
-function translate(X::AbstractMatrix, Nf::Int, Nv::Int; tol=1e-10, unitcell = (1,1))
-    Γ_fiduc = Γ_fiducial(X, Nv, Nf)
+function translate_to_PEPS_tensor(X::AbstractMatrix, Nf::Int, Λ::Int; tol=1e-10)
+    Γ_fiduc = Γ_fiducial(X, Nf, Λ)
 
-    H = get_parent_hamiltonian(Γ_fiduc, Nf, Nv)
+    H = get_parent_hamiltonian(Γ_fiduc, Nf, Λ)
     _, M = bogoliubov(H)
 
     # Bloch Messiah decomposition
@@ -124,16 +163,16 @@ function translate(X::AbstractMatrix, Nf::Int, Nv::Int; tol=1e-10, unitcell = (1
     Q_mat = (Q_mat - transpose(Q_mat)) / 2 # enforce exact skew-symmetry
 
     states_f = 0:(2^Nf - 1)
-    states_v = 0:(2^Nv - 1)
+    states_v = 0:(2^Λ - 1)
 
     # Cartesian product; store as tuples
     states = [(f,u,r,d,l) for f in states_f for u in states_v for r in states_v
                                    for d in states_v for l in states_v]
 
     ind_f_dict = translate_occ_to_TM_dict(Nf)
-    ind_v_dict = translate_occ_to_TM_dict(Nv)
+    ind_v_dict = translate_occ_to_TM_dict(Λ)
 
-    T, codomain_space, domain_space = get_empty_fpeps_tensor(Nf, Nv)
+    T, codomain_space, domain_space = get_empty_fpeps_tensor(Nf, Λ)
 
     # get tensor elements with overlap formula from 10.1103/PhysRevB.107.125128
     Threads.@threads for state in states
@@ -141,10 +180,10 @@ function translate(X::AbstractMatrix, Nf::Int, Nv::Int; tol=1e-10, unitcell = (1
 
         # convert occ to bitstrings
         f = (digits(f_occ, base=2, pad=Nf))
-        u = (digits(u_occ, base=2, pad=Nv))
-        l = (digits(l_occ, base=2, pad=Nv))
-        d = (digits(d_occ, base=2, pad=Nv))
-        r = (digits(r_occ, base=2, pad=Nv))
+        u = (digits(u_occ, base=2, pad=Λ))
+        l = (digits(l_occ, base=2, pad=Λ))
+        d = (digits(d_occ, base=2, pad=Λ))
+        r = (digits(r_occ, base=2, pad=Λ))
 
         # Boolean occupation vector to select rows from R_mat_full (true if occupied)
         occ_bool = vcat(f, u, r, d, l) .== 1
@@ -171,21 +210,40 @@ function translate(X::AbstractMatrix, Nf::Int, Nv::Int; tol=1e-10, unitcell = (1
     T[abs.(T) .< tol] .= 0.0
 
     fiducial_state = TensorMap(T, codomain_space ← domain_space)
-    ω = virtual_bond_state(Nv)
+    ω = virtual_bond_state(Λ)
 
     V = fermion_space()
-    fuser_virtual = isomorphism(Int, fuse(fill(V, Nv)...), reduce(⊗, fill(V, Nv)))
+    fuser_virtual = isomorphism(Int, fuse(fill(V, Λ)...), reduce(⊗, fill(V, Λ)))
     # The maximally entangled bond state ω is in the full tensor product basis of the two virtual fermions (Λ flavors).
     # We now transform ω to to the explicit tensor product basis of |l> ⊗ |r> ( or |d> ⊗ |u> ).
     ω = (fuser_virtual ⊗ fuser_virtual) * ω
 
     @tensor A[-1; -2 -3 -4 -5] := conj(ω[1 -2]) * conj(ω[2 -3]) * fiducial_state[-1 1 2 -4 -5]
-
-    # normalize as projecting the virtual bonds needs normalization afterwards
-    return PEPSKit.peps_normalize(InfinitePEPS(A; unitcell = unitcell))
+    return A
 end
 
-function translate_occ_to_TM_dict(N)
+"""
+    translate(X_vec::AbstractVector{<:AbstractMatrix}, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice; tol=1e-10)
+
+Get each tensor ´A´ in the unit cell by translating each `X_opt` in `X_vec` with `translate_to_PEPS_tensor()`.
+Then returns the iPEPS in the PEPSKit.jl format.
+
+"""
+function translate(X_vec::AbstractVector{<:AbstractMatrix}, Nf::Int, Λ::Int, lattice::AbstractInfiniteLattice; tol=1e-10)
+    # translate each distinct site once, then fill the (Ly × Lx) unit-cell layout
+    A_vec = [translate_to_PEPS_tensor(X, Nf, Λ; tol=tol) for X in X_vec]
+    peps_layout = map(label -> A_vec[label], lattice.uc_layout)
+
+    return PEPSKit.peps_normalize(InfinitePEPS(peps_layout))
+end
+
+"""
+   translate_occ_to_TM_dict(N::Int)
+   
+Returns a `Dict{Vector{Int}, Int}` that maps an occupation string to the tensor index of the iPEPS.
+
+"""
+function translate_occ_to_TM_dict(N::Int)
     nstates = 2^N
     even = []
     odd  = []

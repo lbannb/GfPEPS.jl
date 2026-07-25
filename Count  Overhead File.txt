@@ -1,0 +1,647 @@
+Count  Overhead File                                                   Line Function
+ =====  ======== ====                                                   ==== ========
+     1         0 @GfPEPS\src\lib\translate.jl                            231 translate(X::Matrix{Float64}, Nf::Int64, Λ::Int64, lattice::InfiniteRectLattice; tol::Float64)
+     1         0 @TensorKit\src\tensors\tensor.jl                        320 TensorKit.TensorMap(data::Array{ComplexF64, 5}, V::TensorKit.TensorMapSpace{TensorKit.GradedSpace{TensorKitSectors.FermionParity, Tuple{Int64, Int64}}, 5, 0})
+     1         0 @TensorKit\src\tensors\tensor.jl                        350 TensorKit.TensorMap(data::Array{ComplexF64, 5}, V::TensorKit.TensorMapSpace{TensorKit.GradedSpace{TensorKitSectors.FermionParity, Tuple{Int64, Int64}}, 5, 0}; tol::Float64)
+     1         0 @TensorKit\src\tensors\abstracttensor.jl                622 convert(::Type{Array}, t::TensorKit.Tensor{ComplexF64, TensorKit.GradedSpace{TensorKitSectors.FermionParity, Tuple{Int64, Int64}}, 5, Vector{ComplexF64}})
+     1         0 @TensorKit\src\fusiontrees\fusiontrees.jl               221 convert(A::Type{Array}, ::Tuple{TensorKit.FusionTree{TensorKitSectors.FermionParity, 5, 3, 4}, TensorKit.FusionTree{TensorKitSectors.FermionParity, 0, 0, 0}})
+     1         0 @TensorKit\src\fusiontrees\fusiontrees.jl               199 convert(A::Type{Array}, f::TensorKit.FusionTree{TensorKitSectors.FermionParity, 5, 3, 4})
+     1         0 @TensorKit\src\fusiontrees\fusiontrees.jl               182 convert(A::Type{Array}, f::TensorKit.FusionTree{TensorKitSectors.FermionParity, 2, 0, 1})
+     1         0 @TensorKitSectors\src\fermions.jl                        57 fusiontensor(a::TensorKitSectors.FermionParity, b::TensorKitSectors.FermionParity, c::TensorKitSectors.FermionParity)
+     1         0 @Base\logging.jl                                        367 macro expansion
+     1         1 @VSCodeServer\src\progress.jl                            29 handle_message(j::VSCodeServer.VSCodeLogger, level::Base.CoreLogging.LogLevel, message::String, _module::Module, group::Symbol, id::Symbol, file::String, line::Int64; kwargs::Base.Pairs…
+     1         0 @Base\threadingconstructs.jl                            154 (::Base.Threads.var"#1#2"{GfPEPS.var"#411#threadsfor_fun#106"{GfPEPS.var"#411#threadsfor_fun#99#107"{Int64, Int64, Array{ComplexF64, 5}, Dict{Vector{Int64}, Int64}, Dict{Vector{Int64}, …
+     1         0 @Base\threadingconstructs.jl                            182 #411#threadsfor_fun
+     1         0 @Base\threadingconstructs.jl                            215 (::GfPEPS.var"#411#threadsfor_fun#106"{GfPEPS.var"#411#threadsfor_fun#99#107"{Int64, Int64, Array{ComplexF64, 5}, Dict{Vector{Int64}, Int64}, Dict{Vector{Int64}, Int64}, Matrix{ComplexF…
+     1         0 @GfPEPS\src\lib\translate.jl                            222 macro expansion
+     1         0 @GfPEPS\src\lib\translate.jl                            165 translate(X::Matrix{Float64}, Nf::Int64, Λ::Int64, lattice::InfiniteRectLattice; tol::Float64)
+     1         0 @GfPEPS\src\lib\bogoliubov.jl                            18 bogoliubov(H::LinearAlgebra.Hermitian{ComplexF64, Matrix{ComplexF64}})
+     1         0 @LinearAlgebra\src\symmetriceigen.jl                     11 eigen
+     1         0 @LinearAlgebra\src\symmetriceigen.jl                     13 #eigen#193
+     1         0 @LinearAlgebra\src\symmetriceigen.jl                      8 eigen!
+     1         0 @LinearAlgebra\src\symmetriceigen.jl                      8 #eigen!#192
+     1         1 @LinearAlgebra\src\lapack.jl                           5439 syevr!(jobz::Char, range::Char, uplo::Char, A::Matrix{ComplexF64}, vl::Float64, vu::Float64, il::Int64, iu::Int64, abstol::Float64)
+     1         0 @Revise\src\types.jl                                    439 (::Revise.TaskThunk)()
+     1         0 @Revise\src\packagedef.jl                               651 revise_dir_queued(dirname::String)
+     1         0 @Revise\src\pkgs.jl                                     325 watch_files_via_dir(dirname::String)
+     1         0 @Revise\src\utils.jl                                     49 file_exists
+     1         0 @Base\stat.jl                                           461 isfile
+     1         1 @Base\stat.jl                                           150 stat(path::String)
+     1         0 @GfPEPS\src\lib\Xopt.jl                                 124 get_X_opt(lattice::InfiniteRectLattice, Nf::Int64, Λ::Int64, H_bdg::MomentumSpaceBdGHamiltonian; X_init::Nothing, doping_kwargs::DopingSettings, optim_alg_options::Optim.LBFGS{Nothing, …
+     1         0 @VSCodeServer\src\progress.jl                            32 handle_message(j::VSCodeServer.VSCodeLogger, level::Base.CoreLogging.LogLevel, message::String, _module::Module, group::Symbol, id::Symbol, file::String, line::Int64; kwargs::Base.Pairs…
+     1         0 @Logging\src\ConsoleLogger.jl                           110 kwcall(::NamedTuple, ::typeof(Base.CoreLogging.handle_message), logger::Logging.ConsoleLogger, level::Base.CoreLogging.LogLevel, message::Any, _module::Any, group::Any, id::Any, filepat…
+     1         0 @Logging\src\ConsoleLogger.jl                           140 handle_message(logger::Logging.ConsoleLogger, level::Base.CoreLogging.LogLevel, message::Any, _module::Any, group::Any, id::Any, filepath::Any, line::Any; kwargs...)
+     1         0 @Logging\src\ConsoleLogger.jl                            57 showvalue(io::IOContext{IOBuffer}, msg::Float64)
+     1         0 @Base\multimedia.jl                                     123 show(io::IOContext{IOBuffer}, m::String, x::Float64)
+     1         0 @Base\multimedia.jl                                      49 MIME
+     1         0 @Base\boot.jl                                           516 Symbol(s::String)
+     1         1 @Base\boot.jl                                           509 _Symbol
+     1         1 @LinearAlgebra\src\matmul.jl                            139 *(A::Matrix{Float64}, B::Matrix{ComplexF64})
+     1         0 @Base\abstractarraymath.jl                              254 _selectdim(A::Array{ComplexF64, 3}, d::Int64, i::Int64, idxs::Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}})
+     1         0 @Base\operators.jl                                      425 >=
+     1         1 @Base\int.jl                                            520 <=
+     1         0 @Base\array.jl                                          372 _copyto_impl!(dest::Matrix{ComplexF64}, doffs::Int64, src::Matrix{ComplexF64}, soffs::Int64, n::Int64)
+     1         0 @ChainRules\src\rulesets\Base\indexing.jl               276 ∇eachslice(dys_raw::Vector{Matrix{ComplexF64}}, x::Array{ComplexF64, 3}, vd::Val{1})
+     1         0 @NLSolversBase\src\interface.jl                          80 value_gradient!(obj::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, x::Matrix{Float64})
+     1         1 @Base\abstractarray.jl                                 2938 ==(A::Matrix{Float64}, B::Matrix{Float64})
+     1         0 @LinearAlgebra\src\lu.jl                                 84 #lu!#158
+     1         0 @Zygote\src\lib\broadcast.jl                             59 unbroadcast(x::Matrix{ComplexF64}, maybethunked_x̄::SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}, Int64}, true})    
+     1         0 @Zygote\src\lib\array.jl                                205 (::Zygote.var"#map_back#681"{GfPEPS.var"#53#54"{Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}}, 1, Tuple{Vector{SubArray{ComplexF6…
+     1         1 @Base\tuple.jl                                          318 map
+     1         1 @Zygote\src\lib\broadcast.jl                              ? unbroadcast(x::Matrix{Float64}, maybethunked_x̄::Matrix{ComplexF64})
+     1         1 @Zygote\src\lib\array.jl                                425 (::Zygote.var"#882#885"{Matrix{ComplexF64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Matrix{ComplexF64}})(Z̄::Matrix{ComplexF64})
+     1         0 @LinearAlgebra\src\matmul.jl                            613 gemm_wrapper!(C::Matrix{ComplexF64}, tA::Char, tB::Char, A::Matrix{ComplexF64}, B::Matrix{Float64}, _add::LinearAlgebra.MulAddMul{true, true, Bool, Bool})
+     1         0 @LinearAlgebra\src\matmul.jl                            656 lapack_size
+     1         0 @Base\char.jl                                           213 ==
+     1         1 @Base\broadcast.jl                                      555 _bcs1
+     1         0 @ChainRulesCore\src\projection.jl                       240 #59
+     1         1 @LinearAlgebra\src\matmul.jl                              ? gemm_wrapper!(C::Matrix{Float64}, tA::Char, tB::Char, A::Matrix{Float64}, B::Matrix{Float64}, _add::LinearAlgebra.MulAddMul{true, true, Bool, Bool})
+     1         0 @ChainRules\src\rulesets\Base\arraymath.jl              402 rrule
+     1         0 @Base\arraymath.jl                                       24 /(A::Matrix{Float64}, B::Int64)
+     1         1 @Base\Base.jl                                            40 setproperty!(x::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, f::Symbol, v::Float64)
+     1         0 @Base\array.jl                                          332 unsafe_copyto!
+     1         0 @Base\abstractarray.jl                                 1239 pointer
+     1         1 @Base\pointer.jl                                         65 unsafe_convert
+     1         0 @LinearAlgebra\src\LinearAlgebra.jl                     559 ldiv(F::LinearAlgebra.LU{ComplexF64, Matrix{ComplexF64}, Vector{Int64}}, B::LinearAlgebra.Transpose{Float64, Matrix{Float64}})
+     1         0 @Base\range.jl                                            5 Colon
+     1         1 @Base\range.jl                                          403 UnitRange
+     1         1 @LinearAlgebra\src\matmul.jl                            111 *(A::Matrix{Float64}, B::Matrix{Float64})
+     1         1 @Zygote\src\lib\broadcast.jl                             56 unbroadcast(x::Matrix{Float64}, maybethunked_x̄::Matrix{ComplexF64})
+     1         0 @Base\promotion.jl                                      533 min
+     1         1 @Base\essentials.jl                                     647 ifelse
+     1         0 @Base\cartesian.jl                                       64 macro expansion
+     1         0 @Base\multidimensional.jl                               961 macro expansion
+     1         0 @Base\int.jl                                           1074 -
+     1         1 @Base\int.jl                                             86 -
+     1         0 @GfPEPS\src\lib\GaussianMap.jl                           13 helper(k::Float64, Nrc::Int64)
+     1         0 @LinearAlgebra\src\dense.jl                             466 kron(A::LinearAlgebra.Diagonal{Bool, Vector{Bool}}, B::Matrix{Int64})
+     1         1 @Base\abstractarray.jl                                 2106 typed_hvcat(::Type{ComplexF64}, ::Tuple{Int64, Int64}, ::Matrix{Float64}, ::Vararg{AbstractVecOrMat})
+     1         0 @GfPEPS\src\lib\translate.jl                             55 H_BdG_majorana_k(Nf::Int64, k::SubArray{Float64, 1, Matrix{Float64}, Tuple{Base.Slice{Base.OneTo{Int64}}, Int64}, true}, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::InfiniteRectLatti…
+     1         0 @LinearAlgebra\src\matmul.jl                           1162 *(A::Matrix{ComplexF64}, B::Matrix{ComplexF64}, C::LinearAlgebra.Adjoint{Complex{Int64}, Matrix{Complex{Int64}}})
+     1         0 @LinearAlgebra\src\matmul.jl                           1174 _tri_matmul(A::Matrix{ComplexF64}, B::Matrix{ComplexF64}, C::LinearAlgebra.Adjoint{Complex{Int64}, Matrix{Complex{Int64}}}, δ::Nothing)
+     1         0 @LinearAlgebra\src\matmul.jl                            106 *
+     1         0 @LinearAlgebra\src\matmul.jl                            785 generic_matmatmul!(C::Matrix{ComplexF64}, tA::Char, tB::Char, A::Matrix{ComplexF64}, B::Matrix{Complex{Int64}}, _add::LinearAlgebra.MulAddMul{true, true, Bool, Bool})
+     1         1 @LinearAlgebra\src\matmul.jl                            820 _generic_matmatmul!(C::Matrix{ComplexF64}, tA::Char, tB::Char, A::Matrix{ComplexF64}, B::Matrix{Complex{Int64}}, _add::LinearAlgebra.MulAddMul{true, true, Bool, Bool})
+     1         1 @Base\abstractarray.jl                                 2077 typed_hvcat(::Type{ComplexF64}, ::Tuple{Int64, Int64}, ::LinearAlgebra.Diagonal{Float64, Vector{Float64}}, ::Vararg{AbstractVecOrMat})
+     1         0 @BlockDiagonals\src\blockdiagonal.jl                    112 (Matrix)(B::BlockDiagonals.BlockDiagonal{ComplexF64, Matrix{ComplexF64}})
+     1         1 @Base\abstractarray.jl                                 2100 typed_hvcat(::Type{ComplexF64}, ::Tuple{Int64, Int64}, ::Matrix{Float64}, ::Vararg{AbstractVecOrMat})
+     1         0 @LinearAlgebra\src\matmul.jl                            598 gemm_wrapper!(C::Matrix{ComplexF64}, tA::Char, tB::Char, A::Matrix{ComplexF64}, B::Matrix{ComplexF64}, _add::LinearAlgebra.MulAddMul{true, true, Bool, Bool})
+     1         0 @Base\promotion.jl                                      399 promote
+     1         0 @Base\promotion.jl                                      377 _promote
+     1         0 @Base\number.jl                                           7 convert
+     1         0 @Base\complex.jl                                         42 Complex
+     1         1 @Base\complex.jl                                         14 Complex
+     1         0 @Zygote\src\lib\broadcast.jl                             60 unbroadcast
+     1         0 @ChainRulesCore\src\tangent_types\thunks.jl             252 unthunk
+     1         0 @ChainRules\src\rulesets\Base\indexing.jl                69 #675
+     1         0 @ChainRules\src\rulesets\Base\indexing.jl                88 ∇getindex(::Matrix{Float64}, ::Matrix{Float64}, ::UnitRange{Int64}, ::Vararg{UnitRange{Int64}})
+     1         0 @ChainRules\src\rulesets\Base\indexing.jl               133 _setindex_zero(::Matrix{Float64}, ::Matrix{Float64}, ::UnitRange{Int64}, ::Vararg{UnitRange{Int64}})
+     1         0 @LinearAlgebra\src\generic.jl                          1348 _istril
+     1         1 @Base\int.jl                                             87 +
+     1         0 @Optim\src\utilities\perform_linesearch.jl               40 perform_linesearch!(state::Optim.LBFGSState{Matrix{Float64}, Vector{Matrix{Float64}}, Vector{Matrix{Float64}}, Float64, Matrix{Float64}}, method::Optim.LBFGS{Nothing, LineSearches.Initi…
+     1         0 @LinearAlgebra\src\matmul.jl                             15 dot
+     1         0 @LinearAlgebra\src\blas.jl                              395 dot
+     1         1 @LinearAlgebra\src\blas.jl                              345 dot
+     1         1 @LinearAlgebra\src\LinearAlgebra.jl                     533 ldiv(F::LinearAlgebra.LU{ComplexF64, Matrix{ComplexF64}, Vector{Int64}}, B::Matrix{ComplexF64})
+     1         0 @Base\abstractarray.jl                                 2893 _stack_size_check
+     1         0 @Base\tuple.jl                                          482 ==
+     1         0 @Base\tuple.jl                                          486 _eq
+     1         0 @Base\range.jl                                         1134 ==
+     1         0 @LineSearches\src\LineSearches.jl                        29 (::LineSearches.var"#ϕdϕ#2"{Optim.ManifoldObjective{Optim.Stiefel_SVD, NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}}, Matrix{Float64}, Matrix{Flo…
+     1         0 @Base\broadcast.jl                                      987 preprocess_args
+     1         0 @Base\broadcast.jl                                      630 _newindexer
+     1         0 @Optim\src\multivariate\solvers\first_order\l_bfgs.jl   209 update_state!(d::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, state::Optim.LBFGSState{Matrix{Float64}, Vector{Matrix{Float64}}, Vector{Matrix{Fl…
+     1         0 @Optim\src\multivariate\solvers\first_order\l_bfgs.jl    39 twoloop!(s::Matrix{Float64}, gr::Matrix{Float64}, rho::Vector{Float64}, dx_history::Vector{Matrix{Float64}}, dg_history::Vector{Matrix{Float64}}, m::Int64, pseudo_iteration::Int64, alph…
+     1         1 @Base\float.jl                                          411 *
+     1         1 @Base\broadcast.jl                                        ? _bcs
+     1         0 @Base\array.jl                                          723 _array_for(::Type{Tuple{@NamedTuple{A::Matrix{Float64}, B::ChainRulesCore.Thunk{ChainRules.var"#548#551"{SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}…
+     1         0 @Zygote\src\lib\array.jl                                189 ∇map(cx::Zygote.Context{false}, f::GfPEPS.var"#53#54"{Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}}, args::Vector{SubArray{Comple…
+     1         1 @Base\generator.jl                                       32 Generator
+     1         0 @Base\subarray.jl                                       184 view
+     1         1 @Base\abstractarray.jl                                    ? checkbounds
+     1         1 @Base\broadcast.jl                                        ? _bcs1
+     1         0 @Base\arraymath.jl                                        8 -(A::Matrix{Float64}, B::LinearAlgebra.Transpose{Float64, Matrix{Float64}})
+     1         0 @ChainRulesCore\src\projection.jl                       224 (::ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{element::ChainRulesCore.ProjectTo{Float64, @NamedTuple{}}, axes::Tuple{Base.OneTo{Int64}, Base.OneTo{Int64}}}})(dx::Matrix{Complex…
+     1         0 @Zygote\src\lib\array.jl                                153 _tryreverse
+     1         0 @Zygote\src\lib\array.jl                                159 _reverse
+     1         0 @Base\array.jl                                         1951 reverse
+     1         0 @Base\array.jl                                         1951 #reverse#120
+     1         0 @Base\array.jl                                         1952 _reverse
+     1         1 @Base\array.jl                                            ? reverse(A::Vector{Tuple{Matrix{ComplexF64}, Zygote.Pullback{Tuple{GfPEPS.var"#53#54"{Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}…
+     1         1 @Base\abstractarray.jl                                 2104 typed_hvcat(::Type{ComplexF64}, ::Tuple{Int64, Int64}, ::Matrix{Float64}, ::Vararg{AbstractVecOrMat})
+     1         0 @Base\abstractarray.jl                                 2097 typed_hvcat(::Type{ComplexF64}, ::Tuple{Int64, Int64}, ::LinearAlgebra.Diagonal{Float64, Vector{Float64}}, ::Vararg{AbstractVecOrMat})
+     1         0 @Base\operators.jl                                      276 !=(x::Int64, y::Int64)
+     1         0 @GfPEPS\src\lib\Xopt.jl                                 109 get_X_opt(lattice::InfiniteRectLattice, Nf::Int64, Λ::Int64, H_bdg::MomentumSpaceBdGHamiltonian; X_init::Nothing, doping_kwargs::DopingSettings, optim_alg_options::Optim.LBFGS{Nothing, …
+     1         1 @Base\tuple.jl                                           92 indexed_iterate
+     1         1 @Base\simdloop.jl                                        70 macro expansion
+     1         1 @LinearAlgebra\src\lapack.jl                              ? getrf!(A::Matrix{ComplexF64}; check::Bool)
+     1         0 @GfPEPS\src\lib\GaussianMap.jl                           96 get_Γ_blocks(Γ::Matrix{Float64}, Nf::Int64, lattice::InfiniteRectLattice)
+     1         0 @Base\multidimensional.jl                               889 _getindex
+     1         0 @Base\multidimensional.jl                               901 _unsafe_getindex(::IndexLinear, ::Matrix{Float64}, ::UnitRange{Int64}, ::UnitRange{Int64})
+     1         1 @LinearAlgebra\src\matmul.jl                            624 gemm_wrapper!(C::Matrix{ComplexF64}, tA::Char, tB::Char, A::Matrix{ComplexF64}, B::Matrix{Float64}, _add::LinearAlgebra.MulAddMul{true, true, Bool, Bool})
+     1         1 @ZygoteRules\src\adjoint.jl                              23 gradtuple1
+     1         1 @Base\essentials.jl                                     874 Val
+     1         1 @LinearAlgebra\src\matmul.jl                           1169 _tri_matmul
+     1         0 @LinearAlgebra\src\generic.jl                             ? \(A::LinearAlgebra.Adjoint{ComplexF64, Matrix{ComplexF64}}, B::Matrix{ComplexF64})
+     1         1 @LinearAlgebra\src\generic.jl                          1340 istril(A::Matrix{ComplexF64}, k::Int64)
+     1         0 @Optim\src\multivariate\solvers\first_order\l_bfgs.jl   222 update_state!(d::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, state::Optim.LBFGSState{Matrix{Float64}, Vector{Matrix{Float64}}, Vector{Matrix{Fl…
+     1         0 @Base\array.jl                                          869 collect_to_with_first!
+     1         1 @Base\array.jl                                            ? setindex!
+     1         1 @Zygote\src\compiler\chainrules.jl                      235 chain_rrule
+     1         0 @Base\abstractarray.jl                                 2822 _typed_stack(::Colon, ::Type{ComplexF64}, ::Type{Matrix{ComplexF64}}, A::Vector{Matrix{ComplexF64}}, Aax::Tuple{Base.OneTo{Int64}})
+     1         0 @ChainRules\src\rulesets\Base\array.jl                  642 (::ChainRules.var"#stack_pullback#546"{ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{elements::Vector{ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{element::ChainRulesCore.P…
+     1         0 @Base\slicearray.jl                                     127 eachslice
+     1         0 @Base\slicearray.jl                                     128 #eachslice#297
+     1         0 @Base\slicearray.jl                                      74 _eachslice
+     1         1 @Base\slicearray.jl                                      63 _eachslice(A::Array{ComplexF64, 3}, dims::Tuple{Int64}, drop::Bool)
+     2         0 @GfPEPS\src\lib\constructor.jl                           75 Gaussian_fPEPS(Nf::Int64, Λ::Int64, lattice::InfiniteRectLattice, H_bdg::MomentumSpaceBdGHamiltonian; doping_kwargs::DopingSettings, optim_alg_options::Optim.LBFGS{Nothing, LineSearches…
+     2         0 @GfPEPS\src\lib\translate.jl                            161 translate
+     2         0 @Base\essentials.jl                                     894 #invokelatest#2
+     2         0 @VSCodeServer\src\progress.jl                             7 kwcall(::@NamedTuple{maxlog::Int64}, ::typeof(Base.CoreLogging.handle_message), j::VSCodeServer.VSCodeLogger, level::Base.CoreLogging.LogLevel, message::String, _module::Module, group::…
+     2         0 @Base\logging.jl                                        379 macro expansion
+     2         0 @Base\subarray.jl                                       290 getindex
+     2         2 @LinearAlgebra\src\transpose.jl                         110 transpose_f!(f::typeof(adjoint), B::Matrix{ComplexF64}, A::Matrix{ComplexF64})
+     2         2 @ChainRules\src\rulesets\Base\indexing.jl               271 ∇eachslice(dys_raw::Vector{Matrix{ComplexF64}}, x::Array{ComplexF64, 3}, vd::Val{1})
+     2         2 @LinearAlgebra\src\blas.jl                             1505 gemm!(transA::Char, transB::Char, alpha::Float64, A::Base.ReinterpretArray{Float64, 2, ComplexF64, Matrix{ComplexF64}, false}, B::Matrix{Float64}, beta::Float64, C::Base.ReinterpretArra…
+     2         0 @Base\abstractarray.jl                                   42 size
+     2         2 @LinearAlgebra\src\matmul.jl                            570 gemm_wrapper!(C::Matrix{Float64}, tA::Char, tB::Char, A::Matrix{Float64}, B::Matrix{Float64}, _add::LinearAlgebra.MulAddMul{true, true, Bool, Bool})
+     2         0 @Base\complex.jl                                        294 +
+     2         2 @LinearAlgebra\src\transpose.jl                         100 transpose_f!(f::typeof(transpose), B::Matrix{ComplexF64}, A::Matrix{ComplexF64})
+     2         0 @Base\broadcast.jl                                     1000 copyto!
+     2         0 @Base\broadcast.jl                                      983 preprocess
+     2         0 @Base\broadcast.jl                                      986 preprocess_args
+     2         0 @Base\broadcast.jl                                      984 preprocess
+     2         0 @Base\broadcast.jl                                      676 extrude
+     2         0 @Base\broadcast.jl                                      625 newindexer
+     2         0 @Base\broadcast.jl                                      626 shapeindexer
+     2         0 @Base\broadcast.jl                                      631 _newindexer
+     2         0 @Base\broadcast.jl                                      549 _bcs
+     2         2 @LinearAlgebra\src\lapack.jl                            557 getrf!(A::Matrix{ComplexF64}; check::Bool)
+     2         0 @GfPEPS\src\lib\GaussianMap.jl                           84 Γ_fiducial
+     2         0 @Base\array.jl                                          723 _array_for
+     2         0 @Base\abstractarray.jl                                 2828 _typed_stack(::Colon, ::Type{ComplexF64}, ::Type{Matrix{ComplexF64}}, A::Vector{Matrix{ComplexF64}}, Aax::Tuple{Base.OneTo{Int64}})
+     2         0 @Base\abstractarray.jl                                 1117 copyto!
+     2         2 @Base\abstractarray.jl                                    ? _stack_size_check
+     2         2 @Base\abstractarray.jl                                    ? iterate
+     2         0 @Base\array.jl                                          896 collect_to!
+     2         0 @LinearAlgebra\src\generic.jl                          1349 _istril
+     2         1 @Base\abstractarray.jl                                 2103 typed_hvcat(::Type{ComplexF64}, ::Tuple{Int64, Int64}, ::Matrix{Float64}, ::Vararg{AbstractVecOrMat})
+     2         2 @Base\cartesian.jl                                       65 macro expansion
+     2         2 @LinearAlgebra\src\matmul.jl                            610 gemm_wrapper!(C::Matrix{ComplexF64}, tA::Char, tB::Char, A::Matrix{ComplexF64}, B::Matrix{Float64}, _add::LinearAlgebra.MulAddMul{true, true, Bool, Bool})
+     2         0 @Zygote\src\compiler\reverse.jl                          24 gradindex(x::Tuple{Nothing, ChainRulesCore.InplaceableThunk{ChainRulesCore.Thunk{ChainRules.var"#554#559"{Matrix{Float64}, Matrix{Float64}}}, ChainRules.var"#553#558"{Matrix{Float64}, M…
+     2         0 @Base\iterators.jl                                      428 _zip_iterate_some
+     2         0 @ChainRules\src\rulesets\Base\array.jl                  640 (::ChainRules.var"#stack_pullback#546"{ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{elements::Vector{ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{element::ChainRulesCore.P…
+     2         0 @ChainRules\src\rulesets\LinearAlgebra\dense.jl          15 (::ChainRules.var"#1020#1023"{ComplexF64, Array{ComplexF64, 3}, Array{ComplexF64, 3}, ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{element::ChainRulesCore.ProjectTo{ComplexF64, @…
+     2         2 @Base\int.jl                                             88 *
+     2         2 @LinearAlgebra\src\matmul.jl                           1168 _tri_matmul
+     2         0 @Base\abstractarray.jl                                 1214 iterate
+     2         0 @Base\subarray.jl                                       309 getindex
+     2         1 @Base\tuple.jl                                           92 indexed_iterate(t::Tuple{Float64, Zygote.Pullback{Tuple{GfPEPS.var"#loss#61"{InfiniteRectLattice, Int64, Int64, GfPEPS.var"#energy#59"{Array{ComplexF64, 3}, Float64, Float64}, Array{Com…
+     3         0 @Base\essentials.jl                                     889 invokelatest
+     3         0 @LinearAlgebra\src\generic.jl                          1112 \(A::LinearAlgebra.Adjoint{ComplexF64, Matrix{ComplexF64}}, B::Matrix{ComplexF64})
+     3         3 @Base\array.jl                                            ? iterate
+     3         0 @Base\float.jl                                          623 isfinite
+     3         3 @Base\float.jl                                          410 -
+     3         3 @Base\tuple.jl                                           31 getindex
+     3         0 @LinearAlgebra\src\lapack.jl                            561 getrf!(A::Matrix{ComplexF64}; check::Bool)
+     3         3 @Base\abstractarraymath.jl                              253 _selectdim(A::Array{ComplexF64, 3}, d::Int64, i::Int64, idxs::Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}})
+     3         0 @Base\broadcast.jl                                      543 broadcast_shape
+     3         3 @ChainRulesCore\src\projection.jl                       221 (::ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{element::ChainRulesCore.ProjectTo{Float64, @NamedTuple{}}, axes::Tuple{Base.OneTo{Int64}, Base.OneTo{Int64}}}})(dx::SubArray{Compl…
+     3         0 @ChainRulesCore\src\projection.jl                       240 (::ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{elements::Vector{ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{element::ChainRulesCore.ProjectTo{ComplexF64, @NamedTuple{}},…
+     3         0 @Base\array.jl                                          839 collect(itr::Base.Generator{Base.Iterators.Zip{Tuple{Vector{ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{element::ChainRulesCore.ProjectTo{ComplexF64, @NamedTuple{}}, axes::Tuple…
+     3         0 @GfPEPS\src\lib\loss.jl                                  30 energy
+     3         0 @ChainRules\src\rulesets\LinearAlgebra\dense.jl          18 rrule
+     3         0 @LinearAlgebra\src\matmul.jl                             16 dot
+     3         0 @LinearAlgebra\src\blas.jl                              395 dotc(x::Array{ComplexF64, 3}, y::Array{ComplexF64, 3})
+     3         3 @LinearAlgebra\src\blas.jl                              362 dotc
+     3         0 @Base\abstractarray.jl                                 2827 _typed_stack(::Colon, ::Type{ComplexF64}, ::Type{Matrix{ComplexF64}}, A::Vector{Matrix{ComplexF64}}, Aax::Tuple{Base.OneTo{Int64}})
+     3         0 @LinearAlgebra\src\generic.jl                          1114 \(A::Matrix{ComplexF64}, B::LinearAlgebra.Transpose{Float64, Matrix{Float64}})
+     3         0 @LinearAlgebra\src\generic.jl                          1341 istril
+     3         0 @LinearAlgebra\src\generic.jl                          1342 istril(A::Matrix{ComplexF64}, k::Int64)
+     3         0 @Base\abstractarray.jl                                 1395 setindex!
+     3         0 @Base\multidimensional.jl                               944 _setindex!
+     3         0 @Base\multidimensional.jl                               967 _unsafe_setindex!(::IndexLinear, ::Array{ComplexF64, 3}, ::Matrix{ComplexF64}, ::Int64, ::Base.Slice{Base.OneTo{Int64}}, ::Base.Slice{Base.OneTo{Int64}})
+     3         0 @Base\multidimensional.jl                               955 macro expansion
+     3         1 @LinearAlgebra\src\matmul.jl                           1174 _tri_matmul
+     3         0 @Base\iterators.jl                                      430 _zip_iterate_some
+     3         3 @Base\iterators.jl                                      432 _zip_iterate_some
+     3         3 @Base\simdloop.jl                                        84 macro expansion
+     4         2 @SparseArrays\src\sparsevector.jl                      1257 hvcat_internal(::Tuple{Int64, Int64}, ::Matrix{Float64}, ::Matrix{ComplexF64}, ::Vararg{Union{Number, AbstractVecOrMat{<:Number}}})
+     4         0 @Base\abstractarray.jl                                 1067 copyto!(dest::Matrix{ComplexF64}, src::LinearAlgebra.Transpose{ComplexF64, SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64…
+     4         0 @ChainRules\src\rulesets\Base\array.jl                  638 #rrule#543
+     4         3 @ChainRulesCore\src\projection.jl                       217 ChainRulesCore.ProjectTo(xs::Vector{Matrix{ComplexF64}})
+     4         0 @ChainRules\src\rulesets\Base\indexing.jl               275 ∇eachslice(dys_raw::Vector{Matrix{ComplexF64}}, x::Array{ComplexF64, 3}, vd::Val{1})
+     4         0 @Base\abstractarraymath.jl                              252 selectdim
+     4         4 @LinearAlgebra\src\transpose.jl                           ? transpose_f!(f::typeof(adjoint), B::Matrix{ComplexF64}, A::Matrix{ComplexF64})
+     4         0 @Base\operators.jl                                      276 !=
+     4         1 @ChainRules\src\rulesets\Base\array.jl                  643 (::ChainRules.var"#stack_pullback#546"{ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{elements::Vector{ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{element::ChainRulesCore.P…
+     5         0 @Optim\src\multivariate\solvers\first_order\l_bfgs.jl   230 update_state!(d::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, state::Optim.LBFGSState{Matrix{Float64}, Vector{Matrix{Float64}}, Vector{Matrix{Fl…
+     5         0 @LinearAlgebra\src\adjtrans.jl                          321 size
+     5         0 @Optim\src\Manifolds.jl                                  59 value_jvp!(obj::Optim.ManifoldObjective{Optim.Stiefel_SVD, NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}}, x::Matrix{Float64}, v::Matrix{Float64})
+     5         0 @LinearAlgebra\src\matmul.jl                            142 *(A::Matrix{Float64}, B::Matrix{ComplexF64})
+     5         0 @Base\int.jl                                            526 <
+     5         5 @Base\int.jl                                            519 <
+     5         0 @ChainRules\src\rulesets\Base\array.jl                  631 #rrule#543
+     5         0 @GfPEPS\src\lib\Xopt.jl                                 115 get_X_opt(lattice::InfiniteRectLattice, Nf::Int64, Λ::Int64, H_bdg::MomentumSpaceBdGHamiltonian; X_init::Nothing, doping_kwargs::DopingSettings, optim_alg_options::Optim.LBFGS{Nothing, …
+     5         0 @GfPEPS\src\lib\loss.jl                                  88 doping_loss_X
+     5         0 @GfPEPS\src\lib\GaussianMap.jl                           15 helper(k::Float64, Nrc::Int64)
+     5         0 @SparseArrays\src\sparsevector.jl                      1261 hvcat
+     5         0 @SparseArrays\src\sparsevector.jl                      1257 hvcat_internal
+     5         0 @GfPEPS\src\lib\loss.jl                                  74 energy_loss_X
+     5         0 @Base\iterators.jl                                      411 iterate
+     5         0 @Base\iterators.jl                                      420 _zip_iterate_all
+     6         2 @SparseArrays\src\sparsevector.jl                      1261 hvcat(::Tuple{Int64, Int64}, ::Matrix{Float64}, ::Matrix{ComplexF64}, ::Vararg{Union{Number, AbstractVecOrMat{<:Number}}})
+     6         0 @Base\abstractarray.jl                                 1340 _getindex
+     6         0 @LinearAlgebra\src\adjtrans.jl                          329 getindex
+     6         0 @Optim\src\Manifolds.jl                                 109 project_tangent!(S::Optim.Stiefel_SVD, G::Matrix{Float64}, X::Matrix{Float64})
+     6         0 @LinearAlgebra\src\adjtrans.jl                          360 similar
+     6         0 @Base\complex.jl                                        331 +
+     6         6 @Base\bool.jl                                            38 &
+     6         0 @Base\abstractarray.jl                                  830 similar
+     6         6 @Zygote\src\compiler\interface2.jl                      100 (::Zygote.Pullback{Tuple{typeof(LinearAlgebra._tri_matmul), LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Matrix{Float64}, Matrix{Float64}, Nothing}, Any})(Δ::Matrix{Float64})    
+     6         0 @Base\array.jl                                          896 collect_to!(dest::Vector{Matrix{ComplexF64}}, itr::Base.Generator{Slices{Array{ComplexF64, 3}, Tuple{Int64, Colon, Colon}, Tuple{Base.OneTo{Int64}}, SubArray{ComplexF64, 2, Array{Comple…
+     6         0 @Zygote\src\lib\lib.jl                                    9 accum
+     6         0 @Base\multidimensional.jl                               696 getindex
+     6         0 @Base\abstractarray.jl                                 2768 stack
+     6         0 @Base\abstractarray.jl                                 2768 #stack#184
+     6         0 @Base\abstractarray.jl                                 2800 _stack
+     6         0 @Base\abstractarray.jl                                 2808 _stack
+     6         0 @Base\abstractarray.jl                                 2818 _typed_stack
+     6         0 @GfPEPS\src\lib\translate.jl                             41 H_BdG_majorana_k(Nf::Int64, k::SubArray{Float64, 1, Matrix{Float64}, Tuple{Base.Slice{Base.OneTo{Int64}}, Int64}, true}, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::InfiniteRectLatti…
+     6         1 @GfPEPS\src\lib\BdGHamiltonian.jl                       406 get_BdG_k_matrix(lattice::InfiniteRectLattice, Nf::Int64, k::SubArray{Float64, 1, Matrix{Float64}, Tuple{Base.Slice{Base.OneTo{Int64}}, Int64}, true}, H_bdg_k::MomentumSpaceBdGHamiltoni…
+     7         7 @Base\promotion.jl                                      521 ==
+     7         0 @Base\broadcast.jl                                      911 materialize!
+     7         0 @Base\broadcast.jl                                      914 materialize!
+     7         0 @GfPEPS\src\lib\GaussianMap.jl                           30 G_in_single_k(k::SubArray{Float64, 1, Matrix{Float64}, Tuple{Base.Slice{Base.OneTo{Int64}}, Int64}, true}, Λ::Int64, lattice::InfiniteRectLattice)
+     7         0 @GfPEPS\src\lib\loss.jl                                  75 energy_loss_X
+     7         0 @GfPEPS\src\lib\loss.jl                                  23 energy_loss(Nf::Int64, H_bdg_k::MomentumSpaceBdGHamiltonian, lattice::InfiniteRectLattice)
+     7         0 @GfPEPS\src\lib\loss.jl                                  23 (::GfPEPS.var"#56#58"{Int64, MomentumSpaceBdGHamiltonian, InfiniteRectLattice})(k::SubArray{Float64, 1, Matrix{Float64}, Tuple{Base.Slice{Base.OneTo{Int64}}, Int64}, true})
+     8         0 @Base\abstractarray.jl                                 1094 copyto_unaliased!(deststyle::IndexLinear, dest::Matrix{ComplexF64}, srcstyle::IndexCartesian, src::LinearAlgebra.Transpose{ComplexF64, SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tupl…
+     8         0 @Base\abstractarray.jl                                 1216 iterate
+     8         0 @Zygote\src\lib\lib.jl                                   21 accum
+     9         0 @ChainRules\src\rulesets\Base\array.jl                  630 rrule
+     9         9 @Base\boot.jl                                           622 NamedTuple
+     9         0 @Base\complex.jl                                        150 isfinite
+     9         9 @Base\simdloop.jl                                        75 macro expansion
+     9         9 @Base\simdloop.jl                                         ? macro expansion
+    10         0 @Base\abstractarray.jl                                 1088 copyto_unaliased!(deststyle::IndexLinear, dest::SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true}, srcstyle…
+    10         0 @Base\indices.jl                                        521 iterate
+    10         0 @Base\operators.jl                                      378 >
+    10        10 @Base\int.jl                                             83 <
+    10         0 @LinearAlgebra\src\LinearAlgebra.jl                     386 copymutable_oftype
+    10         0 @Zygote\src\compiler\interface2.jl                       81 _pullback(ctx::Zygote.Context{false}, f::typeof(stack), args::Vector{Matrix{ComplexF64}})
+    10         0 @Base\number.jl                                         225 adjoint
+    10         0 @Base\complex.jl                                        282 conj
+    10        10 @Base\float.jl                                          407 -
+    10         0 @Zygote\src\lib\lib.jl                                   14 accum
+    10         0 @LinearAlgebra\src\lapack.jl                             88 chkfinite
+    10         1 @LinearAlgebra\src\lapack.jl                             85 chkfinite
+    10         0 @GfPEPS\src\lib\GaussianMap.jl                           45 G_in_Fourier(Λ::Int64, lattice::InfiniteRectLattice)
+    11         0 @Zygote\src\lib\broadcast.jl                             84 #1187
+    11         0 @Base\subarray.jl                                        65 similar
+    11         0 @Base\abstractarray.jl                                   98 axes
+    11         0 @Base\generator.jl                                       44 iterate
+    12        12 @Base\essentials.jl                                      14 getindex
+    12         0 @Base\abstractarray.jl                                 1093 copyto_unaliased!(deststyle::IndexLinear, dest::Matrix{ComplexF64}, srcstyle::IndexCartesian, src::LinearAlgebra.Transpose{Float64, Matrix{Float64}})
+    12        12 @Base\float.jl                                          409 +
+    12         0 @LinearAlgebra\src\matmul.jl                           1162 *
+    12         0 @Optim\src\Manifolds.jl                                  57 value_jvp!(obj::Optim.ManifoldObjective{Optim.Stiefel_SVD, NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}}, x::Matrix{Float64}, v::Matrix{Float64})
+    12         0 @Optim\src\Manifolds.jl                                  20 retract
+    12         0 @GfPEPS\src\lib\Xopt.jl                                 114 get_X_opt(lattice::InfiniteRectLattice, Nf::Int64, Λ::Int64, H_bdg::MomentumSpaceBdGHamiltonian; X_init::Nothing, doping_kwargs::DopingSettings, optim_alg_options::Optim.LBFGS{Nothing, …
+    13         0 @Base\broadcast.jl                                      306 instantiate
+    13         0 @Base\broadcast.jl                                      524 combine_axes
+    13         0 @Base\broadcast.jl                                      682 _broadcast_getindex
+    13         0 @Base\broadcast.jl                                      709 _broadcast_getindex_evalf
+    13         1 @GfPEPS\src\lib\GaussianMap.jl                           82 Γ_fiducial
+    13         0 @LinearAlgebra\src\matmul.jl                           1166 _tri_matmul
+    13         0 @LinearAlgebra\src\matmul.jl                            143 *(A::Matrix{Float64}, B::Matrix{ComplexF64})
+    14         1 @Base\array.jl                                          945 iterate
+    14         0 @LinearAlgebra\src\transpose.jl                          41 transpose!
+    15         0 @LinearAlgebra\src\transpose.jl                         212 copy_similar
+    15         0 @LinearAlgebra\src\transpose.jl                          76 adjoint!
+    15         0 @LinearAlgebra\src\matmul.jl                            140 *(A::Matrix{Float64}, B::Matrix{ComplexF64})
+    15         0 @Base\abstractarraymath.jl                              170 real(A::Matrix{ComplexF64})
+    16         0 @Base\array.jl                                          637 zeros
+    16         0 @Base\array.jl                                          395 fill!
+    17         0 @ChainRules\src\rulesets\Base\arraymath.jl               36 #548
+    17         0 @Base\array.jl                                          834 collect(itr::Base.Generator{Base.Iterators.Zip{Tuple{Vector{Tuple{Matrix{ComplexF64}, Zygote.Pullback{Tuple{GfPEPS.var"#53#54"{Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, LinearA…
+    17         0 @Optim\src\Manifolds.jl                                 100 retract!(S::Optim.Stiefel_SVD, X::Matrix{Float64})
+    17         0 @LinearAlgebra\src\svd.jl                               178 svd
+    17         0 @LinearAlgebra\src\svd.jl                               179 #svd#102
+    17         0 @LinearAlgebra\src\svd.jl                               100 svd!
+    17         0 @LinearAlgebra\src\svd.jl                               105 svd!(A::Matrix{Float64}; full::Bool, alg::LinearAlgebra.DivideAndConquer)
+    17         0 @LinearAlgebra\src\svd.jl                               125 _svd!
+    17        17 @LinearAlgebra\src\lapack.jl                           1660 gesdd!(job::Char, A::Matrix{Float64})
+    19         0 @GfPEPS\src\lib\GaussianMap.jl                          121 GaussianMap
+    19        19 @Base\array.jl                                          192 size
+    19         0 @LinearAlgebra\src\transpose.jl                         183 copy
+    20         0 @LinearAlgebra\src\lapack.jl                            559 getrf!(A::Matrix{ComplexF64}; check::Bool)
+    21         0 @LinearAlgebra\src\transpose.jl                         109 transpose_f!(f::typeof(adjoint), B::Matrix{ComplexF64}, A::Matrix{ComplexF64})
+    22         0 @Base\array.jl                                          854 _collect(c::Slices{Array{ComplexF64, 3}, Tuple{Int64, Colon, Colon}, Tuple{Base.OneTo{Int64}}, SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, …
+    23         0 @Base\abstractarraymath.jl                              218 -(A::Matrix{ComplexF64})
+    23         0 @LinearAlgebra\src\LinearAlgebra.jl                     551 ldiv(F::LinearAlgebra.LU{ComplexF64, Matrix{ComplexF64}, Vector{Int64}}, B::Matrix{ComplexF64})
+    24         1 @Zygote\src\lib\array.jl                                  ? (::Zygote.var"#882#885"{Matrix{ComplexF64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Matrix{ComplexF64}})(Z̄::Matrix{ComplexF64})
+    24         0 @LinearAlgebra\src\transpose.jl                         211 copy_similar
+    26         0 @Zygote\src\lib\lib.jl                                   50 accum
+    27         0 @LinearAlgebra\src\matmul.jl                            144 *(A::Matrix{Float64}, B::Matrix{ComplexF64})
+    30         0 @LinearAlgebra\src\lapack.jl                            563 getrf!(A::Matrix{ComplexF64}; check::Bool)
+    31         0 @Base\array.jl                                          388 copyto!
+    31         0 @Base\array.jl                                          337 unsafe_copyto!
+    31        31 @Base\cmem.jl                                            26 memmove
+    31         0 @Base\abstractarray.jl                                  832 similar
+    32         0 @LinearAlgebra\src\matmul.jl                            647 gemm_wrapper!(C::Matrix{ComplexF64}, tA::Char, tB::Char, A::Matrix{ComplexF64}, B::Matrix{Float64}, _add::LinearAlgebra.MulAddMul{true, true, Bool, Bool})
+    32         0 @Base\array.jl                                          376 _copyto_impl!(dest::Matrix{ComplexF64}, doffs::Int64, src::Matrix{ComplexF64}, soffs::Int64, n::Int64)
+    33         0 @Base\array.jl                                          368 copyto!
+    35         0 @Base\boot.jl                                           486 Array
+    35        35 @Base\boot.jl                                           477 Array
+    36         0 @LinearAlgebra\src\matmul.jl                            374 generic_matmatmul!
+    36         0 @Base\array.jl                                          636 zeros
+    43         0 @LinearAlgebra\src\matmul.jl                            141 *(A::Matrix{Float64}, B::Matrix{ComplexF64})
+    44         0 @Base\multidimensional.jl                               698 setindex!
+    49         0 @Base\abstractarray.jl                                 1087 copyto_unaliased!(deststyle::IndexLinear, dest::SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true}, srcstyle…
+    49         0 @Base\subarray.jl                                       337 setindex!
+    50         1 @Zygote\src\lib\broadcast.jl                             84 (::Zygote.var"#1187#1191"{Tuple{Matrix{Float64}, SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true}}})(ȳ::Ma…
+    51         0 @LinearAlgebra\src\matmul.jl                            134 *(A::LinearAlgebra.Transpose{ComplexF64, SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}, Int64}, true}}, B::Matrix{Floa…
+    52         0 @LinearAlgebra\src\LinearAlgebra.jl                     545 ldiv(F::LinearAlgebra.LU{ComplexF64, Matrix{ComplexF64}, Vector{Int64}}, B::Matrix{ComplexF64})
+    52         0 @LinearAlgebra\src\LinearAlgebra.jl                     484 _zeros
+    52         0 @Base\array.jl                                          632 zeros
+    54         0 @Base\array.jl                                          859 _collect(c::SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}, Int64}, true}, itr::Base.Generator{SubArray{ComplexF64, 2, …
+    54         0 @Base\array.jl                                          717 _similar_for
+    55         0 @ChainRules\src\rulesets\Base\arraymath.jl               40 rrule
+    55         1 @Zygote\src\lib\lib.jl                                   17 accum(x::Matrix{Float64}, ys::Matrix{Float64})
+    55        55 @Base\array.jl                                         1024 setindex!
+    56         0 @Zygote\src\lib\broadcast.jl                             60 unbroadcast(x::Matrix{Float64}, maybethunked_x̄::SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}, Int64}, true})       
+    57         0 @LinearAlgebra\src\adjtrans.jl                          361 similar
+    57         0 @Zygote\src\compiler\chainrules.jl                      200 _project
+    59         0 @ChainRules\src\rulesets\Base\indexing.jl               280 ∇eachslice(dys_raw::Vector{Matrix{ComplexF64}}, x::Array{ComplexF64, 3}, vd::Val{1})
+    59         0 @Zygote\src\compiler\interface2.jl                       81 _pullback
+    59         0 @LinearAlgebra\src\matmul.jl                            113 *(A::Matrix{Float64}, B::Matrix{Float64})
+    60         0 @Base\tuple.jl                                          292 map
+    60         0 @Zygote\src\lib\broadcast.jl                             84 #1188
+    60         0 @ChainRulesCore\src\projection.jl                       238 (::ChainRulesCore.ProjectTo{AbstractArray, @NamedTuple{element::ChainRulesCore.ProjectTo{Float64, @NamedTuple{}}, axes::Tuple{Base.OneTo{Int64}, Base.OneTo{Int64}}}})(dx::SubArray{Compl…
+    61         0 @ZygoteRules\src\adjoint.jl                              72 #3776#back
+    61         0 @ChainRules\src\rulesets\Base\indexing.jl               273 ∇eachslice(dys_raw::Vector{Matrix{ComplexF64}}, x::Array{ComplexF64, 3}, vd::Val{1})
+    62         0 @Base\boot.jl                                           488 Array
+    62        62 @Base\boot.jl                                           481 Array
+    64         0 @Optim\src\multivariate\solvers\first_order\l_bfgs.jl   177 initial_state(method::Optim.LBFGS{Nothing, LineSearches.InitialStatic{Float64}, LineSearches.HagerZhang{Float64, Base.RefValue{Bool}}, Returns{Nothing}}, options::Optim.Options{Float64,…
+    65         0 @Base\abstractarray.jl                                 1323 _getindex
+    65         0 @Base\subarray.jl                                       299 getindex
+    68         0 @Zygote\src\compiler\chainrules.jl                      234 chain_rrule
+    68         0 @ChainRulesCore\src\rules.jl                            138 rrule
+    69         0 @Zygote\src\compiler\interface2.jl                        ? macro expansion
+    69         0 @Base\broadcast.jl                                      705 _getindex
+    70         0 @Zygote\src\compiler\chainrules.jl                        3 unthunk_tangent
+    70         0 @ChainRules\src\rulesets\Base\arraymath.jl               37 #549
+    70         0 @LinearAlgebra\src\matmul.jl                            146 *
+    70         0 @Base\broadcast.jl                                      706 _getindex
+    71         0 @Base\reduce.jl                                          86 BottomRF
+    71         0 @Zygote\src\lib\lib.jl                                   21 accum(x::@NamedTuple{A::Matrix{Float64}, B::Matrix{Float64}, D::Matrix{Float64}, Bt::Matrix{ComplexF64}}, y::@NamedTuple{A::Matrix{Float64}, B::ChainRulesCore.Thunk{ChainRules.var"#548#…
+    71         0 @Base\broadcast.jl                                      675 _broadcast_getindex
+    72         0 @Base\abstractarray.jl                                 1290 getindex
+    72         0 @Base\broadcast.jl                                      681 _broadcast_getindex
+    73         0 @Zygote\src\lib\array.jl                                204 (::Zygote.var"#map_back#681"{GfPEPS.var"#53#54"{Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}}, 1, Tuple{Vector{SubArray{ComplexF6…
+    73         0 @Base\reducedim.jl                                      408 kwcall(::@NamedTuple{init::Nothing}, ::typeof(reduce), op::Function, A::Vector{@NamedTuple{A::Matrix{Float64}, B::ChainRulesCore.Thunk{ChainRules.var"#548#551"{SubArray{ComplexF64, 2, A…
+    73         0 @Base\reducedim.jl                                      408 #reduce#825
+    73         0 @Base\reducedim.jl                                      359 mapreduce
+    73         0 @Base\reducedim.jl                                      359 #mapreduce#823
+    73         0 @Base\reducedim.jl                                      364 _mapreduce_dim(f::Function, op::Function, nt::Nothing, A::Vector{@NamedTuple{A::Matrix{Float64}, B::ChainRulesCore.Thunk{ChainRules.var"#548#551"{SubArray{ComplexF64, 2, Array{ComplexF6…
+    73         0 @Base\reduce.jl                                          44 mapfoldl_impl(f::typeof(identity), op::typeof(Zygote.accum), nt::Nothing, itr::Vector{@NamedTuple{A::Matrix{Float64}, B::ChainRulesCore.Thunk{ChainRules.var"#548#551"{SubArray{ComplexF6…
+    73         0 @Base\reduce.jl                                          48 foldl_impl
+    73         2 @Base\reduce.jl                                          62 _foldl_impl(op::Base.BottomRF{typeof(Zygote.accum)}, init::Nothing, itr::Vector{@NamedTuple{A::Matrix{Float64}, B::ChainRulesCore.Thunk{ChainRules.var"#548#551"{SubArray{ComplexF64, 2, …
+    73        73 @Base\essentials.jl                                      13 getindex
+    75         0 @Base\abstractarray.jl                                 1067 copyto!
+    75         0 @Zygote\src\lib\array.jl                                428 (::Zygote.var"#882#885"{Matrix{ComplexF64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Matrix{ComplexF64}})(Z̄::Matrix{ComplexF64})
+    79         0 @Zygote\src\lib\lib.jl                                   21 macro expansion
+    84         0 @Base\broadcast.jl                                      636 getindex
+    85        85 @Base\array.jl                                         1021 setindex!
+    86         0 @LinearAlgebra\src\matmul.jl                            119 *(A::Matrix{ComplexF64}, B::LinearAlgebra.Adjoint{ComplexF64, Matrix{ComplexF64}})
+    90         0 @ChainRulesCore\src\tangent_types\thunks.jl             213 unthunk
+    90         0 @LinearAlgebra\src\LinearAlgebra.jl                     398 copy_similar
+    92         0 @LinearAlgebra\src\matmul.jl                            605 gemm_wrapper!(C::Matrix{ComplexF64}, tA::Char, tB::Char, A::SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}, Int64}, tru…
+    94         0 @Base\broadcast.jl                                      892 broadcast_preserving_zero_d
+    96         0 @LinearAlgebra\src\matmul.jl                            352 generic_matmatmul!
+   122       122 @LinearAlgebra\src\blas.jl                             1524 gemm!(transA::Char, transB::Char, alpha::Float64, A::Base.ReinterpretArray{Float64, 2, ComplexF64, Matrix{ComplexF64}, false}, B::Matrix{Float64}, beta::Float64, C::Base.ReinterpretArra…
+   122         0 @Base\abstractarray.jl                                  838 similar
+   122         0 @Zygote\src\lib\broadcast.jl                             83 adjoint
+   122         4 @Base\broadcast.jl                                      841 broadcast(::typeof(+), ::Matrix{Float64}, ::SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true})
+   128         0 @Zygote\src\compiler\chainrules.jl                      248 (::Zygote.var"#kw_zpullback#58"{ChainRules.var"#allslices#688"{Array{ComplexF64, 3}, Int64}})(dy::Vector{Matrix{ComplexF64}})
+   128         0 @ChainRules\src\rulesets\Base\indexing.jl               258 (::ChainRules.var"#allslices#688"{Array{ComplexF64, 3}, Int64})(dy::Vector{Matrix{ComplexF64}})
+   128         0 @Base\simdloop.jl                                        77 macro expansion
+   128         0 @Base\broadcast.jl                                     1004 macro expansion
+   129         0 @LinearAlgebra\src\lu.jl                                311 _lucopy
+   133         0 @LinearAlgebra\src\matmul.jl                            237 mul!
+   133         0 @LinearAlgebra\src\matmul.jl                            263 mul!
+   136         1 @Zygote\src\compiler\chainrules.jl                      222 ZBack
+   150         0 @Base\broadcast.jl                                     1003 copyto!
+   152         0 @Base\broadcast.jl                                      956 copyto!
+   180         0 @Base\broadcast.jl                                      223 similar
+   180         0 @Base\broadcast.jl                                      224 similar
+   180         0 @Base\boot.jl                                           494 Array
+   183         0 @Base\abstractarray.jl                                  875 similar
+   183         0 @Base\abstractarray.jl                                  876 similar
+   301         0 @Base\array.jl                                          420 similar
+   322         0 @Optim\src\multivariate\optimize\optimize.jl             86 optimize(d::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, initial_x::Matrix{Float64}, method::Optim.LBFGS{Nothing, LineSearches.InitialStatic{Flo…
+   322         0 @Optim\src\multivariate\solvers\first_order\l_bfgs.jl   238 update_fgh!(d::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, state::Optim.LBFGSState{Matrix{Float64}, Vector{Matrix{Float64}}, Vector{Matrix{Floa…
+   326         1 @Base\broadcast.jl                                      928 copy
+   339         0 @Base\broadcast.jl                                      903 materialize
+   383       383 @LinearAlgebra\src\lapack.jl                            565 getrf!(A::Matrix{ComplexF64}; check::Bool)
+   424         0 @Base\boot.jl                                           487 Array
+   424       424 @Base\boot.jl                                           479 Array
+   439         0 @LinearAlgebra\src\lu.jl                                 82 #lu!#158
+   439         0 @LinearAlgebra\src\lapack.jl                            557 getrf!
+   440         0 @LinearAlgebra\src\lu.jl                                 81 lu!
+   569         0 @LinearAlgebra\src\lu.jl                                304 lu
+   569         0 @LinearAlgebra\src\lu.jl                                305 #lu#164
+  1246         0 @Zygote\src\lib\array.jl                                424 adjoint
+  1268         0 @Zygote\src\lib\array.jl                                426 (::Zygote.var"#882#885"{Matrix{ComplexF64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Matrix{ComplexF64}})(Z̄::Matrix{ComplexF64})
+  1376         0 @LineSearches\src\hagerzhang.jl                         234 (::LineSearches.HagerZhang{Float64, Base.RefValue{Bool}})(ϕ::Function, ϕdϕ::LineSearches.var"#ϕdϕ#2"{Optim.ManifoldObjective{Optim.Stiefel_SVD, NLSolversBase.OnceDifferentiable{Float64,…
+  1412         0 @LineSearches\src\hagerzhang.jl                         147 (::LineSearches.HagerZhang{Float64, Base.RefValue{Bool}})(ϕ::Function, ϕdϕ::LineSearches.var"#ϕdϕ#2"{Optim.ManifoldObjective{Optim.Stiefel_SVD, NLSolversBase.OnceDifferentiable{Float64,…
+  1418         1 @GfPEPS\src\lib\GaussianMap.jl                          117 (::GfPEPS.var"#53#54"{Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}})(s::SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Int64…
+  1421         0 @Base\array.jl                                          892 collect_to!
+  1423         0 @Zygote\src\lib\array.jl                                188 #676
+  1426         0 @NLSolversBase\src\objective_types\abstract.jl           14 (::NLSolversBase.var"#fg!#10"{GfPEPS.var"#loss#61"{InfiniteRectLattice, Int64, Int64, GfPEPS.var"#energy#59"{Array{ComplexF64, 3}, Float64, Float64}, Array{ComplexF64, 3}}, GfPEPS.var"#…
+  1426         0 @GfPEPS\src\lib\loss.jl                                  77 (::GfPEPS.var"#loss#61"{InfiniteRectLattice, Int64, Int64, GfPEPS.var"#energy#59"{Array{ComplexF64, 3}, Float64, Float64}, Array{ComplexF64, 3}})(X::Matrix{Float64})
+  1427         0 @Zygote\src\lib\array.jl                                188 ∇map(cx::Zygote.Context{false}, f::GfPEPS.var"#53#54"{Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}}, args::Vector{SubArray{Comple…
+  1428         0 @Zygote\src\lib\array.jl                                214 adjoint
+  1438         0 @ZygoteRules\src\adjoint.jl                              67 _pullback
+  1438         0 @Zygote\src\lib\lib.jl                                  211 adjoint
+  1438         0 @Base\boot.jl                                           838 _apply
+  1439         0 @ZygoteRules\src\adjoint.jl                              72 (::Zygote.var"#3217#back#886"{Zygote.var"#882#885"{Matrix{ComplexF64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}, Matrix{ComplexF64}}})(Δ::ChainRulesCore.Thunk{ChainRules.var"#5…
+  1459         0 @Zygote\src\compiler\interface2.jl                        ? _pullback(ctx::Zygote.Context{false}, f::GfPEPS.var"#loss#61"{InfiniteRectLattice, Int64, Int64, GfPEPS.var"#energy#59"{Array{ComplexF64, 3}, Float64, Float64}, Array{ComplexF64, 3}}, a…
+  1461         0 @Zygote\src\compiler\interface.jl                       153 gradient(f::Function, args::Matrix{Float64})
+  1461         0 @Zygote\src\compiler\interface.jl                        94 pullback
+  1461         0 @Zygote\src\compiler\interface.jl                        96 pullback(f::Function, cx::Zygote.Context{false}, args::Matrix{Float64})
+  1480         0 @LineSearches\src\hagerzhang.jl                         277 (::LineSearches.HagerZhang{Float64, Base.RefValue{Bool}})(ϕ::Function, ϕdϕ::LineSearches.var"#ϕdϕ#2"{Optim.ManifoldObjective{Optim.Stiefel_SVD, NLSolversBase.OnceDifferentiable{Float64,…
+  1480         0 @LineSearches\src\hagerzhang.jl                         376 secant2!(ϕdϕ::LineSearches.var"#ϕdϕ#2"{Optim.ManifoldObjective{Optim.Stiefel_SVD, NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}}, Matrix{Float64},…
+  1503         1 @Base\array.jl                                          844 collect(itr::Base.Generator{Base.Iterators.Zip{Tuple{Vector{Tuple{Matrix{ComplexF64}, Zygote.Pullback{Tuple{GfPEPS.var"#53#54"{Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, LinearA…
+  1508         0 @Base\array.jl                                          870 collect_to_with_first!(dest::Vector{Tuple{@NamedTuple{A::Matrix{Float64}, B::ChainRulesCore.Thunk{ChainRules.var"#548#551"{SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Base.Slice…
+  1510         0 @Zygote\src\lib\array.jl                                202 #679
+  1511         0 @Base\generator.jl                                       36 #4
+  1521         0 @Zygote\src\lib\array.jl                                202 (::Zygote.var"#map_back#681"{GfPEPS.var"#53#54"{Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}}, 1, Tuple{Vector{SubArray{ComplexF6…
+  1523         0 @Base\abstractarray.jl                                 3417 map
+  1595         0 @ZygoteRules\src\adjoint.jl                              72 (::Zygote.var"#2865#back#687"{Zygote.var"#map_back#681"{GfPEPS.var"#53#54"{Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, LinearAlgebra.Transpose{Float64, Matrix{Float64}}}, 1, Tupl…
+  1732         0 @ZygoteRules\src\adjoint.jl                              72 #2189#back
+  1732         0 @Zygote\src\lib\lib.jl                                  214 #305
+  1746         0 @Zygote\src\compiler\interface2.jl                        ? (::Zygote.Pullback{Tuple{GfPEPS.var"#loss#61"{InfiniteRectLattice, Int64, Int64, GfPEPS.var"#energy#59"{Array{ComplexF64, 3}, Float64, Float64}, Array{ComplexF64, 3}}, Matrix{Float64}},…
+  1747         0 @Zygote\src\compiler\interface.jl                       154 gradient(f::Function, args::Matrix{Float64})
+  1747         1 @Zygote\src\compiler\interface.jl                        97 (::Zygote.var"#88#89"{Zygote.Pullback{Tuple{GfPEPS.var"#loss#61"{InfiniteRectLattice, Int64, Int64, GfPEPS.var"#energy#59"{Array{ComplexF64, 3}, Float64, Float64}, Array{ComplexF64, 3}}…
+  2832         0 @Base\array.jl                                          870 collect_to_with_first!
+  2839         0 @Base\array.jl                                          864 _collect(c::Slices{Array{ComplexF64, 3}, Tuple{Int64, Colon, Colon}, Tuple{Base.OneTo{Int64}}, SubArray{ComplexF64, 2, Array{ComplexF64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, …
+  2911         0 @Base\array.jl                                          892 collect_to!(dest::Vector{Matrix{ComplexF64}}, itr::Base.Generator{Slices{Array{ComplexF64, 3}, Tuple{Int64, Colon, Colon}, Tuple{Base.OneTo{Int64}}, SubArray{ComplexF64, 2, Array{Comple…
+  2916         1 @Base\array.jl                                          763 collect_similar
+  2917         0 @Base\abstractarray.jl                                 3286 map
+  2925         2 @GfPEPS\src\lib\GaussianMap.jl                          117 #53
+  3134         0 @LinearAlgebra\src\LinearAlgebra.jl                     554 ldiv(F::LinearAlgebra.LU{ComplexF64, Matrix{ComplexF64}, Vector{Int64}}, B::LinearAlgebra.Transpose{Float64, Matrix{Float64}})
+  3134         0 @LinearAlgebra\src\lu.jl                                430 ldiv!
+  3134      3134 @LinearAlgebra\src\lapack.jl                           1018 getrs!(trans::Char, A::Matrix{ComplexF64}, ipiv::Vector{Int64}, B::Matrix{ComplexF64})
+  3205        17 @GfPEPS\src\lib\loss.jl                                  77 loss
+  3208         0 @NLSolversBase\src\objective_types\abstract.jl           13 (::NLSolversBase.var"#fg!#10"{GfPEPS.var"#loss#61"{InfiniteRectLattice, Int64, Int64, GfPEPS.var"#energy#59"{Array{ComplexF64, 3}, Float64, Float64}, Array{ComplexF64, 3}}, GfPEPS.var"#…
+  3208         0 @GfPEPS\src\lib\Xopt.jl                                 220 (::GfPEPS.var"#grad_energy!#79"{GfPEPS.var"#grad_energy#78"{GfPEPS.var"#loss#61"{InfiniteRectLattice, Int64, Int64, GfPEPS.var"#energy#59"{Array{ComplexF64, 3}, Float64, Float64}, Array…
+  3208         0 @GfPEPS\src\lib\Xopt.jl                                 219 grad_energy
+  3211         0 @LinearAlgebra\src\LinearAlgebra.jl                     529 \
+  3780         0 @LinearAlgebra\src\generic.jl                          1124 \(A::Matrix{ComplexF64}, B::LinearAlgebra.Transpose{Float64, Matrix{Float64}})
+  4250         0 @Optim\src\Manifolds.jl                                  58 value_jvp!(obj::Optim.ManifoldObjective{Optim.Stiefel_SVD, NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}}, x::Matrix{Float64}, v::Matrix{Float64})
+  4267         0 @LineSearches\src\LineSearches.jl                        32 (::LineSearches.var"#ϕdϕ#2"{Optim.ManifoldObjective{Optim.Stiefel_SVD, NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}}, Matrix{Float64}, Matrix{Flo…
+  4268         0 @Optim\src\utilities\perform_linesearch.jl               52 perform_linesearch!(state::Optim.LBFGSState{Matrix{Float64}, Vector{Matrix{Float64}}, Vector{Matrix{Float64}}, Float64, Matrix{Float64}}, method::Optim.LBFGS{Nothing, LineSearches.Initi…
+  4268         0 @LineSearches\src\hagerzhang.jl                         103 HagerZhang
+  4270         1 @Optim\src\multivariate\solvers\first_order\l_bfgs.jl   225 update_state!(d::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, state::Optim.LBFGSState{Matrix{Float64}, Vector{Matrix{Float64}}, Vector{Matrix{Fl…
+  4277         0 @Optim\src\multivariate\optimize\optimize.jl             79 optimize(d::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, initial_x::Matrix{Float64}, method::Optim.LBFGS{Nothing, LineSearches.InitialStatic{Flo…
+  4360         1 @Base\generator.jl                                       47 iterate
+  4574         1 @GfPEPS\src\lib\GaussianMap.jl                          117 GaussianMap
+  4635         0 @NLSolversBase\src\interface.jl                          82 value_gradient!(obj::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, x::Matrix{Float64})
+  4635         0 @NLSolversBase\src\interface.jl                          92 value_gradient!!(obj::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, x::Matrix{Float64})
+  4663         0 @GfPEPS\src\lib\Xopt.jl                                 118 get_X_opt(lattice::InfiniteRectLattice, Nf::Int64, Λ::Int64, H_bdg::MomentumSpaceBdGHamiltonian; X_init::Nothing, doping_kwargs::DopingSettings, optim_alg_options::Optim.LBFGS{Nothing, …
+  4663         0 @GfPEPS\src\lib\Xopt.jl                                 212 kwcall(::@NamedTuple{doping_kwargs::DopingSettings, optim_alg_options::Optim.LBFGS{Nothing, LineSearches.InitialStatic{Float64}, LineSearches.HagerZhang{Float64, Base.RefValue{Bool}}, R…
+  4663         0 @GfPEPS\src\lib\Xopt.jl                                 222 optimize_X(X::Matrix{Float64}, loss_fct::GfPEPS.var"#loss#61"{InfiniteRectLattice, Int64, Int64, GfPEPS.var"#energy#59"{Array{ComplexF64, 3}, Float64, Float64}, Array{ComplexF64, 3}}, d…
+  4663         0 @Optim\src\multivariate\optimize\interface.jl           240 optimize
+  4663         0 @Optim\src\multivariate\optimize\interface.jl           251 #optimize#78
+  4663         0 @Optim\src\multivariate\optimize\optimize.jl             45 optimize(d::NLSolversBase.OnceDifferentiable{Float64, Matrix{Float64}, Float64, Matrix{Float64}}, initial_x::Matrix{Float64}, method::Optim.LBFGS{Nothing, LineSearches.InitialStatic{Flo…
+  4682         0 @GfPEPS\src\lib\constructor.jl                           67 Gaussian_fPEPS(Nf::Int64, Λ::Int64, lattice::InfiniteRectLattice, H_bdg::MomentumSpaceBdGHamiltonian; doping_kwargs::DopingSettings, optim_alg_options::Optim.LBFGS{Nothing, LineSearches…
+  4682         0 @GfPEPS\src\lib\Xopt.jl                                  65 get_X_opt
+  4684         0 @GfPEPS\src\lib\constructor.jl                           56 kwcall(::@NamedTuple{doping_kwargs::DopingSettings}, ::Type{Gaussian_fPEPS}, Nf::Int64, Λ::Int64, lattice::InfiniteRectLattice, H_bdg::MomentumSpaceBdGHamiltonian)
+  4685         0 @VSCodeServer\src\eval.jl                                34 (::VSCodeServer.var"#65#66")()
+  4685         0 @Base\essentials.jl                                     889 invokelatest(::Any)
+  4685         1 @Base\essentials.jl                                     892 #invokelatest#2
+  4685         0 @VSCodeServer\src\eval.jl                               284 (::VSCodeServer.var"#67#72"{VSCodeServer.ReplRunCodeRequestParams})()
+  4685         0 @Base\logging.jl                                        630 with_logger
+  4685         0 @Base\logging.jl                                        517 with_logstate(f::Function, logstate::Any)
+  4685         0 @VSCodeServer\src\eval.jl                               171 (::VSCodeServer.var"#68#73"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+  4685         0 @VSCodeServer\src\repl.jl                                38 hideprompt(f::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})
+  4685         0 @VSCodeServer\src\eval.jl                               200 (::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+  4685         0 @VSCodeServer\src\repl.jl                               303 withpath(f::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams}, path::String)
+  4685         0 @VSCodeServer\src\eval.jl                               202 (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+  4685         0 @VSCodeServer\src\eval.jl                               289 kwcall(::@NamedTuple{softscope::Bool}, ::typeof(VSCodeServer.inlineeval), m::Module, code::String, code_line::Int64, code_column::Int64, file::String)
+  4685         0 @VSCodeServer\src\eval.jl                               292 inlineeval(m::Module, code::String, code_line::Int64, code_column::Int64, file::String; softscope::Bool)
+  4685         0 @Base\essentials.jl                                     892 invokelatest(::Any, ::Any, ::Vararg{Any}; kwargs::Base.Pairs{Symbol, Union{}, Tuple{}, @NamedTuple{}})
+  4685         0 @Base\loading.jl                                       2146 include_string(mapexpr::typeof(REPL.softscope), mod::Module, code::String, filename::String)
+  4685         1 @Base\boot.jl                                           385 eval
+Total snapshots: 4783. Utilization: 100% across all threads and tasks. Use the `groupby` kwarg to break down by thread and/or task.
+Overhead ╎ [+additional indent] Count File:Line; Function
+=========================================================
+   ╎1    @Base\threadingconstructs.jl:154; (::Base.Threads.var"#1#2"{GfPEPS.var"#411#threadsfor_fun#106"{GfPEPS.var"#411#threadsfor_fun#99#107"{Int64, Int64, Array{ComplexF64, 5}, Dict{Vector{Int64}, Int64}, Dict{Vector{Int64}, Int64}, Matrix{ComplexF64}, Floa…
+   ╎ 1    @Base\threadingconstructs.jl:182; #411#threadsfor_fun
+   ╎  1    @Base\threadingconstructs.jl:215; (::GfPEPS.var"#411#threadsfor_fun#106"{GfPEPS.var"#411#threadsfor_fun#99#107"{Int64, Int64, Array{ComplexF64, 5}, Dict{Vector{Int64}, Int64}, Dict{Vector{Int64}, Int64}, Matrix{ComplexF64}, Float64, Int64, Vector{NT…
+   ╎   1    @GfPEPS\src\lib\translate.jl:222; macro expansion
+   ╎    1    @SparseArrays\src\sparsevector.jl:1261; hvcat(::Tuple{Int64, Int64}, ::Matrix{Float64}, ::Matrix{ComplexF64}, ::Vararg{Union{Number, AbstractVecOrMat{<:Number}}})
+  1╎     1    @SparseArrays\src\sparsevector.jl:1257; hvcat_internal(::Tuple{Int64, Int64}, ::Matrix{Float64}, ::Matrix{ComplexF64}, ::Vararg{Union{Number, AbstractVecOrMat{<:Number}}})
+   ╎1    @Revise\src\types.jl:439; (::Revise.TaskThunk)()
+   ╎ 1    @Revise\src\packagedef.jl:651; revise_dir_queued(dirname::String)
+   ╎  1    @Revise\src\pkgs.jl:325; watch_files_via_dir(dirname::String)
+   ╎   1    @Revise\src\utils.jl:49; file_exists
+   ╎    1    @Base\stat.jl:461; isfile
+  1╎     1    @Base\stat.jl:150; stat(path::String)
+   ╎4685 @VSCodeServer\src\eval.jl:34; (::VSCodeServer.var"#65#66")()
+   ╎ 4685 @Base\essentials.jl:889; invokelatest(::Any)
+   ╎  4685 @Base\essentials.jl:892; #invokelatest#2
+   ╎   4685 @VSCodeServer\src\eval.jl:284; (::VSCodeServer.var"#67#72"{VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    4685 @Base\logging.jl:630; with_logger
+   ╎     4685 @Base\logging.jl:517; with_logstate(f::Function, logstate::Any)
+   ╎    ╎ 4685 @VSCodeServer\src\eval.jl:171; (::VSCodeServer.var"#68#73"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎  4685 @VSCodeServer\src\repl.jl:38; hideprompt(f::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})
+   ╎    ╎   4685 @VSCodeServer\src\eval.jl:200; (::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    4685 @VSCodeServer\src\repl.jl:303; withpath(f::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams}, path::String)
+   ╎    ╎     4685 @VSCodeServer\src\eval.jl:202; (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+  1╎     1    @Base\stat.jl:150; stat(path::String)
+   ╎4685 @VSCodeServer\src\eval.jl:34; (::VSCodeServer.var"#65#66")()
+   ╎ 4685 @Base\essentials.jl:889; invokelatest(::Any)
+   ╎  4685 @Base\essentials.jl:892; #invokelatest#2
+   ╎   4685 @VSCodeServer\src\eval.jl:284; (::VSCodeServer.var"#67#72"{VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    4685 @Base\logging.jl:630; with_logger
+   ╎     4685 @Base\logging.jl:517; with_logstate(f::Function, logstate::Any)
+   ╎    ╎ 4685 @VSCodeServer\src\eval.jl:171; (::VSCodeServer.var"#68#73"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎  4685 @VSCodeServer\src\repl.jl:38; hideprompt(f::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})
+   ╎    ╎   4685 @VSCodeServer\src\eval.jl:200; (::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    4685 @VSCodeServer\src\repl.jl:303; withpath(f::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams}, path::String)
+   ╎    ╎     4685 @VSCodeServer\src\eval.jl:202; (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    ╎ 4685 @VSCodeServer\src\eval.jl:289; kwcall(::@NamedTuple{softscope::Bool}, ::typeof(VSCodeServer.inlineeval), m::Module, code::String, code_line::Int64, code_column::Int64, file::String)
+   ╎    ╎    ╎  4685 @VSCodeServer\src\eval.jl:292; inlineeval(m::Module, code::String, code_line::Int64, code_column::Int64, file::String; softscope::Bool)
+Total snapshots: 4783. Utilization: 100% across all threads and tasks. Use the `groupby` kwarg to break down by thread and/or task.
+
+julia> 
+
+
+
+
+
+
+  1╎     1    @Base\stat.jl:150; stat(path::String)
+   ╎4685 @VSCodeServer\src\eval.jl:34; (::VSCodeServer.var"#65#66")()
+   ╎ 4685 @Base\essentials.jl:889; invokelatest(::Any)
+   ╎  4685 @Base\essentials.jl:892; #invokelatest#2
+   ╎   4685 @VSCodeServer\src\eval.jl:284; (::VSCodeServer.var"#67#72"{VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    4685 @Base\logging.jl:630; with_logger
+   ╎     4685 @Base\logging.jl:517; with_logstate(f::Function, logstate::Any)
+   ╎    ╎ 4685 @VSCodeServer\src\eval.jl:171; (::VSCodeServer.var"#68#73"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎  4685 @VSCodeServer\src\repl.jl:38; hideprompt(f::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})
+   ╎    ╎   4685 @VSCodeServer\src\eval.jl:200; (::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    4685 @VSCodeServer\src\repl.jl:303; withpath(f::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams}, path::String)
+   ╎    ╎     4685 @VSCodeServer\src\eval.jl:202; (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    ╎ 4685 @VSCodeServer\src\eval.jl:289; kwcall(::@NamedTuple{softscope::Bool}, ::typeof(VSCodeServer.inlineeval), m::Module, code::String, code_line::Int64, code_column::Int64, file::String)
+   ╎    ╎    ╎  4685 @VSCodeServer\src\eval.jl:292; inlineeval(m::Module, code::String, code_line::Int64, code_column::Int64, file::String; softscope::Bool)
+Total snapshots: 4783. Utilization: 100% across all threads and tasks. Use the `groupby` kwarg to break down by thread and/or task.
+
+julia> 
+
+
+  1╎     1    @Base\stat.jl:150; stat(path::String)
+   ╎4685 @VSCodeServer\src\eval.jl:34; (::VSCodeServer.var"#65#66")()
+   ╎ 4685 @Base\essentials.jl:889; invokelatest(::Any)
+   ╎  4685 @Base\essentials.jl:892; #invokelatest#2
+   ╎   4685 @VSCodeServer\src\eval.jl:284; (::VSCodeServer.var"#67#72"{VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    4685 @Base\logging.jl:630; with_logger
+   ╎     4685 @Base\logging.jl:517; with_logstate(f::Function, logstate::Any)
+   ╎    ╎ 4685 @VSCodeServer\src\eval.jl:171; (::VSCodeServer.var"#68#73"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎  4685 @VSCodeServer\src\repl.jl:38; hideprompt(f::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})
+   ╎    ╎   4685 @VSCodeServer\src\eval.jl:200; (::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    4685 @VSCodeServer\src\repl.jl:303; withpath(f::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams}, path::String)
+   ╎    ╎     4685 @VSCodeServer\src\eval.jl:202; (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    ╎ 4685 @VSCodeServer\src\eval.jl:289; kwcall(::@NamedTuple{softscope::Bool}, ::typeof(VSCodeServer.inlineeval), m::Module, code::String, code_line::Int64, code_column::Int64, file::String)
+   ╎   4685 @VSCodeServer\src\eval.jl:284; (::VSCodeServer.var"#67#72"{VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    4685 @Base\logging.jl:630; with_logger
+   ╎     4685 @Base\logging.jl:517; with_logstate(f::Function, logstate::Any)
+   ╎    ╎ 4685 @VSCodeServer\src\eval.jl:171; (::VSCodeServer.var"#68#73"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎  4685 @VSCodeServer\src\repl.jl:38; hideprompt(f::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})
+   ╎    ╎   4685 @VSCodeServer\src\eval.jl:200; (::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    4685 @VSCodeServer\src\repl.jl:303; withpath(f::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams}, path::String)
+   ╎    ╎     4685 @VSCodeServer\src\eval.jl:202; (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎     4685 @Base\logging.jl:517; with_logstate(f::Function, logstate::Any)
+   ╎    ╎ 4685 @VSCodeServer\src\eval.jl:171; (::VSCodeServer.var"#68#73"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎  4685 @VSCodeServer\src\repl.jl:38; hideprompt(f::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})
+   ╎    ╎   4685 @VSCodeServer\src\eval.jl:200; (::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    4685 @VSCodeServer\src\repl.jl:303; withpath(f::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams}, path::String)
+   ╎    ╎     4685 @VSCodeServer\src\eval.jl:202; (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎ 4685 @VSCodeServer\src\eval.jl:171; (::VSCodeServer.var"#68#73"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎  4685 @VSCodeServer\src\repl.jl:38; hideprompt(f::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})
+   ╎    ╎   4685 @VSCodeServer\src\eval.jl:200; (::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    4685 @VSCodeServer\src\repl.jl:303; withpath(f::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams}, path::String)
+   ╎    ╎     4685 @VSCodeServer\src\eval.jl:202; (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎  4685 @VSCodeServer\src\repl.jl:38; hideprompt(f::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})
+   ╎    ╎   4685 @VSCodeServer\src\eval.jl:200; (::VSCodeServer.var"#69#74"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    4685 @VSCodeServer\src\repl.jl:303; withpath(f::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams}, path::String)
+   ╎    ╎     4685 @VSCodeServer\src\eval.jl:202; (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    4685 @VSCodeServer\src\repl.jl:303; withpath(f::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams}, path::String)
+   ╎    ╎     4685 @VSCodeServer\src\eval.jl:202; (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎     4685 @VSCodeServer\src\eval.jl:202; (::VSCodeServer.var"#70#75"{Bool, Bool, Bool, Module, String, Int64, Int64, String, VSCodeServer.ReplRunCodeRequestParams})()
+   ╎    ╎    ╎ 4685 @VSCodeServer\src\eval.jl:289; kwcall(::@NamedTuple{softscope::Bool}, ::typeof(VSCodeServer.inlineeval), m::Module, code::String, code_line::Int64, code_column::Int64, file::String)
+   ╎    ╎    ╎  4685 @VSCodeServer\src\eval.jl:292; inlineeval(m::Module, code::String, code_line::Int64, code_column::Int64, file::String; softscope::Bool)
+Total snapshots: 4783. Utilization: 100% across all threads and tasks. Use the `groupby` kwarg to break down by thread and/or task.

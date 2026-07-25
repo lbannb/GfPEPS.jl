@@ -46,30 +46,30 @@ end
 vacuum_state(n::Int) = vacuum_state(ComplexF64, n)
 
 """
-    virtual_bond_state(T::Type{<:Number}, Λ::Int)
+    virtual_bond_state(T::Type{<:Number}, Nv::Int)
 
 Construct the maximally entangled state (MES) on virtual bonds
-for Λ flavours of virtual fermions `(a1_i, a2_i)` (i = 1, ..., Λ)
+for Nv flavours of virtual fermions `(a1_i, a2_i)` (i = 1, ..., Nv)
 ```
-    |ω⟩ = ∏_{α=1}^Λ 1/sqrt(2) (1 + a1†_α a2†_α) |0⟩
+    |ω⟩ = ∏_{α=1}^Nv 1/sqrt(2) (1 + a1†_α a2†_α) |0⟩
 
     For horizontal bond: a1†_α=r†_iα, a2†_α=l†_(i+̂x)α
     For vertical bond:   a1†_α=d†_iα, a2†_u=d†_(i+̂y)α
 ```
 """
-function virtual_bond_state(T::Type{<:Number}, Λ::Int)
+function virtual_bond_state(T::Type{<:Number}, Nv::Int)
     ff = f_dag_f_dag(T)
     vac = vacuum_state(T, 2)
     # MES for one pair of (a1_i, a2_i) on the bond
     # the resulting fermion order is (a1_1, a2_1, ..., a1_Λ, a2_Λ)
     ω = (1 / sqrt(2)) * (unit ⊗ unit + ff) * vac
     # ω = (unit ⊗ unit + ff) * vac
-    if Λ > 1
+    if Nv > 1
         # reorder fermions to (a1_1, ..., a1_Λ, a2_1, ..., a2_Λ)
-        ω = reduce(⊗, fill(ω, Λ))
-        perm = Tuple(vcat(1:2:(2*Λ), 2:2:(2*Λ)))
+        ω = reduce(⊗, fill(ω, Nv))
+        perm = Tuple(vcat(1:2:(2*Nv), 2:2:(2*Nv)))
         ω = permute(ω, (perm, ()))
     end
     return ω
 end
-virtual_bond_state(Λ) = virtual_bond_state(ComplexF64, Λ)
+virtual_bond_state(Nv) = virtual_bond_state(ComplexF64, Nv)

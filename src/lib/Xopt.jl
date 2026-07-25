@@ -1,348 +1,449 @@
-const DEFAULT_PENALTY_FALLBACK = 1.0
+const DEFAULT_PENALTY_FALLBACK = 1.0 # fallback value for penalty parameter in the augmented Lagrangian method
+""" 
+    DopingSettings
 
+Struct to hold settings for doping optimization in the augmented Lagrangian method.
+# Fields
+- `δ::Float64=0.0`: Target hole density to enforce.
+- `doping_layout::Matrix{Float64}`: Optional matrix specifying the target doping for each site in the unit cell. If not provided, a uniform doping of δ will be assumed for all sites.
+- `density_tol::Float64=1e-6`: Tolerance for how close the doping must be to the target δ to consider the constraint satisfied.
+- `penalty_growth::Float64=1e2`: Factor by which to increase the penalty parameter λ if the constraint is not satisfied.
+- `enforce_density::Bool=false`: Whether to enforce the density constraint or not.
+- `density_opt_iters::Int=8`: Maximum number of iterations for the density optimization loop.
+- `λ::Float64=1e2`: Initial penalty parameter for the augmented Lagrangian method. If not positive and finite, a default fallback value will be used.
+- `solve_μ_from_δ::Bool=true`: Whether to solve for the chemical potential μ from the target doping δ before optimization. If false, the provided μ in the Hamiltonian will be used and the doping constraint will be enforced around that.
 """
-        optimize_stage_with_density(loss_energy, doping_fn, X_init; kwargs...)
+mutable struct DopingSettings
+    δ::Float64
+    density_tol::Float64
+    penalty_growth::Float64
+    enforce_density::Bool
+    density_opt_iters::Int
+    λ::Float64
+    solve_μ_from_δ::Bool
 
-Run one optimization stage on the Stiefel manifold and minimize the energy (given by `loss_energy`) and enforce a
-target hole density. When `enforce_density` is false the routine solves the
-unconstrained problem to obtain the best energy-only optimum.
+    function DopingSettings(; 
+        δ=0.0,
+        density_tol=1e-6, 
+        penalty_growth=5, 
+        enforce_density=false, 
+        density_opt_iters=10,
+        λ=1e2,
+        solve_μ_from_δ=true)
 
-Arguments
----------
-- `loss_energy`: Scalar-valued objective returning the mean energy for a given `X`.
-- `doping_fn`: function to compute the doping from `X`.
-- `X_init`: Starting point.
-- `δ`: Desired hole density.
-- `λ`: Initial penalty parameter for the augmented loss function.
-- `density_tol`: Absolute tolerance on the density constraint.
-- `penalty_growth`: Factor controlling how aggressively the penalty grows when
-    the constraint is violated.
-- `outer_iters`: Number of outer augmented-loss function updates.
-- `enforce_density`: If set to false, no density constraint is enforced.
-
-Returns the optimized `X`, the `Optim` result struct, and the final hole density.
-"""
-function optimize_stage_with_density(loss_energy::Function, doping_fn::Union{Function, Nothing}, X_init::AbstractMatrix;
-    δ::Float64,
-    λ::Real,
-    grad_tol::Float64,
-    f_reltol::Float64,
-    maxiter::Int,
-    show_trace::Bool,
-    stage_label::AbstractString,
-    density_tol::Float64,
-    penalty_growth::Float64,
-    outer_iters::Int,
-    enforce_density::Bool)
-
-    if !enforce_density
-        # No constraint: minimize the pure energy objective on the Stiefel manifold.
-        grad_energy(x) = first(Zygote.gradient(loss_energy, x))
-        grad_energy!(G, x) = copyto!(G, grad_energy(x))
-        res = Optim.optimize(loss_energy, grad_energy!, X_init, Optim.BFGS(; manifold=Optim.Stiefel()), Optim.Options(
-            iterations = maxiter,
-            g_tol = grad_tol,
-            show_trace = show_trace,
-            successive_f_tol = 10,
-            f_reltol = f_reltol,
-            store_trace = true,
-            extended_trace = false
-        ))
-        X_opt = Optim.minimizer(res)
-        return X_opt, res, nothing
+        new(δ, density_tol, penalty_growth, enforce_density, density_opt_iters, λ, solve_μ_from_δ)
     end
-
-    # Set up augmented-Lagrangian variables.
-    η = 0.0
-    ρ = (λ isa Real && λ > 0) ? float(λ) : DEFAULT_PENALTY_FALLBACK
-    if !isfinite(ρ) || ρ <= 0
-        ρ = DEFAULT_PENALTY_FALLBACK
-    end
-
-    X_current = X_init
-    last_res = nothing
-    last_doping = doping_fn(X_current)
-
-    for outer_iter in 1:max(outer_iters, 1)
-        η_local = η
-        ρ_local = ρ
-
-        loss_augmented(x) = begin
-            dens = doping_fn(x)
-            constraint = dens - δ
-            return loss_energy(x) + η_local * constraint + 0.5 * ρ_local * constraint^2
-        end
-        grad_aug(x) = first(Zygote.gradient(loss_augmented, x))
-        grad_aug!(G, x) = copyto!(G, grad_aug(x))
-
-        res = Optim.optimize(loss_augmented, grad_aug!, X_current, Optim.BFGS(; manifold=Optim.Stiefel()), Optim.Options(
-            iterations = maxiter,
-            g_tol = grad_tol,
-            show_trace = show_trace,
-            successive_f_tol = 10,
-            f_reltol = f_reltol,
-            store_trace = true,
-            extended_trace = false
-        ))
-
-        last_res = res
-        X_current = Optim.minimizer(res)
-        last_doping = doping_fn(X_current)
-        constraint = last_doping - δ
-
-        if abs(constraint) <= density_tol
-            ρ = ρ_local
-            break
-        end
-
-        η = η_local + ρ_local * constraint
-        ρ = max(ρ_local * penalty_growth, DEFAULT_PENALTY_FALLBACK)
-    end
-
-    last_res === nothing && error("Augmented Lagrangian did not run for stage $(stage_label).")
-
-    return X_current, last_res, last_doping
 end
 
 """
-    get_X_opt(Nf, Nv, t, μ, pairing_type, Δ_0; kwargs...)
+    get_X_opt(lattice::AbstractInfiniteLattice, Nf::Int, Λ::Int, BCS_params::BCS; 
+        X_init::Union{AbstractMatrix, Nothing}=nothing,
+        doping_kwargs::DopingSettings=DopingSettings(),
+        optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=20, manifold = Optim.Stiefel(:CholQR)),
+        optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
 
-Optimize the fiducial correlation matrix parameterized by an orthogonal matrix `X`
-so that the resulting Gaussian state minimizes the mean energy density for the
-specified BCS Hamiltonian. When a non-zero target hole density `δ` is provided,
-the routine enforces it via an augmented Lagrangian across a hierarchy of system
-sizes before tackling the full lattice.
+Get the optimal orthogonal X matrix for the GfPEPS approximation of the ground state of a BCS Hamiltonian, such that the Covariance matrix `Γ=Γ_fiducial(X,Λ,Nf)` minimizes the energy between the BCS Hamiltonian and this GfPEPS approximation.
 
-Keyword arguments include lattice dimensions, optimization tolerances, and
-augmented-Lagrangian controls (`density_tol`, `density_outer_iters`, `penalty_growth`).
-The function returns the optimized matrix `X`, the resulting energy, and the
-exact BCS energy for comparison.
+# Keyword Arguments
+- `lattice::AbstractInfiniteLattice`: The lattice for which to optimize X.
+- `Nf::Int`: Number of physical fermions.
+- `Λ::Int`: The bond dimension parameter for the PEPS ansatz.
+- `H_bdg::AbstractBdGHamiltonian`: The BdG Hamiltonian object.
+
+# Optional Keyword arguments
+- `X_init::Union{AbstractMatrix, Nothing}=nothing`: Optional initial guess for the X matrix. If not provided, a random X matrix will be generated. If provided, we start the optimization for the full system size directly with this initial X for the case we want to continue optimization from a previous run.
+- `doping_kwargs::DopingSettings=DopingSettings()`: Settings for doping optimization in the augmented Lagrangian method.
+- `optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=15, manifold = Optim.Stiefel(:CholQR))`: LBFGS optimization options, with a custom manifold that includes gauge projection. By default, uses L-BFGS with memory 15 and CholQR retraction.
+- `optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true)`: Options for the Optim optimizer.
+
+# Returns
+- `X_opt::Vector{Matrix{Float64}}`: The optimal orthogonal X matrices (one per distinct site in the unit cell).
+- `optim_energy::Float64`: The energy corresponding to the optimal orthogonal X matrix.
+- `E_exact::Float64`: The exact energy for the given parameters of the quadratic Hamiltonian from analytic formula.
+- `info_obj::NamedTuple`: A named tuple containing additional information about the optimization where the returned values are from Optim.
+
 """
-function get_X_opt(Nf::Int, Nv::Int, params::Union{BCS,Kitaev};
-    δ::Float64 = 0.0,
-    solve_μ_from_δ::Bool = false,
-    enforce_density::Bool = false,
-    λ::Float64 = 1e2, # initial penalty parameter for hole density constraint
-    Lx::Int = 6, 
-    Ly::Int = 6,
-    bc::Tuple{Symbol, Symbol}=(:APBC, :PBC),
-    parity::Int = 1, # 1 for even, -1 for odd
-    maxiter::Int=500,
-    show_trace::Bool=false,
-    grad_tol::Float64=1.0e-8,
-    f_reltol::Float64=1.0e-10,
-    seed::Int=1234,
-    density_tol::Float64=1.0e-6,
-    density_outer_iters::Int=8,
-    penalty_growth::Float64=10.0,
-    X_init::Union{AbstractMatrix, Nothing}=nothing
-    )
+function get_X_opt(
+    lattice::AbstractInfiniteLattice, 
+    Nf::Int, 
+    Λ::Int,
+    H_bdg::AbstractBdGHamiltonian;
+    X_init::Union{AbstractVector{<:AbstractMatrix}, Nothing}=nothing,
+    doping_kwargs::DopingSettings=DopingSettings(),
+    optim_alg_options::Union{Optim.LBFGS, Optim.BFGS} = Optim.LBFGS(; m=15, manifold = Optim.Stiefel(:CholQR)),
+    optim_options::Optim.Options = Optim.Options(; iterations=1000, g_tol=1e-6, f_reltol=1e-8, successive_f_tol = 10, show_trace=false, extended_trace=false, store_trace=true))
 
-    MKL.set_num_threads(Sys.CPU_THREADS) 
+    #=
+    build gauge-projected manifold for better L-BFGS convergence.
+    For the per-site ansatz the optimisation variable is the 3D stack of the
+    per-distinct-site matrices (X_1, …, X_N) living on the product Stiefel
+    manifold; retraction and tangent projection act on each slice separately,
+    so the same single-site J is used for every site.
+    =#
+    J_single = build_J(Λ, Nf) # 2(Nf+4Λ) × 2(Nf+4Λ)
+    gauge_manifold = GaugeFixedStiefel(J_single)
+    optim_alg_options = with_manifold(optim_alg_options, gauge_manifold)
 
-    Random.seed!(seed)
+    # each distinct site in the unit cell has its own X matrix
+    X_opt = isnothing(X_init) ? [rand_CM(Nf, Λ; parity=1)[2] for _ in 1:get_number_of_distinct_sites_in_uc(lattice)] : X_init
 
-    # initial ortogonal matrix X to construct Γ_out with correct parity sector (even)
-    X = begin
-        if isnothing(X_init)
-            rand_CM(Nf,Nv; parity=parity)[2]
-        else
-            @info "Using initial X matrix for optimization."
-            X_init
-        end
+    # warn if dirac points are present -> then optimization of Γ can be harder, so user can adjust different kvals set
+    has_dirac_points(lattice.kvals, H_bdg) 
+
+    if doping_kwargs.enforce_density && doping_kwargs.solve_μ_from_δ
+        H_bdg.μ = solve_for_mu(lattice, doping_kwargs.δ, H_bdg)
     end
 
-    # construct Brillouin zone
-    bz = BrillouinZone2D(Lx,Ly,bc)
-    has_dirac_points(bz,params) # warn if dirac points are present
-
-    if solve_μ_from_δ && params isa BCS
-        μ = solve_for_mu(bz, δ, params.t, params.pairing_type, params.Δ_0)
-        params = BCS(params.t, μ, params.pairing_type, params.Δ_0)
+    # smaller set of momentum pairs for initial optimization for faster convergence
+    N_kx_inits, N_ky_inits = isnothing(X_init) ? get_kgrids(lattice) : ([lattice.N_kx], [lattice.N_ky])
+    
+    if doping_kwargs.enforce_density
+        @info "Target hole density δ = $(doping_kwargs.δ) will be enforced with tolerance $(doping_kwargs.density_tol)."
     end
 
-    # smaller system size for initial optimization to find better starting point
-    L_init_even = 6
-    L_init_odd = 5
-    Lx_inits = begin
-        if Lx > L_init_even && isnothing(X_init)
-            [isodd(Lx) ? L_init_odd : L_init_even]
-        else
-            []
-        end
-    end
-    # Lx_inits = [(isodd(Lx) && Lx > L_init_even) ? L_init_odd : L_init_even]
-    Ly_inits = begin
-        if Ly > L_init_even && isnothing(X_init)
-            [isodd(Ly) ? L_init_odd : L_init_even]
-        else
-            []
-        end
-    end
-
-    try
-        while 2*Lx_inits[end] < Lx 
-            if isodd(Lx_inits[end])
-                push!(Lx_inits, Lx_inits[end]*2 - 1)
-            else
-                push!(Lx_inits, Lx_inits[end] * 2)
-            end
-        end
-        while 2*Ly_inits[end] < Ly
-            if isodd(Ly_inits[end])
-                push!(Ly_inits, Ly_inits[end]*2 - 1)
-            else
-                push!(Ly_inits, Ly_inits[end] * 2)
-            end
-        end
-    catch
-        
-    end
-
-    if enforce_density
-        @info "Target hole density δ = $(δ) will be enforced with tolerance $(density_tol)."
-    end
-
-    if !isempty(Lx_inits)
+    if !isempty(N_kx_inits) && !isempty(N_ky_inits)
        @info "Finding better initial guess for X by solving smaller system sizes..."
     end
 
-    warmup_sizes = collect(zip(Lx_inits, Ly_inits))
-    warmup_iterations = 1000
+    size_stages = collect(zip(N_kx_inits, N_ky_inits))
+    stage_res = nothing
+    stage_doping = nothing
+    for (stage_idx, (N_kx_init, N_ky_init)) in enumerate(size_stages)
+        stage_label = !(N_kx_init==lattice.N_kx) ? "Warmup stage $(stage_idx) (N_kx=$(N_kx_init), N_ky=$(N_ky_init))" : "Final optimization stage (N_kx=$(N_kx_init), N_ky=$(N_ky_init))"
+        @info "Optimize X for: N_kx = $(N_kx_init), N_ky = $(N_ky_init)"
 
-    for (stage_idx, (Lx_init, Ly_init)) in enumerate(warmup_sizes)
+        training_lattice = InfiniteRectLattice(lattice.Lx, lattice.Ly;
+            uc_layout=lattice.uc_layout,
+            N_kx=N_kx_init,
+            N_ky=N_ky_init,
+            bc=lattice.bc,
+            shift_x=lattice.shift_x,
+            shift_y=lattice.shift_y)
+        has_dirac_points(training_lattice.kvals, H_bdg)
 
-        stage_label = "Warmup stage $(stage_idx) (Lx=$(Lx_init), Ly=$(Ly_init))"
-        @info "Optimize X for: Lx = $(Lx_init), Ly = $(Ly_init)"
+        loss_fct = energy_loss_X(training_lattice, Nf, Λ, H_bdg)
+        doping_fct = doping_loss_X(training_lattice, Nf, Λ)
 
-        bz_init = BrillouinZone2D(Lx_init, Ly_init, bc)
-        has_dirac_points(bz_init, params)
+        # optimize the packed (block-diagonal) X on the product Stiefel manifold
+        X_opt, stage_res, stage_doping = optimize_X(X_opt, loss_fct, doping_fct; doping_kwargs=doping_kwargs, optim_alg_options=optim_alg_options, optim_options=optim_options)
 
-        loss_init_no_dens = optimize_loss(bz_init, Nf, Nv, params)
-        doping_fn_init = enforce_density ?  X_mat -> doping_bcs(X_mat, bz_init, Nf, Nv) : nothing
-
-        # Use the stage optimizer to refine the initial guess before scaling up.
-        X, res_stage, stage_doping = optimize_stage_with_density(loss_init_no_dens, doping_fn_init, X;
-            δ = δ,
-            λ = λ,
-            grad_tol = grad_tol,
-            f_reltol = f_reltol,
-            show_trace = show_trace,
-            maxiter = warmup_iterations,
-            stage_label = stage_label,
-            density_tol = density_tol,
-            penalty_growth = penalty_growth,
-            outer_iters = density_outer_iters,
-            enforce_density = enforce_density
-        )
-
-        if Optim.converged(res_stage)
-            if enforce_density
-                @info "$(stage_label) converged after $(res_stage.iterations) iterations." energy=Optim.minimum(res_stage) doping=stage_doping
+        if Optim.converged(stage_res)
+            if doping_kwargs.enforce_density
+                @info "$(stage_label) converged after $(stage_res.iterations) iterations." energy=Optim.minimum(stage_res) doping=stage_doping
             else
-                @info "$(stage_label) converged after $(res_stage.iterations) iterations." energy=Optim.minimum(res_stage)
+                @info "$(stage_label) converged after $(stage_res.iterations) iterations." energy=Optim.minimum(stage_res)
             end
         else
-            if enforce_density
-                @warn "$(stage_label) did not converge." gradient_norm=res_stage.g_residual energy=Optim.minimum(res_stage) doping=stage_doping
+            if doping_kwargs.enforce_density
+                @warn "$(stage_label) did not converge after $(stage_res.iterations) iterations." gradient_norm=stage_res.g_residual energy=Optim.minimum(stage_res) doping=stage_doping
             else
-                @warn "$(stage_label) did not converge." gradient_norm=res_stage.g_residual energy=Optim.minimum(res_stage)
+                @warn "$(stage_label) did not converge after $(stage_res.iterations) iterations." gradient_norm=stage_res.g_residual energy=Optim.minimum(stage_res)
             end
         end
     end
 
-    loss_no_dens = optimize_loss(bz, Nf, Nv, params)
-    doping_fn = enforce_density ? X_val -> doping_bcs(X_val, bz, Nf, Nv) : nothing
-
-    @info "Finding optimal X for full system size..."
-    stage_label = "Final optimization (Lx=$(Lx), Ly=$(Ly))"
-    @info "Optimize X for: Lx = $(Lx), Ly = $(Ly)"
-
-    # Final pass on the target lattice size.
-    X_opt, res_final, final_doping = optimize_stage_with_density(loss_no_dens, doping_fn, X;
-        δ = δ,
-        λ = λ,
-        grad_tol = grad_tol,
-        f_reltol = f_reltol,
-        show_trace = show_trace,
-        maxiter = maxiter,
-        stage_label = stage_label,
-        density_tol = density_tol,
-        penalty_growth = penalty_growth,
-        outer_iters = density_outer_iters,
-        enforce_density = enforce_density
-    )
-
-    if Optim.converged(res_final)
-        @info "$(stage_label) converged after $(res_final.iterations) iterations."
-    else
-        @warn "$(stage_label) did not converge." gradient_norm=res_final.g_residual
+    # final results summary and check if density constraint is satisfied
+    constraint_final = doping_kwargs.enforce_density ? stage_doping - doping_kwargs.δ : nothing
+    if doping_kwargs.enforce_density
+        @info "Final doping summary" target=doping_kwargs.δ achieved=stage_doping deviation=constraint_final
+    end
+    if doping_kwargs.enforce_density && abs(constraint_final) > doping_kwargs.density_tol
+        @warn "Final doping deviates from target by $(constraint_final). Consider increasing density_opt_iters or penalty_growth."
     end
 
-    constraint_final = enforce_density ? final_doping - δ : nothing
-    if enforce_density
-        @info "Final doping summary" target=δ achieved=final_doping deviation=constraint_final
-    end
-    if enforce_density && abs(constraint_final) > density_tol
-        @warn "Final doping deviates from target by $(constraint_final). Consider increasing density_outer_iters or penalty_growth."
-    end
+    # compute final energy and compare to exact energy
+    E_exact = exact_energy(lattice, H_bdg)
+    optim_energy = Optim.minimum(stage_res)
 
-    E_exact = exact_energy(params, bz)
-    optim_energy = Optim.minimum(res_final)
     deviation = abs(optim_energy - E_exact)
     
     @info "Final energy summary" target=E_exact achieved=optim_energy deviation=deviation
     println()
 
+    # return final results and optimization info
     info_obj = (
-        converged = Optim.converged(res_final),
-        trace = res_final.trace
+        converged = Optim.converged(stage_res),
+        trace = stage_res.trace
     )
 
+    # X_opt holds one matrix per *distinct* site in the unit cell; expansion to the full
+    # unit cell happens via lattice.uc_layout inside get_Γ_blocks / translate.
     return X_opt, optim_energy, E_exact, info_obj
 end
 
-function get_X_opt(;conf=parsefile(joinpath(GfPEPS.config_path, "conf_BCS_d_wave.json")), X_init::Union{AbstractMatrix, Nothing}=nothing) 
-    params = begin
-        if conf["hamiltonian"]["type"] == "BCS"
-            BCS(
-                conf["hamiltonian"]["t"],
-                conf["hamiltonian"]["μ"],
-                conf["hamiltonian"]["pairing_type"],
-                conf["hamiltonian"]["Δ_0"],
-                get(get(conf, "params", Dict()), "Δ_02", 0.0)
-            )
-        elseif conf["hamiltonian"]["type"] == "Kitaev"
-            Kitaev(
-                conf["hamiltonian"]["Jx"],
-                conf["hamiltonian"]["Jy"],
-                conf["hamiltonian"]["Jz"]
-            )
-        else
-            error("Unknown Hamiltonian type: $(conf["hamiltonian"]["type"])")
+
+"""
+    get_kgrids(lattice::AbstractInfiniteLattice)
+
+Returns an array which also includes smaller k arrays for initial optimization stages, starting from a small size and growing until just below the target lattice size. 
+This helps find a better initial guess for X before optimizing on the full lattice.
+"""
+function get_kgrids(lattice::AbstractInfiniteLattice)
+    function grow_sizes(N_final, N_start)
+        res = Int[]
+        N_final > N_start && push!(res, N_start)
+        while !isempty(res) && 2 * res[end] < N_final
+            push!(res, isodd(res[end]) ? res[end] * 2 - 1 : res[end] * 2)
         end
+        return res
     end
-    
-    return get_X_opt(
-        conf["params"]["N_physical_fermions_on_site"],
-        conf["params"]["N_virtual_fermions_on_bond"],
-        params;
-        δ = get(get(conf, "hamiltonian", Dict()), "hole_density", 0.0),
-        solve_μ_from_δ = get(get(conf, "hamiltonian", Dict()), "μ_from_hole_density", false),
-        enforce_density = get(get(conf, "hamiltonian", Dict()), "enforce_density", false),
-        λ = get(get(conf, "hamiltonian", Dict()), "lagrange_multiplier_density", 1e2),
-        Lx = conf["system_params"]["Lx"],
-        Ly = conf["system_params"]["Ly"],
-        bc = (Symbol(conf["system_params"]["x_bc"]), Symbol(conf["system_params"]["y_bc"])),
-        parity = get(get(conf, "system_params", Dict()), "parity", 1),
-        maxiter = get(get(conf, "params", Dict()), "maxiter", 1000),
-        show_trace = get(get(conf, "params", Dict()), "show_trace", false),
-        grad_tol = get(get(conf, "params", Dict()), "grad_tol", 1e-8),
-        f_reltol = get(get(conf, "params", Dict()), "f_reltol", 1e-10),
-        seed = get(get(conf, "params", Dict()), "seed", 1234),
-        density_tol =  get(get(conf, "hamiltonian", Dict()), "density_tol", 1e-6),
-        density_outer_iters = get(get(conf, "hamiltonian", Dict()), "density_outer_iters", 10),
-        penalty_growth = get(get(conf, "hamiltonian", Dict()), "penalty_growth", 1e1),
-        X_init = X_init
-    )
+
+    N_kx_inits = grow_sizes(lattice.N_kx, isodd(lattice.N_kx) ? 5 : 6)
+    N_ky_inits = grow_sizes(lattice.N_ky, isodd(lattice.N_ky) ? 5 : 6)
+
+    # add final sizes
+    push!(N_kx_inits, lattice.N_kx)
+    push!(N_ky_inits, lattice.N_ky)
+
+    # pad the shorter list at the front (repeat its first stage) so both lists have equal
+    # length and the final stage always runs at the requested (N_kx, N_ky) grid
+    len = max(length(N_kx_inits), length(N_ky_inits))
+    N_kx_inits = vcat(fill(N_kx_inits[1], len - length(N_kx_inits)), N_kx_inits)
+    N_ky_inits = vcat(fill(N_ky_inits[1], len - length(N_ky_inits)), N_ky_inits)
+
+    return N_kx_inits, N_ky_inits
+end
+
+"""
+    optimize_X(X_vec, loss_fct, doping_fct; kwargs...)
+
+Optimize a vector of per-site orthogonal matrices `X_vec` on the product Stiefel
+manifold to minimize `loss_fct`, optionally enforcing a density constraint via
+an augmented Lagrangian.
+
+Internally the `Vector{Matrix}` is packed into a 3D `Array{Float64,3}` of shape
+`(n, n, Nsites)` so that `eltype` is `Float64`, which is required by Optim.jl.
+Loss closures that accept `AbstractVector{<:AbstractMatrix}` are wrapped
+automatically to slice the 3D array before evaluation.
+
+# Arguments
+- `X_vec::AbstractVector{<:AbstractMatrix}`: Initial guess — one orthogonal matrix per distinct site in the unit cell.
+- `loss_fct::Function`: `X_vec -> energy` loss (accepts a vector of per-site X matrices).
+- `doping_fct::Function`: `X_vec -> doping` (can be `nothing` when density is not enforced).
+
+# Keyword Arguments
+- `doping_kwargs::DopingSettings`: Augmented Lagrangian settings.
+- `optim_alg_options::Union{Optim.LBFGS, Optim.BFGS}`: Optimizer with manifold.
+- `optim_options::Optim.Options`: Convergence tolerances and tracing.
+
+# Returns
+- `X_opt::Vector{Matrix{Float64}}`: Optimized per-site orthogonal matrices.
+- `res`: Optim result object (convergence info, trace).
+- `final_doping::Union{Float64, Nothing}`: Achieved doping, or `nothing`.
+
+"""
+function optimize_X(X_vec::AbstractVector{<:AbstractMatrix}, loss_fct::Function, doping_fct::Function;
+    doping_kwargs::DopingSettings=DopingSettings(),
+    optim_alg_options::Union{Optim.LBFGS, Optim.BFGS},
+    optim_options::Optim.Options)
+
+    # ── Pack Vector{Matrix} → 3D Array (n × n × Nsites) for Optim ──────
+    Nsites = length(X_vec)
+    n = size(X_vec[1], 1)
+    X3d = Array{Float64, 3}(undef, n, n, Nsites)
+    for s in 1:Nsites
+        X3d[:, :, s] .= X_vec[s]
+    end
+
+    # Wrap a Vector{Matrix}-accepting closure into one that accepts a 3D array.
+    _slices(X3d) = [@view X3d[:, :, s] for s in axes(X3d, 3)]
+    loss3d(X3d)    = loss_fct(_slices(X3d))
+    doping3d(X3d)  = doping_fct(_slices(X3d))
+
+    # No density constraint: minimize the pure energy objective on the Stiefel manifold.
+    if !doping_kwargs.enforce_density
+        grad_energy!(G, x) = copyto!(G, first(Zygote.gradient(loss3d, x)))
+        function energy_fvg!(G, x)
+            val, back = Zygote.pullback(loss3d, x)
+            copyto!(G, first(back(one(val))))
+            return val
+        end
+
+        optimized_loss = Optim.OnceDifferentiable(loss3d, grad_energy!, energy_fvg!, X3d)
+        res = Optim.optimize(optimized_loss, X3d, optim_alg_options, optim_options)
+        X_opt_3d = Optim.minimizer(res)
+        X_opt = [X_opt_3d[:, :, s] for s in 1:Nsites]
+        return X_opt, res, nothing
+    end
+
+    # Density constraint: use a penalty term to enforce the density constraint while minimizing the energy.
+
+    # Set up augmented-Lagrangian variables.
+    η = 0.0
+    λ = doping_kwargs.λ
+
+    # run density optimization loop, where in each iteration we minimize the augmented Lagrangian with the current penalty and multiplier, then update those based on the constraint violation.
+    X_current = X3d
+    last_res = nothing
+    last_doping = doping3d(X_current)
+    total_iters = 0
+    total_trace = []
+    for _ in 1:max(doping_kwargs.density_opt_iters, 1) # usually only a few iterations are needed
+        η_local = η
+        λ_local = λ
+
+        # new loss function with penalty term for density constraint
+        loss_augmented(x) = begin
+            dens = doping3d(x)
+            constraint = dens - doping_kwargs.δ
+            return loss3d(x) + η_local * constraint + 0.5 * λ_local * constraint^2
+        end
+
+        # Combined value-and-gradient via Zygote pullback (avoids redundant forward pass)
+        grad_aug!(G, x) = copyto!(G, first(Zygote.gradient(loss_augmented, x)))
+        function aug_fvg!(G, x)
+            val, back = Zygote.pullback(loss_augmented, x)
+            copyto!(G, first(back(one(val))))
+            return val
+        end
+
+        optimized_loss = Optim.OnceDifferentiable(loss_augmented, grad_aug!, aug_fvg!, X_current)
+        res = Optim.optimize(optimized_loss, X_current, optim_alg_options, optim_options)
+        total_iters += res.iterations
+        total_trace = vcat(total_trace, res.trace)
+
+        # update augmented Lagrangian parameters based on constraint violation
+        last_res = res
+        X_current = Optim.minimizer(res)
+        last_doping = doping3d(X_current)
+        constraint = last_doping - doping_kwargs.δ
+
+        if abs(constraint) <= doping_kwargs.density_tol
+            λ = λ_local
+            break
+        end
+
+        η = η_local + λ_local * constraint
+        λ = max(λ_local * doping_kwargs.penalty_growth, DEFAULT_PENALTY_FALLBACK)
+    end
+    last_res === nothing && error("Augmented Lagrangian did not run for stage $(stage_label).")
+
+    # update iterations
+    last_res.iterations = total_iters
+    last_res.trace = total_trace
+
+    X_opt = [X_current[:, :, s] for s in 1:Nsites]
+    return X_opt, last_res, last_doping
+end
+
+"""
+    GaugeFixedStiefel <: Optim.Manifold
+
+Custom manifold that combines Stiefel tangent projection with gauge projection.
+Uses CholQR retraction (faster than SVD) and projects out the U(N) gauge
+redundancy from tangent vectors.
+
+Since the loss depends only on Γ = Xᵀ J X, two matrices X₁ and X₂ that differ
+by a U(N) transformation (the centralizer of J in O(2N)) give identical Γ.
+This creates a gauge redundancy comprising ~50% of the optimization dimensions.
+
+The gauge projection decomposes each Lie-algebra element A ∈ so(2N) into:
+  A_phys = (A + Γ A Γ) / 2   (physical: changes Γ)
+  A_gauge = (A - Γ A Γ) / 2   (gauge: leaves Γ invariant)
+
+By projecting out the gauge component from both the gradient and the L-BFGS
+search direction, the Hessian approximation is not polluted by flat gauge
+directions, improving convergence.
+
+# Fields
+- `J::Matrix{Float64}`: The symplectic matrix (2N × 2N), precomputed once.
+- `_XG`, `_Γ`, `_ΓA`, `_ΓAΓ`: Pre-allocated scratch buffers (2N × 2N) to avoid
+  allocations in the `project_tangent!` hot path.
+"""
+struct GaugeFixedStiefel <: Optim.Manifold
+    J::Matrix{Float64}
+    _XG::Matrix{Float64}
+    _Γ::Matrix{Float64}
+    _ΓA::Matrix{Float64}
+    _ΓAΓ::Matrix{Float64}
+end
+
+"""
+    GaugeFixedStiefel(J::Matrix{Float64})
+
+Construct a `GaugeFixedStiefel` manifold from the symplectic matrix `J`.
+All scratch buffers are allocated automatically.
+"""
+function GaugeFixedStiefel(J::Matrix{Float64})
+    GaugeFixedStiefel(J, similar(J), similar(J), similar(J), similar(J))
+end
+
+"""
+    Optim.retract!(m::GaugeFixedStiefel, X3d::AbstractArray{<:Real, 3})
+
+CholQR retraction applied slice-wise to the 3D array of per-site X matrices
+(product Stiefel manifold): each `X3d[:,:,s]` is projected back onto the Stiefel
+manifold independently via Cholesky-based orthogonalization. Faster than SVD
+retraction (~18× for 20×20 matrices) and numerically stable for the small steps
+typical of L-BFGS line searches.
+"""
+function Optim.retract!(m::GaugeFixedStiefel, X3d::AbstractArray{<:Real, 3})
+    for s in axes(X3d, 3)
+        X_vec = @view X3d[:, :, s]
+        overlap = X_vec'X_vec + I * 1e-15 # add small regularization for numerical stability
+        X_vec .= X_vec / cholesky(overlap).U
+    end
+    return X3d
+end
+
+"""
+    Optim.project_tangent!(m::GaugeFixedStiefel, G3d::AbstractArray{<:Real, 3}, X3d::AbstractArray{<:Real, 3})
+
+Project the ambient gradient/direction onto the tangent space of the Stiefel
+manifold, then further project out gauge (centralizer) directions — applied
+slice-wise to the 3D arrays of per-site gradient/direction and position matrices.
+
+Steps (per site):
+1. Stiefel projection: G ← G - X · sym(XᵀG)
+2. Extract Lie-algebra element: A = XᵀG (guaranteed skew-symmetric)
+3. Compute covariance matrix: Γ = XᵀJX
+4. Gauge projection: A_phys = (A + ΓAΓ)/2
+5. Reconstruct: G ← X · A_phys
+
+Note: the scratch buffers of `m` are reused across sites, so the loop must stay
+sequential (Optim calls this single-threaded).
+"""
+function Optim.project_tangent!(m::GaugeFixedStiefel, G3d::AbstractArray{<:Real, 3}, X3d::AbstractArray{<:Real, 3})
+    for s in axes(X3d, 3)
+        G = @view G3d[:, :, s]
+        X = @view X3d[:, :, s]
+
+        # Step 1: Stiefel tangent projection
+        # G_tangent = G - X · sym(X'G), where sym(M) = (M + M')/2
+        mul!(m._XG, transpose(X), G)                    # _XG = X'G
+        @inbounds for j in axes(m._Γ, 2), i in axes(m._Γ, 1)
+            m._Γ[i,j] = (m._XG[i,j] + m._XG[j,i]) / 2   # _Γ = sym(X'G)
+        end
+        mul!(G, X, m._Γ, -1.0, 1.0)                     # G -= X · sym(X'G)
+
+        # Step 2: Extract Lie-algebra element A = X'G (skew-symmetric after step 1)
+        mul!(m._XG, transpose(X), G)                    # _XG = A
+
+        # Step 3: Compute covariance matrix Γ = X'JX
+        mul!(m._ΓA, m.J, X)                             # _ΓA = J·X (temp)
+        mul!(m._Γ, transpose(X), m._ΓA)                 # _Γ = X'JX = Γ
+
+        # Step 4: Gauge projection — keep only the physical component
+        # A_phys = (A + Γ·A·Γ) / 2
+        mul!(m._ΓA, m._Γ, m._XG)                        # _ΓA = Γ·A
+        mul!(m._ΓAΓ, m._ΓA, m._Γ)                       # _ΓAΓ = Γ·A·Γ
+        @. m._XG = (m._XG + m._ΓAΓ) / 2                 # _XG = A_phys
+
+        # Step 5: Reconstruct gradient in ambient space
+        mul!(G, X, m._XG)                               # G = X · A_phys
+    end
+    return G3d
+end
+
+"""
+    with_manifold(alg, manifold)
+
+Create a copy of the Optim algorithm `alg` with its `manifold` field replaced.
+Preserves all other algorithm settings (memory size, line search, etc.).
+"""
+function with_manifold(alg::Optim.LBFGS, manifold::Optim.Manifold)
+    Optim.LBFGS(alg.m, alg.alphaguess!, alg.linesearch!, alg.P, alg.precondprep!, manifold, alg.scaleinvH0)
+end
+function with_manifold(alg::Optim.BFGS, manifold::Optim.Manifold)
+    Optim.BFGS(alg.alphaguess!, alg.linesearch!, alg.initial_invH, alg.initial_stepnorm, manifold)
 end

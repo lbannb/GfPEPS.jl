@@ -127,92 +127,14 @@ end
 #     )
 # end
 
-"""
-    ξ(k::AbstractVector{<:Real}, params::Kitaev)
+# function exact_energy(params::Kitaev, bz::BrillouinZone2D)
+#     g_kitaev(k::AbstractVector{<:Real}; Jx::Real, Jy::Real, Jz::Real) = Jz + Jx * cis(k[1]) + Jy * cis(k[2])
 
-(Vortex free configuration)
+#     # Majorana band energy per unit cell: E_M(k) = 2 * |g(k)|
+#     E_uc = -mean(map(eachcol(bz.kvals)) do k
+#         2 * abs(g_kitaev(k; Jx=params.Jx, Jy=params.Jy, Jz=params.Jz))
+#     end)
 
-Returns:
-```
-    params.Jz - params.Jx* cos(k[1]) - params.Jy * cos(k[2])
-```
-"""
-ξ(k::AbstractVector{<:Real}, params::Kitaev) = 2 * (params.Jz - params.Jx * cos(k[1]) - params.Jy * cos(k[2]))
-
-"""
-    Δ(k::AbstractVector{<:Real}, params::Kitaev)
-
-(Vortex free configuration)
-
-Returns:
-```
-    2 * im* (params.Jx * sin(k[1]) + params.Jy * sin(k[2]))
-```
-"""
-Δ(k::AbstractVector{<:Real}, params::Kitaev) = 2im * (params.Jx * sin(k[1]) + params.Jy * sin(k[2]))
-
-function E(k::AbstractVector{<:Real}, params::Kitaev)
-    return sqrt(ξ(k, params)^2 + abs(Δ(k, params))^2)
-end
-
-function exact_energy(params::Kitaev, bz::BrillouinZone2D)
-    g_kitaev(k::AbstractVector{<:Real}; Jx::Real, Jy::Real, Jz::Real) = Jz + Jx * cis(k[1]) + Jy * cis(k[2])
-
-    # Majorana band energy per unit cell: E_M(k) = 2 * |g(k)|
-    E_uc = -mean(map(eachcol(bz.kvals)) do k
-        2 * abs(g_kitaev(k; Jx=params.Jx, Jy=params.Jy, Jz=params.Jz))
-    end)
-
-    # return per site (honeycomb has 2 sites per unit cell)
-    return E_uc / 2
-end
-
-"""
-    has_dirac_points(bz::BrillouinZone2D, t::Real, μ::Real, pairing_type::String, Δ_kwargs...)
-
-Checks if there are Dirac points (zero-energy modes) in the energy spectrum over the Brillouin zone `bz`.
-"""
-function has_dirac_points(bz::BrillouinZone2D, params::Kitaev)
-    dirac_point_found = false
-    for k in eachcol(bz.kvals)
-        if isapprox(E(k, params), 0.0; atol = 1e-6)
-            @warn ("Dirac point found at k = $k. This may lead to convergence issues during optimization.")
-            dirac_point_found = true
-        end
-    end
-    return dirac_point_found
-end
-
-"""
-The energy of a Gaussian fPEPS evaluated from 
-the fiducial state correlation matrix `G`.
-"""
-function energy_CM(Γ_fiducial::AbstractMatrix, bz::BrillouinZone2D, Nf::Int, params::Kitaev)
-    A, B, D = get_Γ_blocks(Γ_fiducial, Nf)
-
-    Nv = div(size(Γ_fiducial, 1) - 2 * Nf, 8)
-
-    return mean(
-        map(eachcol(bz.kvals)) do k
-            G_in = G_in_single_k(k, Nv)
-            Gf = A + B * inv(D + G_in) * transpose(B)
-
-            return real(0.5 * (ξ(k, params) * (1 - real(Gf[1, 2])) - imag(Δ(k, params)) * imag(Gf[1, 2])) - params.Jz)
-        end
-    )
-end
-
-"""
-The energy of a Gaussian fPEPS evaluated from 
-the fiducial state correlation matrix `G`.
-"""
-function energy_CM_k(Γ_fiducial::AbstractMatrix, k::AbstractVector{<:Real}, Nf::Int, params::Kitaev)
-    A,B,D = get_Γ_blocks(Γ_fiducial, Nf)
-
-    Nv = div(size(Γ_fiducial, 1) - 2 * Nf, 8)
-    G_in = G_in_single_k(k, Nv)
-    Gf = A + B * inv(D + G_in) * transpose(B)
-    
-    # return real((ξ(k, params) * (1 - real(Gf[1, 2])) - imag(Δ(k, params)) * imag(Gf[1, 2])) - params.Jz)
-    return real((ξ(k, params) * (1 - 2*real(Gf[1, 2])) - 2*imag(Δ(k, params)) * imag(Gf[1, 2])))
-end
+#     # return per site (honeycomb has 2 sites per unit cell)
+#     return E_uc / 2
+# end

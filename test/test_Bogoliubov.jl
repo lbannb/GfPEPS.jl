@@ -2,15 +2,18 @@ using Revise
 using Test
 using GfPEPS
 using LinearAlgebra
+using Random
+
+Random.seed!(8424841861) # for reproducibility
 
 # Create a parent Hamiltonian for a random CM state and test the properties of the Bogoliubov transformation that diagonalizes it. 
 # Also test the Bloch-Messiah decomposition of the Bogoliubov transformation.
-
 Nf = 2
-Nv = 2
-N = (Nf + 4*Nv)
-Γ,_ = GfPEPS.rand_CM(Nf, Nv)
-H = GfPEPS.get_parent_hamiltonian(Γ, Nf, Nv)
+Λ = 2
+lattice = InfiniteRectLattice(1,1;N_kx=6, N_ky=6, bc=(:PBC, :APBC))
+N = GfPEPS.get_number_of_modes(Nf, Λ, lattice)
+Γ,_ = GfPEPS.rand_CM(Nf, Λ)
+H = GfPEPS.get_parent_hamiltonian(Γ, Nf, Λ)
 _, M = GfPEPS.bogoliubov(H)
 
 @testset "Bogoliubov transformation" begin
