@@ -49,33 +49,24 @@ end
 =#
 
 """
-    gutzwiller_project(z::Float64, peps::InfinitePEPS; type="Hubbard")
+    gutzwiller_project(z::AbstractArray{<:Real}, peps::InfinitePEPS; type="Hubbard")
 
-Apply the Gutzwiller projection to a PEPS to every site in the unit cell.
-"""
-function gutzwiller_project(z::Float64, peps::InfinitePEPS; type="Hubbard")
-    P = gutzwiller_projector(z; type=type)
-    pepsGW = InfinitePEPS(collect(P * t for t in peps.A))
-    return PEPSKit.peps_normalize(pepsGW)
-end
-
-"""
-    gutzwiller_project(z::Matrix{Float64}, peps::InfinitePEPS)
-
-Apply different Gutzwiller projection to a (spin-1/2 / Nf=2) PEPS to the corresponding site in the unit cell determined by `z::Matrix{Float64}`.
+Apply the Gutzwiller projection to a (spin-1/2 / Nf=2) PEPS, with the fugacity of each site
+in the unit cell given by the corresponding entry of `z`.
 
 # Keyword Arguments
-- `z::Matrix{Float64}`: The matrix of fugacity factors to be applied to each site in the unit cell. Each element `z[r, c]` corresponds to the fugacity factor for the site at position `(r, c)` in the unit cell of the PEPS.
+- `z::AbstractArray{<:Real}`: The fugacity layout, same shape as the unit cell: `z[r, c]` is the fugacity of the site at position `(r, c)`. A single fugacity (`[z1]`) is applied to every site.
 - `peps::InfinitePEPS`: The input PEPS to which the Gutzwiller projection will be applied.
 
 """
-function gutzwiller_project(z::AbstractMatrix{<:Real}, peps::InfinitePEPS; type="Hubbard")
-    @assert size(z) == size(peps.A) "Size of fugacity matrix z must match the unit cell size of peps."
+function gutzwiller_project(z::AbstractArray{<:Real}, peps::InfinitePEPS; type="Hubbard")
+    @assert length(z) == 1 || size(z) == size(peps.A) "Size of fugacity layout z must match the unit cell size of peps (or be a single fugacity)."
+    zs = length(z) == 1 ? fill(only(z), size(peps.A)) : z
 
     # build a new PEPS rather than writing into peps.A: the projector maps the Hubbard
     # physical space to the tJ one, so the result does not fit back into the input array,
     # and mutating would compound the projection when called repeatedly from a solver.
-    pepsGW = InfinitePEPS(map((zi, A) -> gutzwiller_projector(Float64(zi); type=type) * A, z, peps.A))
+    pepsGW = InfinitePEPS(map((zi, A) -> gutzwiller_projector(Float64(zi); type=type) * A, zs, peps.A))
     return PEPSKit.peps_normalize(pepsGW)
 end
 
@@ -107,11 +98,11 @@ function solve_for_fugacity(
 
     # build initial environment
     z_init = isnothing(z_initial) ? 2δ_target/(1+δ_target) : z_initial
-    peps_projected = gutzwiller_project(z_init, peps)
+    peps_projected = gutzwiller_project([z_init], peps)
     env_init = _fugacity_env(peps_projected, χ_env_max; env_init=env_init)
 
     function mismatch(z)
-        peps_projected = gutzwiller_project(z, peps)
+        peps_projected = gutzwiller_project([z], peps)
         env_init = _fugacity_env(peps_projected, χ_env_max; env_init=env_init)
         δ_projected, _ = doping_pepsGW(peps_projected, env_init)
         return δ_target - δ_projected

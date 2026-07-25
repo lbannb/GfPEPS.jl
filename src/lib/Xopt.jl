@@ -101,7 +101,8 @@ function get_X_opt(
         @info "Target hole density δ = $(doping_kwargs.δ) will be enforced with tolerance $(doping_kwargs.density_tol)."
     end
 
-    if !isempty(N_kx_inits) && !isempty(N_ky_inits)
+    # more than one stage means the ladder starts below the target grid (only when X_init === nothing)
+    if length(N_kx_inits) > 1
        @info "Finding better initial guess for X by solving smaller system sizes..."
     end
 
