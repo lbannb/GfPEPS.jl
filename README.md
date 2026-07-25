@@ -16,7 +16,7 @@ This package enables the construction of these states in 2D systems, which can b
 <img width="1580" height="795" alt="general_workflow_GfPEPS" src="https://github.com/user-attachments/assets/6379ba1d-23fa-44fd-8bc0-a7ba7093fe6a" />
 </p>
 
-* Accelerating ground-state search algorithms by using the ground states of mean-field Hamiltonians as trial states $\ket{\Psi_\text{trial}}$
+* Accelerating ground-state search algorithms by using the ground states of mean-field Hamiltonians $\ket{\Psi_\text{trial}}$ as initial seeds for PEPS optimization
 * Comparing mean-field ansätze to study the underlying physics of strongly correlated quantum systems
 * Simulating models of free fermions in 2D systems
 
@@ -27,7 +27,7 @@ The implementation of this package is based on the construction schemes in the f
 * Mortier, Q., Schuch, N., Verstraete, F. & Haegeman, J. (2022) [Phys. Rev. Lett. 129, 206401](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.129.206401)
 * Yang, Q., Zhang, X.-Y., Liao, H.-J., Tu, H.-H. & Wang, L. (2023) [Phys. Rev. B 107, 125128](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.107.125128)
 
-## 🚀 Quick start
+## Quick start
 
 The single entry point is the `Gaussian_fPEPS` constructor: it optimizes the covariance
 matrix of the fiducial state for a given quadratic Hamiltonian and translates it into an
@@ -72,6 +72,3 @@ To enforce a target hole density, pass `DopingSettings`:
 ```julia
 Ψ = Gaussian_fPEPS(2, 2, lattice, H_BdG; doping_kwargs=DopingSettings(; δ=0.16, enforce_density=true))
 ```
-
-See `docs/larger_unit_cells.tex` for the construction scheme behind larger unit cells and
-the block-diagonalized Gaussian map used to make them fast.
