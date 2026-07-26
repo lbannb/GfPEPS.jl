@@ -78,27 +78,27 @@ To enforce a target hole density, pass `DopingSettings`:
 The Kitaev honeycomb model is a prominent example of an exactly solvable spin model in two dimensions.
 It describes spin-1/2 degrees of freedom located on the sites of a honeycomb lattice and hosts a QSL as its ground state, featuring topological order and fractionalized excitations. The fact that this model is exactly solvable makes it a perfect candidate to benchmark our `GfPEPS.jl` implementation.
 
-The groundstate admits an exact representation via Gutzwiller-projected parton wave functions and the best Gaussian fermionic projected-entangled pair states (GfPEPS) with fixed finite bond dimension is found within a few steps, much faster and accurate than via random initializations:
+The groundstate admits an exact representation via Gutzwiller-projected parton wave functions and the best GfPEPS with fixed finite bond dimension is found within a few steps, much faster and accurate than via random initializations:
 
+<img width="800" height="600" alt="compareStartStates_Kitaev" src="https://github.com/user-attachments/assets/56f0165e-ca4e-44b6-b153-5c01dd06b4d7" />
 
+_Note: This plot was generated using a 1 x 1 unit cell, using Λ=2, χ_E=48 and N_k=96 k-points in both directions._
 
-
-The phase diagram from the optimized CM of the local fiducial states can be determined using the quasiparticle excitation energies from
-$$
-    \langle H \rangle = \frac{1}{2} \sum_\bold{k} E_\bold k - J_z N,
-$$
-where $E_\bold k = \xi_\bold{k} \left( 1 - \text{Re} (G_\bold{k})_{1,2} \right) - \text{Im} (\Delta_\bold{k}) \text{Im}(G_\bold{k})_{1,2}$ is the quasiparticle excitation energy.
+The phase diagram from the optimized CM of the local fiducial states can be determined using the quasiparticle excitation energies $E_k$ from
+```math
+    \langle H \rangle = \frac{1}{2} \sum_\mathbf{k} E_\mathbf{k} - J_z N.
+```
 
 Overall, the characteristic features of the phase diagram are successfully reproduced.
 The gapless phase, which emerges when the triangle inequalities 
-$$
+```math
     |J_x| \leq |J_y| + |J_z|, \quad |J_y| \leq |J_x| + |J_z|, \quad |J_z| \leq |J_x| + |J_y|
-$$
-are satisfied, can clearly be identified by the dark red regions where $E_{\bold k} = 0$ for some $\bold k$.
-The effect of an insufficiently large Brillouin zone becomes apparent, as it does not contain the momentum values for which $E_{\bold k} = 0$. 
+```
+are satisfied, can clearly be identified by the dark red regions where $E_{\mathbf{k}} = 0$ for some $\mathbf{k}$.
+The effect of an insufficiently large Brillouin zone becomes apparent, as it does not contain the momentum values for which $E_{\mathbf{k}} = 0$. 
 This is reflected in the symmetric pattern of the brighter regions within the gapless phase. 
 Increasing the Brillouin zone, reduces this finite-size artifact. 
-The remaining outliers can likely be attributed either to insufficient convergence of the covariance matrix or to an insufficient satisfaction of $\det(D - G_{\bold k}^{(\omega)}) = 0$ for certain momentum values, coming from the random initialization of the covariance matrix.
+The remaining outliers can likely be attributed either to insufficient convergence of the covariance matrix or to an insufficient satisfaction of $\det(D - G_{\mathbf{k}}^{(\omega)}) = 0$ for certain momentum values, coming from the random initialization of the covariance matrix.
 
 
 ## $t-J$ model
@@ -106,3 +106,7 @@ The remaining outliers can likely be attributed either to insufficient convergen
 The construction can also be employed to the $t-J$ model at finite doping, which is of interest for explaining superconducting phenomena.
 Using a suitable mean-field ansatz as an initial state for the variational iPEPS significantly reduces the number of optimization steps required to match, and actually beat the energy of random initializations.
 The latter, indeed, easily gets stuck in local minima, while seeding the simulation with a parton-GfPEPS seems to allow the system to escape such traps and to converge to a lower-energy ground state. Moreover, the comparison between different seeds immediately hints at the most probable underlying symmetry of the state, without the need for expensive analysis.
+
+<img width="800" height="600" alt="compareStartStates_tJ" src="https://github.com/user-attachments/assets/3c57332c-da77-4020-9486-531fe9af526f" />
+
+_Note: This plot was generated using a 5 x 2 unit cell at a doping level per unit cell of δ=0.20, using Λ=2, χ_E=40 and N_k=96 k-points in both directions. The d+s-wave ansatz were initialized with different doping layouts but same mean doping level per unit cell._
