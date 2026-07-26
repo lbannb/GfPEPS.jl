@@ -72,3 +72,37 @@ To enforce a target hole density, pass `DopingSettings`:
 ```julia
 Ψ = Gaussian_fPEPS(2, 2, lattice, H_BdG; doping_kwargs=DopingSettings(; δ=0.16, enforce_density=true))
 ```
+
+## Example - Kitaev Honeycomb model
+
+The Kitaev honeycomb model is a prominent example of an exactly solvable spin model in two dimensions.
+It describes spin-1/2 degrees of freedom located on the sites of a honeycomb lattice and hosts a QSL as its ground state, featuring topological order and fractionalized excitations. The fact that this model is exactly solvable makes it a perfect candidate to benchmark our `GfPEPS.jl` implementation.
+
+The groundstate admits an exact representation via Gutzwiller-projected parton wave functions and the best Gaussian fermionic projected-entangled pair states (GfPEPS) with fixed finite bond dimension is found within a few steps, much faster and accurate than via random initializations:
+
+
+
+
+The phase diagram from the optimized CM of the local fiducial states can be determined using the quasiparticle excitation energies from
+$$
+    \langle H \rangle = \frac{1}{2} \sum_\bold{k} E_\bold k - J_z N,
+$$
+where $E_\bold k = \xi_\bold{k} \left( 1 - \text{Re} (G_\bold{k})_{1,2} \right) - \text{Im} (\Delta_\bold{k}) \text{Im}(G_\bold{k})_{1,2}$ is the quasiparticle excitation energy.
+
+Overall, the characteristic features of the phase diagram are successfully reproduced.
+The gapless phase, which emerges when the triangle inequalities 
+$$
+    |J_x| \leq |J_y| + |J_z|, \quad |J_y| \leq |J_x| + |J_z|, \quad |J_z| \leq |J_x| + |J_y|
+$$
+are satisfied, can clearly be identified by the dark red regions where $E_{\bold k} = 0$ for some $\bold k$.
+The effect of an insufficiently large Brillouin zone becomes apparent, as it does not contain the momentum values for which $E_{\bold k} = 0$. 
+This is reflected in the symmetric pattern of the brighter regions within the gapless phase. 
+Increasing the Brillouin zone, reduces this finite-size artifact. 
+The remaining outliers can likely be attributed either to insufficient convergence of the covariance matrix or to an insufficient satisfaction of $\det(D - G_{\bold k}^{(\omega)}) = 0$ for certain momentum values, coming from the random initialization of the covariance matrix.
+
+
+## $t-J$ model
+
+The construction can also be employed to the $t-J$ model at finite doping, which is of interest for explaining superconducting phenomena.
+Using a suitable mean-field ansatz as an initial state for the variational iPEPS significantly reduces the number of optimization steps required to match, and actually beat the energy of random initializations.
+The latter, indeed, easily gets stuck in local minima, while seeding the simulation with a parton-GfPEPS seems to allow the system to escape such traps and to converge to a lower-energy ground state. Moreover, the comparison between different seeds immediately hints at the most probable underlying symmetry of the state, without the need for expensive analysis.
