@@ -8,6 +8,12 @@ This approach enables the formulation of mean-field ansätze that are highly non
 The ground- and thermal states of such mean-field Hamiltonians $H_\text{MF}$ (fermionic quadratic Hamiltonians) are known as fermionic Gaussian states.
 These states can be completely described by their covariance matrix allowing for a very efficient implementation.
 
+## Getting started
+
+```julia
+using Pkg; Pkg.add("GfPEPS")
+```
+
 ## When to use GfPEPS.jl
 
 This package enables the construction of these states in 2D systems, which can be used in the following ways:
