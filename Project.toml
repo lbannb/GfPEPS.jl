@@ -1,6 +1,6 @@
 name = "GfPEPS"
 uuid = "7e6252e7-9b54-41b9-ba34-49133c8d2380"
-authors = ["Lukas Reich <lukasreich@online.de>"]
+authors = ["Lukas Bannenberg <lukasbannenberg@gmail.com>"]
 version = "0.1.0"
 
 [deps]
@@ -19,7 +19,6 @@ NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 PEPSKit = "52969e89-939e-4361-9b68-9bc7cde4bdeb"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 SkewLinearAlgebra = "5c889d49-8c60-4500-9d10-5d3a22e2f4b9"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
@@ -28,5 +27,37 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TensorKit = "07d1fe3e-3e46-537d-9eac-e9e13d0d4cec"
 TensorKitTensors = "41b62e7d-e9d1-4e23-942c-79a97adf954b"
 TensorOperations = "6aa20fa7-93e2-5fca-9bc0-fbd0db3c71a2"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
+[compat]
+BlockDiagonals = "0.2"
+ChainRulesCore = "1.26"
+JLD2 = "0.6"
+JSON = "1.6"
+Kronecker = "0.5"
+LineSearches = "7.5"
+LinearAlgebra = "1"
+MKL = "0.9"
+MPSKit = "0.13"
+MPSKitModels = "0.4"
+MatrixFactorizations = "3.1"
+NLsolve = "4.5"
+Optim = "1.13"
+PEPSKit = "0.8"
+Random = "1"
+Roots = "3.0"
+SkewLinearAlgebra = "1.1"
+SparseArrays = "1"
+SpecialMatrices = "3.1"
+Statistics = "1"
+TensorKit = "0.16"
+TensorKitTensors = "0.2"
+TensorOperations = "5.6"
+Zygote = "0.7"
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

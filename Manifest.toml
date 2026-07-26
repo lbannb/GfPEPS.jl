@@ -2,7 +2,7 @@
 
 julia_version = "1.10.11"
 manifest_format = "2.0"
-project_hash = "2fcc1028b9ffcbc5277a770b7625471b9ee3cab2"
+project_hash = "f22471183a5077f3c9177202463ed52631a68d22"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "ec6be48a85c93d995563b84bff8a86bc98df45ce"
@@ -24,11 +24,14 @@ deps = ["LinearAlgebra"]
 git-tree-sha1 = "d92ad398961a3ed262d8bf04a1a2b8340f915fef"
 uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
 version = "1.5.0"
-weakdeps = ["ChainRulesCore", "Test"]
 
     [deps.AbstractFFTs.extensions]
     AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
     AbstractFFTsTestExt = "Test"
+
+    [deps.AbstractFFTs.weakdeps]
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.Accessors]]
 deps = ["CompositionsBase", "ConstructionBase", "Dates", "InverseFunctions", "MacroTools"]
@@ -189,9 +192,6 @@ version = "0.3.13"
     Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
     GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 
-[[deps.CRC32c]]
-uuid = "8bf52ea8-c179-5cab-976a-9e18b702a9bc"
-
 [[deps.ChainRules]]
 deps = ["Adapt", "ChainRulesCore", "Compat", "Distributed", "GPUArraysCore", "IrrationalConstants", "LinearAlgebra", "Random", "RealDot", "SparseArrays", "SparseInverseSubset", "Statistics", "StructArrays", "SuiteSparse"]
 git-tree-sha1 = "3c190c570fb3108c09f838607386d10c71701789"
@@ -230,12 +230,6 @@ git-tree-sha1 = "1c52c8e2673edc030191177ff1aee42d25149acb"
 uuid = "ae650224-84b6-46f8-82ea-d812ca08434e"
 version = "3.2.0"
 
-[[deps.CodeTracking]]
-deps = ["InteractiveUtils", "REPL", "UUIDs"]
-git-tree-sha1 = "cfb7a2e89e245a9d5016b70323db412b3a7438d5"
-uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
-version = "3.0.2"
-
 [[deps.CommonSolve]]
 git-tree-sha1 = "eeaad7cef88554c2fa56b5a3f71cfd5cb708c662"
 uuid = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
@@ -256,11 +250,6 @@ weakdeps = ["Dates", "LinearAlgebra"]
 
     [deps.Compat.extensions]
     CompatLinearAlgebraExt = "LinearAlgebra"
-
-[[deps.Compiler]]
-git-tree-sha1 = "382d79bfe72a406294faca39ef0c3cef6e6ce1f1"
-uuid = "807dbc54-b67e-4c79-8afb-eafe4df6f2e1"
-version = "0.1.1"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -534,11 +523,14 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 git-tree-sha1 = "a779299d77cd080bf77b97535acecd73e1c5e5cb"
 uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
 version = "0.1.17"
-weakdeps = ["Dates", "Test"]
 
     [deps.InverseFunctions.extensions]
     InverseFunctionsDatesExt = "Dates"
     InverseFunctionsTestExt = "Test"
+
+    [deps.InverseFunctions.weakdeps]
+    Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+    Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "b2d91fe939cae05960e760110b328288867b5758"
@@ -579,12 +571,6 @@ version = "1.6.1"
 
     [deps.JSON.weakdeps]
     ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
-
-[[deps.JuliaInterpreter]]
-deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
-git-tree-sha1 = "c3d401f110454b4ea24a76be33f6ee0d7d385103"
-uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
-version = "0.11.4"
 
 [[deps.Kronecker]]
 deps = ["LinearAlgebra", "NamedDims", "SparseArrays", "StatsBase"]
@@ -676,12 +662,6 @@ deps = ["Dates", "Logging"]
 git-tree-sha1 = "c1dd6d7978c12545b4179fb6153b9250c96b0075"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
 version = "1.0.3"
-
-[[deps.LoweredCodeUtils]]
-deps = ["CodeTracking", "Compiler", "JuliaInterpreter"]
-git-tree-sha1 = "1d4c737ab26f51ceed52ab2019c09b7660eb7440"
-uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "3.8.0"
 
 [[deps.MKL]]
 deps = ["Artifacts", "Libdl", "LinearAlgebra", "Logging", "MKL_jll"]
@@ -981,16 +961,6 @@ deps = ["UUIDs"]
 git-tree-sha1 = "62389eeff14780bfe55195b7204c0d8738436d64"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.1"
-
-[[deps.Revise]]
-deps = ["CRC32c", "CodeTracking", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "Preferences", "REPL", "UUIDs"]
-git-tree-sha1 = "6098400ed73008c45f5f47b35ae114475436ad37"
-uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
-version = "3.16.2"
-weakdeps = ["Distributed"]
-
-    [deps.Revise.extensions]
-    DistributedExt = "Distributed"
 
 [[deps.Richardson]]
 deps = ["LinearAlgebra"]
@@ -1295,10 +1265,6 @@ version = "5.6.2"
     JLArrays = "27aeb0d3-9eb9-45fb-866b-73c2ecf80fcb"
     Mooncake = "da2b9cff-9c12-43a0-ae48-6db2b0edb7d6"
     cuTENSOR = "011b41b2-24ef-40a8-b3eb-fa098493e9e1"
-
-[[deps.Test]]
-deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
-uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.TupleTools]]
 git-tree-sha1 = "41e43b9dc950775eac654b9f845c839cd2f1821e"

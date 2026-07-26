@@ -5,7 +5,6 @@
     It tests if the translation routine from a CM to a GfPEPS works correctly.
 =#
 
-using Revise
 using Test
 using GfPEPS
 using TensorKit
