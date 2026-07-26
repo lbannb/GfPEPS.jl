@@ -101,7 +101,7 @@ Increasing the Brillouin zone, reduces this finite-size artifact.
 The remaining outliers can likely be attributed either to insufficient convergence of the covariance matrix or to an insufficient satisfaction of $\det(D - G_{\mathbf{k}}^{(\omega)}) = 0$ for certain momentum values, coming from the random initialization of the covariance matrix.
 
 
-## $t-J$ model
+## Example - $t-J$ model
 
 The construction can also be employed to the $t-J$ model at finite doping, which is of interest for explaining superconducting phenomena.
 Using a suitable mean-field ansatz as an initial state for the variational iPEPS significantly reduces the number of optimization steps required to match, and actually beat the energy of random initializations.
